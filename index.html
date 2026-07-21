@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nagmeena — Billing &amp; Sales Book</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root{
+    --teal:#1F4A3D;
+    --teal-light:#E7EEEB;
+    --teal-soft:#F2F6F4;
+    --gold:#C79A3B;
+    --gold-soft:#F6ECD6;
+    --grey:#6B7280;
+    --ink:#2B2B2E;
+    --paper:#FAF9F6;
+    --card:#FFFFFF;
+    --line:#E5E1D8;
+    --line-strong:#CFC8B8;
+    --brick:#A23B2E;
+    --brick-soft:#F3E0DB;
+    --green:#3C6E4A;
+    --radius:10px;
+    --shadow:0 1px 2px rgba(43,43,46,0.05), 0 8px 24px -14px rgba(43,43,46,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{ background:var(--paper); color:var(--ink); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; }
+  ::selection{ background:var(--gold-soft); }
+  button{ cursor:pointer; font-family:inherit; }
+  input,select{ font-family:inherit; }
+  :focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+
+  header.top{ background:var(--card); border-bottom:1px solid var(--line); padding:16px 24px; }
+  .brandrow{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; max-width:1200px; margin:0 auto; }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand img{ height:52px; width:52px; object-fit:contain; }
+  .brand .wordmark{ font-family:'Cormorant Garamond',serif; font-weight:600; font-size:26px; letter-spacing:2px; color:var(--grey); }
+  .brand .tagline{ font-size:11px; color:var(--grey); letter-spacing:0.5px; margin-top:-2px; }
+  .headright{ display:flex; align-items:center; gap:10px; }
+  .drive-status{ font-size:12px; color:var(--grey); display:flex; align-items:center; gap:6px; }
+  .dot{ width:8px; height:8px; border-radius:50%; background:#C9C3B4; }
+  .dot.on{ background:var(--green); }
+  .icon-btn{ background:transparent; border:1px solid var(--line-strong); border-radius:7px; padding:8px 12px; font-size:13px; color:var(--ink); }
+  .icon-btn:hover{ background:var(--teal-soft); }
+
+  nav.tabs{ max-width:1200px; margin:14px auto 0 auto; display:flex; gap:4px; padding:0 24px; }
+  nav.tabs button{ background:transparent; border:none; color:var(--grey); padding:10px 16px; font-size:14px; font-weight:600; border-bottom:2px solid transparent; }
+  nav.tabs button.active{ color:var(--teal); border-bottom:2px solid var(--gold); }
+
+  main{ max-width:1200px; margin:0 auto; padding:24px; }
+  .panel{ display:none; }
+  .panel.active{ display:block; }
+
+  .grid-2{ display:grid; grid-template-columns:1.3fr 1fr; gap:20px; align-items:start; }
+  @media (max-width:860px){ .grid-2{ grid-template-columns:1fr; } }
+
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px 22px; }
+  .card + .card{ margin-top:16px; }
+  .card h2{ font-family:'Cormorant Garamond',serif; font-weight:700; font-size:19px; margin:0 0 4px 0; color:var(--teal); }
+  .card .sub{ color:var(--grey); font-size:12.5px; margin:0 0 14px 0; }
+
+  label{ display:block; font-size:11px; font-weight:600; color:var(--grey); margin-bottom:5px; text-transform:uppercase; letter-spacing:0.4px; }
+  input[type=text], input[type=number], input[type=tel], select{
+    width:100%; padding:9px 10px; border:1px solid var(--line-strong); border-radius:7px; font-size:14px; background:#FBFAF7; color:var(--ink);
+  }
+  input:focus, select:focus{ background:#fff; }
+  .field{ margin-bottom:12px; }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; }
+  .row > .field{ flex:1; min-width:130px; }
+
+  .btn{ display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:10px 16px; border-radius:7px; border:1px solid transparent; font-size:14px; font-weight:600; }
+  .btn-primary{ background:var(--teal); color:#fff; }
+  .btn-primary:hover{ background:#173a30; }
+  .btn-gold{ background:var(--gold); color:#fff; }
+  .btn-gold:hover{ background:#af8730; }
+  .btn-ghost{ background:transparent; border:1px solid var(--line-strong); color:var(--ink); }
+  .btn-ghost:hover{ background:var(--teal-soft); }
+  .btn-danger{ background:transparent; border:1px solid var(--brick); color:var(--brick); }
+  .btn-danger:hover{ background:var(--brick-soft); }
+  .btn-sm{ padding:6px 10px; font-size:12px; border-radius:6px; }
+  .btn[disabled]{ opacity:.45; cursor:not-allowed; }
+
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  th{ text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:0.4px; color:var(--grey); border-bottom:1px solid var(--line-strong); padding:8px; }
+  td{ padding:9px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:last-child td{ border-bottom:none; }
+  .num{ font-family:'IBM Plex Mono',monospace; text-align:right; white-space:nowrap; }
+  .mono{ font-family:'IBM Plex Mono',monospace; }
+  .empty-row td{ color:var(--grey); font-style:italic; text-align:center; padding:20px 8px; }
+  .breakdown{ font-size:11px; color:var(--grey); margin-top:2px; }
+
+  .totals{ margin-top:12px; padding-top:12px; border-top:1px dashed var(--line-strong); }
+  .totals .line{ display:flex; justify-content:space-between; font-size:14px; padding:3px 0; color:var(--grey); }
+  .totals .line.grand{ color:var(--teal); font-weight:700; font-size:17px; font-family:'Cormorant Garamond',serif; padding-top:6px; }
+
+  .receipt{ background:#fff; border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
+  .receipt-inner{ padding:20px 22px; }
+  .receipt .rhead{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .receipt .rhead img{ height:34px; width:34px; object-fit:contain; }
+  .receipt h3{ font-family:'Cormorant Garamond',serif; font-size:19px; letter-spacing:1.5px; color:var(--grey); margin:0; }
+  .receipt .meta{ font-size:12px; color:var(--grey); margin-bottom:12px; }
+  .receipt .meta div{ display:flex; justify-content:space-between; }
+  .receipt table{ font-size:12.5px; }
+  .receipt th{ padding:6px 4px; }
+  .receipt td{ padding:7px 4px; }
+  .receipt .foot{ text-align:center; color:var(--grey); font-size:11px; margin-top:14px; }
+
+  .summary-cards{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:16px; }
+  @media (max-width:760px){ .summary-cards{ grid-template-columns:repeat(2,1fr); } }
+  .stat{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:15px 17px; box-shadow:var(--shadow); }
+  .stat .label{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.4px; color:var(--grey); margin-bottom:6px; }
+  .stat .value{ font-family:'Cormorant Garamond',serif; font-size:23px; font-weight:700; color:var(--teal); }
+  .stat.profit .value{ color:var(--green); }
+  .stat.cost .value{ color:var(--brick); }
+
+  .toolbar{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
+  .toolbar .title{ font-family:'Cormorant Garamond',serif; font-size:19px; font-weight:700; color:var(--teal); }
+  .toolbar .actions{ display:flex; gap:8px; flex-wrap:wrap; }
+
+  .toast{ position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--teal); color:#fff; padding:11px 18px; border-radius:8px; font-size:13.5px; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:all .25s ease; z-index:50; }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .codebuilder{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:6px; }
+  @media (max-width:700px){ .codebuilder{ grid-template-columns:repeat(2,1fr); } }
+  .sub-hint{ font-size:11px; color:var(--grey); min-height:14px; margin-top:-6px; }
+  .codepreview{ background:var(--teal-soft); border:1px solid var(--teal-light); border-radius:8px; padding:12px 14px; margin:12px 0 16px 0; }
+  .codepreview .code{ font-family:'IBM Plex Mono',monospace; font-size:18px; font-weight:600; color:var(--teal); letter-spacing:1px; }
+  .codepreview .decode{ font-size:11.5px; color:var(--grey); margin-top:4px; }
+
+  .inline-add{ display:none; gap:8px; margin-top:6px; padding:10px; background:var(--gold-soft); border-radius:7px; }
+  .inline-add.show{ display:flex; flex-wrap:wrap; }
+  .inline-add input{ flex:1; min-width:100px; }
+
+  .settings-panel{ display:none; position:fixed; top:70px; right:24px; width:340px; max-width:90vw; background:#fff; border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px; z-index:60; }
+  .settings-panel.show{ display:block; }
+  .settings-panel h3{ font-family:'Cormorant Garamond',serif; font-size:17px; margin:0 0 4px 0; color:var(--teal); }
+  .settings-panel p.help{ font-size:11.5px; color:var(--grey); margin:0 0 10px 0; line-height:1.5; }
+  .settings-panel .field{ margin-bottom:10px; }
+
+  footer.hint{ text-align:center; color:var(--grey); font-size:12px; padding:10px 24px 30px; max-width:1200px; margin:0 auto; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brandrow">
+    <div class="brand">
+      <img src="nagmeena-logo.png" alt="Nagmeena" onerror="this.style.display='none'">
+      <div>
+        <div class="wordmark">NAGMEENA</div>
+        <div class="tagline">BILLING &amp; SALES BOOK</div>
+      </div>
+    </div>
+    <div class="headright">
+      <div class="drive-status"><span class="dot" id="driveDot"></span><span id="driveStatusText">Drive not connected</span></div>
+      <button class="icon-btn" id="settingsBtn">⚙ Settings</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="billing">New Bill</button>
+    <button class="tab-btn" data-tab="products">Product Catalog</button>
+    <button class="tab-btn" data-tab="history">Sales Book</button>
+  </nav>
+</header>
+
+<div class="settings-panel" id="settingsPanel">
+  <h3>Google Drive Sync</h3>
+  <p class="help">One-time setup: create a free OAuth Client ID in Google Cloud Console (APIs &amp; Services → Credentials → OAuth client ID → "Web application"), enable the Google Drive API, add this page's URL under Authorized JavaScript origins, then paste the Client ID below.</p>
+  <div class="field">
+    <label for="clientIdInput">Google OAuth Client ID</label>
+    <input type="text" id="clientIdInput" placeholder="xxxxxxxx.apps.googleusercontent.com">
+  </div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <button class="btn btn-primary btn-sm" id="connectDriveBtn">Connect Google Drive</button>
+    <button class="btn btn-ghost btn-sm" id="syncNowBtn">Sync Now</button>
+    <button class="btn btn-danger btn-sm" id="disconnectDriveBtn">Disconnect</button>
+  </div>
+  <p class="help" id="lastSyncText" style="margin-top:10px;">Not synced yet.</p>
+</div>
+
+<main>
+
+  <!-- ================= BILLING ================= -->
+  <section id="panel-billing" class="panel active">
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <h2>Customer</h2>
+          <div class="row">
+            <div class="field"><label for="custName">Customer Name</label><input type="text" id="custName" placeholder="e.g. Ramesh Kumar"></div>
+            <div class="field"><label for="custNumber">Customer Number</label><input type="tel" id="custNumber" placeholder="e.g. 9876543210"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Add Item</h2>
+          <p class="sub">Type a product code from your catalog — description and price fill in automatically.</p>
+          <div class="row">
+            <div class="field" style="flex:0.9;"><label for="itemCode">Product Code</label><input type="text" id="itemCode" class="mono" placeholder="14-character code"></div>
+            <div class="field" style="flex:1.6;"><label for="itemName">Description</label><input type="text" id="itemName" disabled placeholder="—"></div>
+            <div class="field" style="flex:0.5;"><label for="itemQty">Qty</label><input type="number" id="itemQty" min="1" value="1"></div>
+          </div>
+          <div class="lookup-hint" id="lookupHint" style="font-size:12px; margin-top:-6px; margin-bottom:10px;"></div>
+          <button class="btn btn-primary" id="addToCartBtn">Add to Bill</button>
+        </div>
+
+        <div class="card">
+          <h2>Items in this Bill</h2>
+          <table>
+            <thead><tr><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Amount</th><th></th></tr></thead>
+            <tbody id="cartBody"><tr class="empty-row"><td colspan="6">No items added yet</td></tr></tbody>
+          </table>
+          <div class="totals">
+            <div class="line"><span>Items</span><span id="cartCount">0</span></div>
+            <div class="line grand"><span>Total</span><span id="cartTotal">₹0.00</span></div>
+          </div>
+          <div style="margin-top:16px; display:flex; gap:10px;">
+            <button class="btn btn-gold" id="generateBillBtn">Generate Bill (PDF) &amp; Save</button>
+            <button class="btn btn-ghost" id="clearCartBtn">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="receipt">
+        <div class="receipt-inner">
+          <div class="rhead"><img src="nagmeena-logo.png" onerror="this.style.display='none'"><h3>NAGMEENA</h3></div>
+          <div class="meta">
+            <div><span>Invoice</span><span id="rvInvoice" class="mono">Preview</span></div>
+            <div><span>Date</span><span id="rvDate" class="mono">—</span></div>
+            <div><span>Bill To</span><span id="rvCustomer">—</span></div>
+          </div>
+          <table>
+            <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Amt</th></tr></thead>
+            <tbody id="rvBody"><tr class="empty-row"><td colspan="3">Cart is empty</td></tr></tbody>
+          </table>
+          <div class="totals"><div class="line grand"><span>Total</span><span id="rvTotal">₹0.00</span></div></div>
+          <div class="foot">Thank you for shopping with Nagmeena</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PRODUCTS ================= -->
+  <section id="panel-products" class="panel">
+    <div class="grid-2">
+      <div class="card">
+        <h2 id="productFormTitle">Add Product</h2>
+        <p class="sub">Build the product code from its subsections, then set the description and prices.</p>
+
+        <div class="codebuilder" id="codeBuilder"><!-- dropdowns injected by JS --></div>
+
+        <div class="codepreview">
+          <div class="code" id="codePreview">— — — — — — —</div>
+          <div class="decode" id="codeDecode">Select each subsection above</div>
+        </div>
+
+        <div class="field"><label for="pDesc">Product Description</label><input type="text" id="pDesc" placeholder="e.g. Cotton Cutdana Floral Suit"></div>
+        <div class="row">
+          <div class="field"><label for="pCost">Cost Price (₹)</label><input type="number" id="pCost" min="0" step="0.01" placeholder="0.00"></div>
+          <div class="field"><label for="pPrice">Expected Selling Price (₹)</label><input type="number" id="pPrice" min="0" step="0.01" placeholder="0.00"></div>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-primary" id="saveProductBtn">Save Product</button>
+          <button class="btn btn-ghost" id="cancelEditBtn" style="display:none;">Cancel Edit</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:0;">
+        <h2>Catalog</h2>
+        <table>
+          <thead><tr><th>Code</th><th>Description</th><th class="num">Cost</th><th class="num">Price</th><th class="num">Margin</th><th></th></tr></thead>
+          <tbody id="productBody"><tr class="empty-row"><td colspan="6">No products yet</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= HISTORY ================= -->
+  <section id="panel-history" class="panel">
+    <div class="summary-cards">
+      <div class="stat"><div class="label">Bills Raised</div><div class="value" id="statBills">0</div></div>
+      <div class="stat"><div class="label">Revenue</div><div class="value" id="statRevenue">₹0.00</div></div>
+      <div class="stat cost"><div class="label">Cost of Goods</div><div class="value" id="statCost">₹0.00</div></div>
+      <div class="stat profit"><div class="label">Total Profit</div><div class="value" id="statProfit">₹0.00</div></div>
+    </div>
+    <div class="card" style="margin-top:0;">
+      <div class="toolbar">
+        <div class="title">Sales Book</div>
+        <div class="actions">
+          <button class="btn btn-gold btn-sm" id="exportExcelBtn">Export .xlsx</button>
+          <button class="btn btn-danger btn-sm" id="clearHistoryBtn">Clear All Records</button>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Number</th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">Price</th><th class="num">Revenue</th><th class="num">Profit</th><th></th></tr></thead>
+        <tbody id="historyBody"><tr class="empty-row"><td colspan="12">No sales recorded yet</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<footer class="hint">Data is stored in this browser and synced to your own Google Drive when connected. Export .xlsx regularly as a backup.</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------------- Storage keys ---------------- */
+const LS_PRODUCTS='ledger_products', LS_SALES='ledger_sales', LS_SEQ='ledger_invoice_seq', LS_CATS='ledger_categories', LS_CLIENTID='ledger_drive_client_id', LS_SYNCED='ledger_last_sync';
+
+function load(key,fallback){ try{ return JSON.parse(localStorage.getItem(key)) ?? fallback; }catch(e){ return fallback; } }
+function save(key,val){ localStorage.setItem(key, JSON.stringify(val)); }
+
+let products = load(LS_PRODUCTS, []);
+let sales = load(LS_SALES, []);
+let cart = [];
+let editingCode = null;
+
+/* ---------------- Category definitions (editable, custom entries persist) ---------------- */
+const defaultCats = {
+  series:{label:'Series', hasMnemonic:false, items:[
+    {desc:'Series 1', code:'01'},{desc:'Series 2', code:'02'},{desc:'Series 3', code:'03'}]},
+  fabric:{label:'Fabric', hasMnemonic:true, items:[
+    {desc:'Cotton', mnemonic:'CTN', code:'01'},{desc:'Rayon', mnemonic:'RYN', code:'02'},
+    {desc:'Linen Blend', mnemonic:'LNB', code:'03'},{desc:'Chanderi', mnemonic:'CDN', code:'04'},
+    {desc:'Georgette', mnemonic:'GEO', code:'05'}]},
+  work:{label:'Work', hasMnemonic:true, items:[
+    {desc:'Cutdana', mnemonic:'CTD', code:'01'},{desc:'Gotapatti', mnemonic:'GTP', code:'02'},
+    {desc:'Sequence', mnemonic:'SQN', code:'03'},{desc:'Thread Work', mnemonic:'THD', code:'04'}]},
+  print:{label:'Print', hasMnemonic:true, items:[
+    {desc:'Plain', mnemonic:'PLN', code:'01'},{desc:'Floral', mnemonic:'FRL', code:'02'}]},
+  colour:{label:'Colour', hasMnemonic:true, items:[
+    {desc:'Beige', mnemonic:'BEG', code:'01'},{desc:'Blue', mnemonic:'BLU', code:'02'},
+    {desc:'Pink', mnemonic:'PNK', code:'03'},{desc:'Red', mnemonic:'RED', code:'04'}]},
+  style:{label:'Style', hasMnemonic:true, items:[
+    {desc:'Daily Wear', mnemonic:'DW', code:'01'},{desc:'Premium', mnemonic:'PRM', code:'02'},
+    {desc:'Festive', mnemonic:'FST', code:'03'}]}
+};
+let cats = load(LS_CATS, defaultCats);
+const CAT_KEYS = ['series','fabric','work','print','colour','style'];
+const selected = {}; // current builder selection per category
+
+function nextCode(list){
+  const max = list.reduce((m,i)=>Math.max(m, parseInt(i.code,36)||0), 0);
+  return String(max+1).padStart(2,'0');
+}
+function serialCode(n){
+  n = parseInt(n,10);
+  if(!n || n<1) return '';
+  if(n<=9) return '0'+n;
+  const dec = Math.floor(n/10), unit = n%10;
+  return String(unit) + String.fromCharCode(64+dec);
+}
+
+/* ---------------- Build the category dropdowns ---------------- */
+const builder = document.getElementById('codeBuilder');
+CAT_KEYS.forEach(key=>{
+  const cat = cats[key];
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `
+    <label>${cat.label}</label>
+    <select id="sel_${key}"></select>
+    <div class="sub-hint" id="hint_${key}"></div>
+    <div class="inline-add" id="add_${key}">
+      <input type="text" id="newdesc_${key}" placeholder="New ${cat.label.toLowerCase()} description">
+      ${cat.hasMnemonic ? `<input type="text" id="newmnem_${key}" placeholder="Mnemonic (e.g. CTN)" maxlength="5">` : ''}
+      <button class="btn btn-gold btn-sm" onclick="addCustom('${key}')">Add</button>
+    </div>`;
+  builder.appendChild(wrap);
+  populateSelect(key);
+  document.getElementById(`sel_${key}`).addEventListener('change', ()=>onSelectChange(key));
+});
+
+// Serial number as its own control (7th subsection)
+const serialWrap = document.createElement('div');
+serialWrap.innerHTML = `
+  <label>Serial Number</label>
+  <input type="number" id="serialInput" min="1" placeholder="e.g. 5">
+  <div class="sub-hint" id="hint_serial"></div>`;
+builder.appendChild(serialWrap);
+document.getElementById('serialInput').addEventListener('input', ()=>{
+  const n = document.getElementById('serialInput').value;
+  const code = serialCode(n);
+  selected.serial = code ? {desc:'Piece #'+n, code} : null;
+  document.getElementById('hint_serial').textContent = code ? `Code: ${code}` : '';
+  updatePreview();
+});
+
+function populateSelect(key){
+  const sel = document.getElementById(`sel_${key}`);
+  const cat = cats[key];
+  sel.innerHTML = '<option value="">Select…</option>' +
+    cat.items.map((it,i)=>`<option value="${i}">${it.desc}${it.mnemonic?' ('+it.mnemonic+')':''}</option>`).join('') +
+    '<option value="__custom__">+ Add custom…</option>';
+}
+function onSelectChange(key){
+  const sel = document.getElementById(`sel_${key}`);
+  const addBox = document.getElementById(`add_${key}`);
+  const hint = document.getElementById(`hint_${key}`);
+  if(sel.value === '__custom__'){
+    addBox.classList.add('show');
+    selected[key] = null;
+    hint.textContent = '';
+  }else if(sel.value === ''){
+    addBox.classList.remove('show');
+    selected[key] = null;
+    hint.textContent = '';
+  }else{
+    addBox.classList.remove('show');
+    const item = cats[key].items[parseInt(sel.value,10)];
+    selected[key] = item;
+    hint.textContent = `${item.desc}${item.mnemonic ? ' · '+item.mnemonic : ''} · Code ${item.code}`;
+  }
+  updatePreview();
+}
+function addCustom(key){
+  const cat = cats[key];
+  const desc = document.getElementById(`newdesc_${key}`).value.trim();
+  const mnemInput = document.getElementById(`newmnem_${key}`);
+  const mnemonic = mnemInput ? mnemInput.value.trim().toUpperCase() : undefined;
+  if(!desc){ toast('Enter a description'); return; }
+  const code = nextCode(cat.items);
+  const item = cat.hasMnemonic ? {desc, mnemonic: mnemonic || desc.slice(0,3).toUpperCase(), code} : {desc, code};
+  cat.items.push(item);
+  save(LS_CATS, cats);
+  populateSelect(key);
+  document.getElementById(`sel_${key}`).value = String(cat.items.length-1);
+  onSelectChange(key);
+  document.getElementById(`newdesc_${key}`).value='';
+  if(mnemInput) mnemInput.value='';
+  toast(`Added "${desc}" to ${cat.label}`);
+}
+
+function assembledCode(){
+  const parts = CAT_KEYS.map(k=>selected[k]?.code).concat([selected.serial?.code]);
+  if(parts.some(p=>!p)) return null;
+  return parts.join('');
+}
+function updatePreview(){
+  const code = assembledCode();
+  const preview = document.getElementById('codePreview');
+  const decode = document.getElementById('codeDecode');
+  if(code){
+    preview.textContent = code;
+    const labels = CAT_KEYS.map(k=>selected[k]?.desc).concat([selected.serial?.desc]).filter(Boolean);
+    decode.textContent = labels.join(' · ');
+  }else{
+    preview.textContent = '— — — — — — —';
+    decode.textContent = 'Select each subsection above';
+  }
+}
+
+/* ---------------- Product save/edit/delete ---------------- */
+function findProduct(code){ code=(code||'').trim().toUpperCase(); return products.find(p=>p.code.toUpperCase()===code); }
+
+document.getElementById('saveProductBtn').addEventListener('click', ()=>{
+  const code = assembledCode();
+  const desc = document.getElementById('pDesc').value.trim();
+  const cost = parseFloat(document.getElementById('pCost').value);
+  const price = parseFloat(document.getElementById('pPrice').value);
+  if(!code){ toast('Complete every subsection to build the product code'); return; }
+  if(!desc){ toast('Enter a product description'); return; }
+  if(isNaN(cost)||isNaN(price)||cost<0||price<0){ toast('Enter valid cost and selling price'); return; }
+
+  if(editingCode){
+    const idx = products.findIndex(p=>p.code===editingCode);
+    if(idx>-1) products[idx] = {code, name:desc, cost, price};
+    editingCode=null;
+    document.getElementById('productFormTitle').textContent='Add Product';
+    document.getElementById('cancelEditBtn').style.display='none';
+    toast('Product updated');
+  }else{
+    if(findProduct(code)){ toast('This exact code combination already exists'); return; }
+    products.push({code, name:desc, cost, price});
+    toast('Product added');
+  }
+  save(LS_PRODUCTS, products);
+  document.getElementById('pDesc').value=''; document.getElementById('pCost').value=''; document.getElementById('pPrice').value='';
+  renderProducts();
+  queueSync();
+});
+document.getElementById('cancelEditBtn').addEventListener('click', ()=>{
+  editingCode=null;
+  document.getElementById('productFormTitle').textContent='Add Product';
+  document.getElementById('cancelEditBtn').style.display='none';
+});
+function deleteProduct(code){
+  if(!confirm('Delete this product? Past sales records are unaffected.')) return;
+  products = products.filter(p=>p.code!==code);
+  save(LS_PRODUCTS, products);
+  renderProducts();
+  queueSync();
+}
+function editProduct(code){
+  const p = findProduct(code);
+  if(!p) return;
+  document.getElementById('pDesc').value = p.name;
+  document.getElementById('pCost').value = p.cost;
+  document.getElementById('pPrice').value = p.price;
+  editingCode = code;
+  document.getElementById('productFormTitle').textContent='Edit Product (code locked — delete and re-add to change the code)';
+  document.getElementById('cancelEditBtn').style.display='inline-flex';
+}
+function renderProducts(){
+  const body = document.getElementById('productBody');
+  body.innerHTML = products.length===0
+    ? '<tr class="empty-row"><td colspan="6">No products yet</td></tr>'
+    : products.map(p=>{
+        const margin = p.price - p.cost;
+        return `<tr>
+          <td class="mono">${esc(p.code)}</td>
+          <td>${esc(p.name)}</td>
+          <td class="num">${money(p.cost)}</td>
+          <td class="num">${money(p.price)}</td>
+          <td class="num" style="color:${margin>=0?'var(--green)':'var(--brick)'}">${money(margin)}</td>
+          <td><button class="btn btn-ghost btn-sm" onclick="editProduct('${p.code}')">Edit</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.code}')">Delete</button></td>
+        </tr>`;
+      }).join('');
+}
+
+/* ---------------- Billing ---------------- */
+const itemCode=document.getElementById('itemCode'), itemName=document.getElementById('itemName'), lookupHint=document.getElementById('lookupHint');
+function doLookup(){
+  const code=itemCode.value.trim();
+  if(!code){ itemName.value=''; lookupHint.textContent=''; return null; }
+  const p=findProduct(code);
+  if(p){ itemName.value=p.name; lookupHint.style.color='var(--green)'; lookupHint.textContent=`Cost ${money(p.cost)} · Selling ${money(p.price)}`; return p; }
+  itemName.value=''; lookupHint.style.color='var(--brick)'; lookupHint.textContent='Unknown code — add it in the Product Catalog tab first.'; return null;
+}
+itemCode.addEventListener('input', doLookup);
+itemCode.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('addToCartBtn').click(); }});
+document.getElementById('addToCartBtn').addEventListener('click', ()=>{
+  const p=doLookup(); const qty=parseInt(document.getElementById('itemQty').value,10);
+  if(!p){ toast('Enter a valid, known product code'); return; }
+  if(!qty||qty<1){ toast('Quantity must be at least 1'); return; }
+  const existing = cart.find(c=>c.code===p.code);
+  if(existing) existing.qty+=qty; else cart.push({code:p.code,name:p.name,cost:p.cost,price:p.price,qty});
+  itemCode.value=''; itemName.value=''; document.getElementById('itemQty').value=1; lookupHint.textContent='';
+  renderCart();
+});
+document.getElementById('clearCartBtn').addEventListener('click', ()=>{ cart=[]; renderCart(); });
+function cartTotal(){ return cart.reduce((s,c)=>s+c.qty*c.price,0); }
+function removeCartItem(i){ cart.splice(i,1); renderCart(); }
+function renderCart(){
+  const body=document.getElementById('cartBody'), rv=document.getElementById('rvBody');
+  if(cart.length===0){
+    body.innerHTML='<tr class="empty-row"><td colspan="6">No items added yet</td></tr>';
+    rv.innerHTML='<tr class="empty-row"><td colspan="3">Cart is empty</td></tr>';
+  }else{
+    body.innerHTML=cart.map((c,i)=>`<tr><td class="mono">${esc(c.code)}</td><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.price)}</td><td class="num">${money(c.qty*c.price)}</td><td><button class="btn btn-ghost btn-sm" onclick="removeCartItem(${i})">Remove</button></td></tr>`).join('');
+    rv.innerHTML=cart.map(c=>`<tr><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.qty*c.price)}</td></tr>`).join('');
+  }
+  document.getElementById('cartCount').textContent=cart.reduce((s,c)=>s+c.qty,0);
+  document.getElementById('cartTotal').textContent=money(cartTotal());
+  document.getElementById('rvTotal').textContent=money(cartTotal());
+  document.getElementById('rvCustomer').textContent=document.getElementById('custName').value.trim()||'—';
+  document.getElementById('rvDate').textContent=todayStr();
+}
+['custName','custNumber'].forEach(id=>document.getElementById(id).addEventListener('input', renderCart));
+
+document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
+  const name=document.getElementById('custName').value.trim(), number=document.getElementById('custNumber').value.trim();
+  if(!name||!number){ toast('Enter customer name and number'); return; }
+  if(cart.length===0){ toast('Add at least one item'); return; }
+  const invoiceNo = 'INV-'+String(parseInt(localStorage.getItem(LS_SEQ)||'0',10)+1).padStart(5,'0');
+  localStorage.setItem(LS_SEQ, String(parseInt(localStorage.getItem(LS_SEQ)||'0',10)+1));
+  const date = todayStr();
+
+  cart.forEach(c=>{
+    const revenue=c.qty*c.price, costTotal=c.qty*c.cost;
+    sales.push({invoice:invoiceNo,date,customer:name,number,code:c.code,product:c.name,qty:c.qty,cost:c.cost,price:c.price,revenue,profit:revenue-costTotal});
+  });
+  save(LS_SALES, sales);
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'pt', format:'a4'});
+  const logoDataUrl = await loadLogoDataUrl();
+  if(logoDataUrl) doc.addImage(logoDataUrl, 'PNG', 40, 30, 40, 40);
+  doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(31,74,61);
+  doc.text('NAGMEENA', logoDataUrl?90:40, 52);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(107,114,128);
+  doc.text('INVOICE', logoDataUrl?90:40, 66);
+  doc.setTextColor(43,43,46);
+  doc.setFontSize(10);
+  doc.text(`Invoice No: ${invoiceNo}`, 400, 45);
+  doc.text(`Date: ${date}`, 400, 60);
+  doc.setFontSize(11);
+  doc.text(`Bill To: ${name}`, 40, 95);
+  doc.text(`Phone: ${number}`, 40, 111);
+  const rows = cart.map(c=>[c.code, c.name, String(c.qty), c.price.toFixed(2), (c.qty*c.price).toFixed(2)]);
+  doc.autoTable({ startY:130, head:[['Code','Description','Qty','Price','Amount']], body:rows,
+    styles:{fontSize:9, cellPadding:6}, headStyles:{fillColor:[31,74,61]},
+    columnStyles:{2:{halign:'right'},3:{halign:'right'},4:{halign:'right'}} });
+  const finalY = doc.lastAutoTable.finalY+20;
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(31,74,61);
+  doc.text(`Total: ${money(cartTotal())}`, 400, finalY);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(107,114,128);
+  doc.text('Thank you for shopping with Nagmeena.', 40, finalY+30);
+  doc.save(`${invoiceNo}.pdf`);
+
+  toast(`Bill ${invoiceNo} generated and saved`);
+  cart=[]; document.getElementById('custName').value=''; document.getElementById('custNumber').value='';
+  renderCart();
+  queueSync();
+});
+function loadLogoDataUrl(){
+  return new Promise(resolve=>{
+    const img = new Image();
+    img.onload = ()=>{ const c=document.createElement('canvas'); c.width=img.width; c.height=img.height;
+      c.getContext('2d').drawImage(img,0,0); resolve(c.toDataURL('image/png')); };
+    img.onerror = ()=>resolve(null);
+    img.src = 'nagmeena-logo.png';
+  });
+}
+
+/* ---------------- History ---------------- */
+function renderHistory(){
+  const body=document.getElementById('historyBody');
+  body.innerHTML = sales.length===0 ? '<tr class="empty-row"><td colspan="12">No sales recorded yet</td></tr>' :
+    sales.map((s,i)=>`<tr>
+      <td class="mono">${esc(s.invoice)}</td><td>${esc(s.date)}</td><td>${esc(s.customer)}</td><td class="mono">${esc(s.number)}</td>
+      <td class="mono">${esc(s.code)}</td><td>${esc(s.product)}</td><td class="num">${s.qty}</td>
+      <td class="num">${money(s.cost)}</td><td class="num">${money(s.price)}</td><td class="num">${money(s.revenue)}</td>
+      <td class="num" style="color:${s.profit>=0?'var(--green)':'var(--brick)'}">${money(s.profit)}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="deleteSaleRow(${i})">Delete</button></td></tr>`).join('');
+  const bills=new Set(sales.map(s=>s.invoice)).size;
+  const revenue=sales.reduce((a,s)=>a+s.revenue,0), cost=sales.reduce((a,s)=>a+s.cost*s.qty,0), profit=sales.reduce((a,s)=>a+s.profit,0);
+  document.getElementById('statBills').textContent=bills;
+  document.getElementById('statRevenue').textContent=money(revenue);
+  document.getElementById('statCost').textContent=money(cost);
+  document.getElementById('statProfit').textContent=money(profit);
+}
+function deleteSaleRow(i){ if(!confirm('Delete this sale record?')) return; sales.splice(i,1); save(LS_SALES,sales); renderHistory(); queueSync(); }
+document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{
+  if(sales.length===0) return;
+  if(!confirm('Clear ALL sales records? Export a backup first if needed.')) return;
+  sales=[]; save(LS_SALES,sales); renderHistory(); toast('Sales Book cleared'); queueSync();
+});
+document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
+  if(sales.length===0){ toast('No sales to export yet'); return; }
+  const rows = sales.map(s=>({'Invoice No':s.invoice,'Date':s.date,'Customer Name':s.customer,'Customer Number':s.number,'Product Code':s.code,'Description':s.product,'Qty':s.qty,'Cost Price':s.cost,'Selling Price':s.price,'Revenue':s.revenue,'Profit':s.profit}));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=[{wch:12},{wch:12},{wch:18},{wch:14},{wch:16},{wch:24},{wch:6},{wch:10},{wch:12},{wch:10},{wch:10}];
+  const bills=new Set(sales.map(s=>s.invoice)).size, revenue=sales.reduce((a,s)=>a+s.revenue,0), cost=sales.reduce((a,s)=>a+s.cost*s.qty,0), profit=sales.reduce((a,s)=>a+s.profit,0);
+  const summary = XLSX.utils.aoa_to_sheet([['Nagmeena — Sales Summary'],[],['Bills Raised',bills],['Total Revenue',revenue],['Total Cost of Goods',cost],['Total Profit',profit]]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, summary, 'Summary');
+  XLSX.utils.book_append_sheet(wb, ws, 'Sales Record');
+  XLSX.writeFile(wb, `Nagmeena_Sales_${todayStr()}.xlsx`);
+  toast('Excel file downloaded');
+});
+
+/* ---------------- Tabs ---------------- */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab==='history') renderHistory();
+  });
+});
+
+/* ---------------- Settings panel ---------------- */
+const settingsBtn=document.getElementById('settingsBtn'), settingsPanel=document.getElementById('settingsPanel');
+settingsBtn.addEventListener('click', ()=>settingsPanel.classList.toggle('show'));
+document.getElementById('clientIdInput').value = localStorage.getItem(LS_CLIENTID) || '';
+document.getElementById('clientIdInput').addEventListener('change', e=>localStorage.setItem(LS_CLIENTID, e.target.value.trim()));
+
+/* ---------------- Google Drive sync ---------------- */
+let accessToken=null, tokenClient=null, driveFileId=null;
+const DRIVE_FILENAME='nagmeena_ledger_data.json';
+
+function setDriveStatus(connected, text){
+  document.getElementById('driveDot').classList.toggle('on', connected);
+  document.getElementById('driveStatusText').textContent = text;
+}
+document.getElementById('connectDriveBtn').addEventListener('click', ()=>{
+  const clientId = localStorage.getItem(LS_CLIENTID);
+  if(!clientId){ toast('Paste your Google OAuth Client ID first'); return; }
+  if(typeof google === 'undefined'){ toast('Google sign-in script did not load — check your connection'); return; }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: clientId,
+    scope: 'https://www.googleapis.com/auth/drive.file',
+    callback: async (resp)=>{
+      if(resp.error){ toast('Sign-in failed'); return; }
+      accessToken = resp.access_token;
+      localStorage.setItem('ledger_drive_connected','1');
+      setDriveStatus(true, 'Connected');
+      await syncFromDrive();
+      toast('Google Drive connected');
+    }
+  });
+  tokenClient.requestAccessToken({prompt:'consent'});
+});
+document.getElementById('disconnectDriveBtn').addEventListener('click', ()=>{
+  accessToken=null; driveFileId=null;
+  localStorage.removeItem('ledger_drive_connected');
+  setDriveStatus(false,'Drive not connected');
+  toast('Disconnected from Google Drive');
+});
+document.getElementById('syncNowBtn').addEventListener('click', ()=>syncToDrive(true));
+
+async function driveFind(){
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${DRIVE_FILENAME}' and trashed=false&fields=files(id,name)`, {headers:{Authorization:`Bearer ${accessToken}`}});
+  const data = await res.json();
+  return data.files && data.files[0] ? data.files[0].id : null;
+}
+async function syncToDrive(manual){
+  if(!accessToken){ if(manual) toast('Connect Google Drive first'); return; }
+  const payload = JSON.stringify({products, sales, cats, seq: localStorage.getItem(LS_SEQ)||'0'});
+  if(!driveFileId) driveFileId = await driveFind();
+  const metadata = {name: DRIVE_FILENAME, mimeType:'application/json'};
+  const boundary='ledgerboundary', delim=`\r\n--${boundary}\r\n`, close=`\r\n--${boundary}--`;
+  const body = delim+'Content-Type: application/json\r\n\r\n'+JSON.stringify(metadata)+delim+'Content-Type: application/json\r\n\r\n'+payload+close;
+  const url = driveFileId
+    ? `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=multipart`
+    : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
+  const res = await fetch(url, {method:driveFileId?'PATCH':'POST', headers:{Authorization:`Bearer ${accessToken}`, 'Content-Type':`multipart/related; boundary=${boundary}`}, body});
+  const data = await res.json();
+  if(data.id){ driveFileId=data.id; const now=new Date().toLocaleString(); localStorage.setItem(LS_SYNCED, now); document.getElementById('lastSyncText').textContent='Last synced: '+now; if(manual) toast('Synced to Google Drive'); }
+}
+async function syncFromDrive(){
+  if(!accessToken) return;
+  driveFileId = await driveFind();
+  if(!driveFileId){ await syncToDrive(); return; }
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`, {headers:{Authorization:`Bearer ${accessToken}`}});
+  const data = await res.json();
+  if(data.products) products = data.products;
+  if(data.sales) sales = data.sales;
+  if(data.cats) cats = data.cats;
+  if(data.seq) localStorage.setItem(LS_SEQ, data.seq);
+  save(LS_PRODUCTS, products); save(LS_SALES, sales); save(LS_CATS, cats);
+  CAT_KEYS.forEach(populateSelect);
+  renderProducts(); renderHistory();
+  const now=new Date().toLocaleString(); localStorage.setItem(LS_SYNCED, now); document.getElementById('lastSyncText').textContent='Last synced: '+now;
+}
+let syncTimer=null;
+function queueSync(){ if(!accessToken) return; clearTimeout(syncTimer); syncTimer=setTimeout(()=>syncToDrive(false), 1500); }
+
+if(localStorage.getItem(LS_SYNCED)) document.getElementById('lastSyncText').textContent='Last synced: '+localStorage.getItem(LS_SYNCED);
+
+/* ---------------- Utilities ---------------- */
+function money(n){ return '₹'+(Number(n)||0).toFixed(2); }
+function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function esc(str){ return String(str).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._h); toast._h=setTimeout(()=>t.classList.remove('show'),2200); }
+
+/* ---------------- Init ---------------- */
+renderCart(); renderProducts(); renderHistory();
+</script>
+</body>
+</html>
