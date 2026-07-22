@@ -9,7 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://accounts.google.com/gsi/client" async defer onload="onGisLoaded()"></script>
 <style>
   :root{
     --teal:#1F4A3D;
@@ -45,8 +45,11 @@
   .brand .tagline{ font-size:11px; color:var(--grey); letter-spacing:0.5px; margin-top:-2px; }
   .headright{ display:flex; align-items:center; gap:10px; }
   .drive-status{ font-size:12px; color:var(--grey); display:flex; align-items:center; gap:6px; }
-  .dot{ width:8px; height:8px; border-radius:50%; background:#C9C3B4; }
-  .dot.on{ background:var(--green); }
+  .dot{ width:8px; height:8px; border-radius:50%; background:#C9C3B4; transition:background .2s ease; }
+  .dot.ok{ background:var(--green); }
+  .dot.busy{ background:var(--gold); animation:pulse 1s infinite ease-in-out; }
+  .dot.err{ background:var(--brick); }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
   .icon-btn{ background:transparent; border:1px solid var(--line-strong); border-radius:7px; padding:8px 12px; font-size:13px; color:var(--ink); }
   .icon-btn:hover{ background:var(--teal-soft); }
 
@@ -124,8 +127,9 @@
   .toolbar .title{ font-family:'Cormorant Garamond',serif; font-size:19px; font-weight:700; color:var(--teal); }
   .toolbar .actions{ display:flex; gap:8px; flex-wrap:wrap; }
 
-  .toast{ position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--teal); color:#fff; padding:11px 18px; border-radius:8px; font-size:13.5px; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:all .25s ease; z-index:50; }
+  .toast{ position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--teal); color:#fff; padding:11px 18px; border-radius:8px; font-size:13.5px; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:all .25s ease; z-index:50; max-width:90vw; }
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  .toast.err{ background:var(--brick); }
 
   .codebuilder{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:6px; }
   @media (max-width:700px){ .codebuilder{ grid-template-columns:repeat(2,1fr); } }
@@ -138,11 +142,14 @@
   .inline-add.show{ display:flex; flex-wrap:wrap; }
   .inline-add input{ flex:1; min-width:100px; }
 
-  .settings-panel{ display:none; position:fixed; top:70px; right:24px; width:340px; max-width:90vw; background:#fff; border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px; z-index:60; }
+  .settings-panel{ display:none; position:fixed; top:70px; right:24px; width:360px; max-width:90vw; background:#fff; border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px; z-index:60; }
   .settings-panel.show{ display:block; }
   .settings-panel h3{ font-family:'Cormorant Garamond',serif; font-size:17px; margin:0 0 4px 0; color:var(--teal); }
   .settings-panel p.help{ font-size:11.5px; color:var(--grey); margin:0 0 10px 0; line-height:1.5; }
   .settings-panel .field{ margin-bottom:10px; }
+  .settings-panel .sync-state{ display:flex; align-items:center; gap:8px; font-size:12.5px; margin-top:12px; padding:10px; border-radius:7px; background:var(--teal-soft); color:var(--ink); }
+  .settings-panel .sync-state.err{ background:var(--brick-soft); color:var(--brick); }
+  .settings-panel .sync-state.ok{ background:var(--teal-light); color:var(--teal); }
 
   footer.hint{ text-align:center; color:var(--grey); font-size:12px; padding:10px 24px 30px; max-width:1200px; margin:0 auto; }
 </style>
@@ -159,7 +166,7 @@
       </div>
     </div>
     <div class="headright">
-      <div class="drive-status"><span class="dot" id="driveDot"></span><span id="driveStatusText">Drive not connected</span></div>
+      <div class="drive-status"><span class="dot" id="driveDot"></span><span id="driveStatusText">Checking…</span></div>
       <button class="icon-btn" id="settingsBtn">⚙ Settings</button>
     </div>
   </div>
@@ -182,7 +189,7 @@
     <button class="btn btn-ghost btn-sm" id="syncNowBtn">Sync Now</button>
     <button class="btn btn-danger btn-sm" id="disconnectDriveBtn">Disconnect</button>
   </div>
-  <p class="help" id="lastSyncText" style="margin-top:10px;">Not synced yet.</p>
+  <div class="sync-state" id="syncStateBox">Not connected yet.</div>
 </div>
 
 <main>
@@ -311,18 +318,33 @@
 <div class="toast" id="toast"></div>
 
 <script>
-/* ---------------- Storage keys ---------------- */
-const LS_PRODUCTS='ledger_products', LS_SALES='ledger_sales', LS_SEQ='ledger_invoice_seq', LS_CATS='ledger_categories', LS_CLIENTID='ledger_drive_client_id', LS_SYNCED='ledger_last_sync';
+/* =========================================================================
+   STORAGE KEYS
+   ========================================================================= */
+const LS_PRODUCTS='ledger_products', LS_SALES='ledger_sales', LS_SEQ='ledger_invoice_seq',
+      LS_CATS='ledger_categories', LS_CLIENTID='ledger_drive_client_id', LS_SYNCED='ledger_last_sync',
+      LS_CONNECTED='ledger_drive_connected', LS_DEVICE='ledger_device_id', LS_TOKEN_EXP='ledger_token_expiry';
 
-function load(key,fallback){ try{ return JSON.parse(localStorage.getItem(key)) ?? fallback; }catch(e){ return fallback; } }
+function load(key,fallback){ try{ const v=JSON.parse(localStorage.getItem(key)); return v===null||v===undefined?fallback:v; }catch(e){ return fallback; } }
 function save(key,val){ localStorage.setItem(key, JSON.stringify(val)); }
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
 let products = load(LS_PRODUCTS, []);
 let sales = load(LS_SALES, []);
 let cart = [];
 let editingCode = null;
 
-/* ---------------- Category definitions (editable, custom entries persist) ---------------- */
+/* Stable per-browser device id, used for conflict/version metadata */
+if(!localStorage.getItem(LS_DEVICE)){
+  const id = (crypto.randomUUID ? crypto.randomUUID() : 'dev-'+Date.now()+'-'+Math.random().toString(16).slice(2));
+  localStorage.setItem(LS_DEVICE, id);
+}
+const DEVICE_ID = localStorage.getItem(LS_DEVICE);
+const DATA_VERSION = 1;
+
+/* =========================================================================
+   PRODUCT CODE CATEGORIES (unchanged business logic)
+   ========================================================================= */
 const defaultCats = {
   series:{label:'Series', hasMnemonic:false, items:[
     {desc:'Series 1', code:'01'},{desc:'Series 2', code:'02'},{desc:'Series 3', code:'03'}]},
@@ -344,7 +366,7 @@ const defaultCats = {
 };
 let cats = load(LS_CATS, defaultCats);
 const CAT_KEYS = ['series','fabric','work','print','colour','style'];
-const selected = {}; // current builder selection per category
+const selected = {};
 
 function nextCode(list){
   const max = list.reduce((m,i)=>Math.max(m, parseInt(i.code,36)||0), 0);
@@ -358,7 +380,6 @@ function serialCode(n){
   return String(unit) + String.fromCharCode(64+dec);
 }
 
-/* ---------------- Build the category dropdowns ---------------- */
 const builder = document.getElementById('codeBuilder');
 CAT_KEYS.forEach(key=>{
   const cat = cats[key];
@@ -377,7 +398,6 @@ CAT_KEYS.forEach(key=>{
   document.getElementById(`sel_${key}`).addEventListener('change', ()=>onSelectChange(key));
 });
 
-// Serial number as its own control (7th subsection)
 const serialWrap = document.createElement('div');
 serialWrap.innerHTML = `
   <label>Serial Number</label>
@@ -395,22 +415,20 @@ document.getElementById('serialInput').addEventListener('input', ()=>{
 function populateSelect(key){
   const sel = document.getElementById(`sel_${key}`);
   const cat = cats[key];
+  const prevValue = sel.value;
   sel.innerHTML = '<option value="">Select…</option>' +
-    cat.items.map((it,i)=>`<option value="${i}">${it.desc}${it.mnemonic?' ('+it.mnemonic+')':''}</option>`).join('') +
+    cat.items.map((it,i)=>`<option value="${i}">${esc(it.desc)}${it.mnemonic?' ('+esc(it.mnemonic)+')':''}</option>`).join('') +
     '<option value="__custom__">+ Add custom…</option>';
+  if(prevValue && prevValue!=='__custom__' && cat.items[parseInt(prevValue,10)]) sel.value = prevValue;
 }
 function onSelectChange(key){
   const sel = document.getElementById(`sel_${key}`);
   const addBox = document.getElementById(`add_${key}`);
   const hint = document.getElementById(`hint_${key}`);
   if(sel.value === '__custom__'){
-    addBox.classList.add('show');
-    selected[key] = null;
-    hint.textContent = '';
+    addBox.classList.add('show'); selected[key] = null; hint.textContent = '';
   }else if(sel.value === ''){
-    addBox.classList.remove('show');
-    selected[key] = null;
-    hint.textContent = '';
+    addBox.classList.remove('show'); selected[key] = null; hint.textContent = '';
   }else{
     addBox.classList.remove('show');
     const item = cats[key].items[parseInt(sel.value,10)];
@@ -435,6 +453,7 @@ function addCustom(key){
   document.getElementById(`newdesc_${key}`).value='';
   if(mnemInput) mnemInput.value='';
   toast(`Added "${desc}" to ${cat.label}`);
+  queueSync(); // category change → sync
 }
 
 function assembledCode(){
@@ -456,7 +475,9 @@ function updatePreview(){
   }
 }
 
-/* ---------------- Product save/edit/delete ---------------- */
+/* =========================================================================
+   PRODUCTS CRUD
+   ========================================================================= */
 function findProduct(code){ code=(code||'').trim().toUpperCase(); return products.find(p=>p.code.toUpperCase()===code); }
 
 document.getElementById('saveProductBtn').addEventListener('click', ()=>{
@@ -525,7 +546,9 @@ function renderProducts(){
       }).join('');
 }
 
-/* ---------------- Billing ---------------- */
+/* =========================================================================
+   BILLING
+   ========================================================================= */
 const itemCode=document.getElementById('itemCode'), itemName=document.getElementById('itemName'), lookupHint=document.getElementById('lookupHint');
 function doLookup(){
   const code=itemCode.value.trim();
@@ -620,7 +643,9 @@ function loadLogoDataUrl(){
   });
 }
 
-/* ---------------- History ---------------- */
+/* =========================================================================
+   HISTORY
+   ========================================================================= */
 function renderHistory(){
   const body=document.getElementById('historyBody');
   body.innerHTML = sales.length===0 ? '<tr class="empty-row"><td colspan="12">No sales recorded yet</td></tr>' :
@@ -657,7 +682,9 @@ document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   toast('Excel file downloaded');
 });
 
-/* ---------------- Tabs ---------------- */
+/* =========================================================================
+   TABS
+   ========================================================================= */
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -667,91 +694,391 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     if(btn.dataset.tab==='history') renderHistory();
   });
 });
-
-/* ---------------- Settings panel ---------------- */
-const settingsBtn=document.getElementById('settingsBtn'), settingsPanel=document.getElementById('settingsPanel');
-settingsBtn.addEventListener('click', ()=>settingsPanel.classList.toggle('show'));
+document.getElementById('settingsBtn').addEventListener('click', ()=>document.getElementById('settingsPanel').classList.toggle('show'));
 document.getElementById('clientIdInput').value = localStorage.getItem(LS_CLIENTID) || '';
-document.getElementById('clientIdInput').addEventListener('change', e=>localStorage.setItem(LS_CLIENTID, e.target.value.trim()));
+document.getElementById('clientIdInput').addEventListener('change', e=>{
+  localStorage.setItem(LS_CLIENTID, e.target.value.trim());
+  if(e.target.value.trim()) initTokenClient(e.target.value.trim());
+});
 
-/* ---------------- Google Drive sync ---------------- */
-let accessToken=null, tokenClient=null, driveFileId=null;
-const DRIVE_FILENAME='nagmeena_ledger_data.json';
+/* =========================================================================
+   GOOGLE DRIVE SYNC — refactored, production-oriented implementation
+   =========================================================================
+   Design:
+   - One JSON backup file per user: "nagmeena_ledger_data.json" (Drive, drive.file scope)
+   - Every payload carries {timestamp, version, deviceId} for conflict detection
+   - Token is requested via Google Identity Services (popup). Expiry is tracked
+     locally so we proactively refresh instead of discovering a 401 mid-request.
+   - All network calls go through fetchWithRetry(), which retries transient
+     failures (429/500/503/network) with backoff and throws typed errors for
+     everything else so the UI can show an exact, human-readable reason.
+   - performSync() is the single entry point for manual, automatic, and
+     startup syncs; it is re-entrant safe (a flag prevents overlapping runs)
+     and debounced for automatic triggers.
+   ========================================================================= */
 
-function setDriveStatus(connected, text){
-  document.getElementById('driveDot').classList.toggle('on', connected);
-  document.getElementById('driveStatusText').textContent = text;
+const DRIVE_FILENAME = 'nagmeena_ledger_data.json';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+
+let gisReady = false;
+let tokenClient = null;
+let accessToken = null;
+let driveFileId = null;
+let syncInProgress = false;
+let syncDebounceTimer = null;
+let lastSyncedHash = null;
+let lastSyncedTimestamp = 0;
+
+/* ---- small state machine for the sync status pill ---- */
+const STATUS = {
+  connecting:  {dot:'busy', text:'Connecting…'},
+  downloading: {dot:'busy', text:'Downloading…'},
+  uploading:   {dot:'busy', text:'Uploading…'},
+  success:     {dot:'ok',   text:'Drive Connected'},
+  failed:      {dot:'err',  text:'Sync failed'},
+  offline:     {dot:'',     text:'Offline'},
+  disconnected:{dot:'',     text:'Drive not connected'}
+};
+function setStatus(state, detail){
+  const cfg = STATUS[state] || STATUS.disconnected;
+  const dot = document.getElementById('driveDot');
+  dot.className = 'dot' + (cfg.dot ? ' '+cfg.dot : '');
+  document.getElementById('driveStatusText').textContent = cfg.text;
+
+  const box = document.getElementById('syncStateBox');
+  box.className = 'sync-state' + (state==='failed' ? ' err' : (state==='success' ? ' ok' : ''));
+  const lastSync = localStorage.getItem(LS_SYNCED);
+  box.textContent = (detail || cfg.text) + (lastSync ? ` · Last sync: ${lastSync}` : '');
 }
-document.getElementById('connectDriveBtn').addEventListener('click', ()=>{
+function setButtonsBusy(busy){
+  document.getElementById('syncNowBtn').disabled = busy;
+  document.getElementById('connectDriveBtn').disabled = busy;
+}
+function isDriveConnected(){ return localStorage.getItem(LS_CONNECTED)==='1' && !!localStorage.getItem(LS_CLIENTID); }
+
+/* ---- friendly error messages for every failure mode we handle ---- */
+function mapError(err){
+  const code = (err && (err.code || err.status)) || (err && err.message) || 'unknown';
+  const map = {
+    'popup_closed_by_user': 'Sign-in popup was closed before finishing — try again and approve access.',
+    'popup_failed_to_open': 'Popup was blocked by your browser. Allow popups for this page and try again.',
+    'access_denied': 'Access to Google Drive was denied.',
+    'timeout': 'Sign-in timed out — check your Client ID and Authorized JavaScript origins.',
+    'no_client': "Drive sync isn't set up yet — add your Google Client ID in Settings.",
+    'token_expired': 'Your session expired — reconnecting…',
+    'network_error': 'No internet connection — working from local data.',
+    'verify_failed': 'Upload could not be verified — please try Sync Now again.',
+    'corrupted_json': 'The cloud backup looked corrupted, so it was left untouched.',
+    'invalid_json': 'Local data could not be serialized safely — sync skipped.',
+    'upload_failed': 'Google Drive did not confirm the upload — please try again.',
+    401: 'Session expired — please reconnect Google Drive.',
+    403: 'Google Drive denied access — confirm the Drive API is enabled and this origin is authorized.',
+    404: 'Backup file not found — a new one will be created.',
+    409: 'The Drive file changed elsewhere — merging changes.',
+    429: 'Google Drive rate limit reached — will retry shortly.',
+    500: 'Google Drive is having issues — will retry shortly.',
+    503: 'Google Drive is temporarily unavailable — will retry shortly.'
+  };
+  if(map[code]) return map[code];
+  if(typeof code==='string' && (code.includes('invalid_client')||code.includes('unauthorized_origin'))){
+    return 'Google rejected this Client ID for this page — check the Client ID and Authorized JavaScript origins.';
+  }
+  return 'Sync failed: ' + code;
+}
+
+/* ---- GIS bootstrap ---- */
+function onGisLoaded(){
+  gisReady = true;
   const clientId = localStorage.getItem(LS_CLIENTID);
-  if(!clientId){ toast('Paste your Google OAuth Client ID first'); return; }
-  if(typeof google === 'undefined'){ toast('Google sign-in script did not load — check your connection'); return; }
+  if(clientId) initTokenClient(clientId);
+  if(isDriveConnected()){
+    performSync('startup');
+  }else{
+    setStatus('disconnected');
+  }
+}
+function initTokenClient(clientId){
+  if(typeof google === 'undefined' || !google.accounts) return;
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: clientId,
-    scope: 'https://www.googleapis.com/auth/drive.file',
-    callback: async (resp)=>{
-      if(resp.error){ toast('Sign-in failed'); return; }
+    scope: DRIVE_SCOPE,
+    callback: ()=>{} // overridden per-request in requestToken()
+  });
+}
+
+/* ---- token acquisition with silent-first, popup-fallback strategy ---- */
+function requestToken(interactive){
+  return new Promise((resolve, reject)=>{
+    if(!tokenClient){ reject({code:'no_client'}); return; }
+    let settled = false;
+    const timer = setTimeout(()=>{ if(!settled){ settled=true; reject({code:'timeout'}); } }, 25000);
+    tokenClient.callback = (resp)=>{
+      if(settled) return;
+      settled = true; clearTimeout(timer);
+      if(resp.error){ reject({code:resp.error}); return; }
       accessToken = resp.access_token;
-      localStorage.setItem('ledger_drive_connected','1');
-      setDriveStatus(true, 'Connected');
-      await syncFromDrive();
-      toast('Google Drive connected');
+      localStorage.setItem(LS_TOKEN_EXP, String(Date.now() + (resp.expires_in||3600)*1000));
+      resolve(accessToken);
+    };
+    try{
+      tokenClient.requestAccessToken({ prompt: interactive ? 'consent' : '' });
+    }catch(e){
+      settled = true; clearTimeout(timer);
+      reject({code:'popup_failed_to_open'});
     }
   });
-  tokenClient.requestAccessToken({prompt:'consent'});
-});
-document.getElementById('disconnectDriveBtn').addEventListener('click', ()=>{
-  accessToken=null; driveFileId=null;
-  localStorage.removeItem('ledger_drive_connected');
-  setDriveStatus(false,'Drive not connected');
-  toast('Disconnected from Google Drive');
-});
-document.getElementById('syncNowBtn').addEventListener('click', ()=>syncToDrive(true));
+}
+async function ensureValidToken(interactive){
+  const expiry = parseInt(localStorage.getItem(LS_TOKEN_EXP)||'0',10);
+  if(accessToken && Date.now() < expiry - 30000) return accessToken; // still valid
+  try{
+    return await requestToken(false); // try silent refresh first
+  }catch(e){
+    if(interactive) return await requestToken(true); // fall back to popup
+    throw e;
+  }
+}
 
-async function driveFind(){
-  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${DRIVE_FILENAME}' and trashed=false&fields=files(id,name)`, {headers:{Authorization:`Bearer ${accessToken}`}});
-  const data = await res.json();
-  return data.files && data.files[0] ? data.files[0].id : null;
+/* ---- fetch wrapper: retries transient failures, throws typed errors ---- */
+async function fetchWithRetry(url, options={}, attempt=1){
+  const MAX_ATTEMPTS = 3;
+  let res;
+  try{
+    res = await fetch(url, options);
+  }catch(networkErr){
+    if(attempt < MAX_ATTEMPTS){ await sleep(attempt*800); return fetchWithRetry(url, options, attempt+1); }
+    throw {code:'network_error'};
+  }
+  if(res.status === 401) throw {code:'token_expired', status:401};
+  if([429,500,503].includes(res.status) && attempt < MAX_ATTEMPTS){
+    await sleep(attempt*1000);
+    return fetchWithRetry(url, options, attempt+1);
+  }
+  if(!res.ok) throw {code:res.status, status:res.status};
+  return res;
 }
-async function syncToDrive(manual){
-  if(!accessToken){ if(manual) toast('Connect Google Drive first'); return; }
-  const payload = JSON.stringify({products, sales, cats, seq: localStorage.getItem(LS_SEQ)||'0'});
-  if(!driveFileId) driveFileId = await driveFind();
-  const metadata = {name: DRIVE_FILENAME, mimeType:'application/json'};
-  const boundary='ledgerboundary', delim=`\r\n--${boundary}\r\n`, close=`\r\n--${boundary}--`;
-  const body = delim+'Content-Type: application/json\r\n\r\n'+JSON.stringify(metadata)+delim+'Content-Type: application/json\r\n\r\n'+payload+close;
-  const url = driveFileId
-    ? `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=multipart`
+
+/* ---- Drive primitives ---- */
+async function driveFindFile(){
+  const res = await fetchWithRetry(
+    `https://www.googleapis.com/drive/v3/files?q=name='${DRIVE_FILENAME}' and trashed=false&fields=files(id,name)&spaces=drive`,
+    { headers:{ Authorization:'Bearer '+accessToken } }
+  );
+  const data = await res.json();
+  return (data.files && data.files[0]) ? data.files[0].id : null;
+}
+async function driveDownloadFile(fileId){
+  const res = await fetchWithRetry(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+    { headers:{ Authorization:'Bearer '+accessToken } }
+  );
+  const text = await res.text();
+  try{ return JSON.parse(text); }
+  catch(e){ throw {code:'corrupted_json'}; }
+}
+async function driveSaveFile(fileId, data){
+  let payload;
+  try{ payload = JSON.stringify(data); JSON.parse(payload); } // round-trip validation, prevents corrupted uploads
+  catch(e){ throw {code:'invalid_json'}; }
+
+  const metadata = { name: DRIVE_FILENAME, mimeType:'application/json' };
+  const boundary = 'ledgerboundary_' + Date.now();
+  const body =
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}` +
+    `\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${payload}\r\n--${boundary}--`;
+  const url = fileId
+    ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
     : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
-  const res = await fetch(url, {method:driveFileId?'PATCH':'POST', headers:{Authorization:`Bearer ${accessToken}`, 'Content-Type':`multipart/related; boundary=${boundary}`}, body});
-  const data = await res.json();
-  if(data.id){ driveFileId=data.id; const now=new Date().toLocaleString(); localStorage.setItem(LS_SYNCED, now); document.getElementById('lastSyncText').textContent='Last synced: '+now; if(manual) toast('Synced to Google Drive'); }
+  const res = await fetchWithRetry(url, {
+    method: fileId ? 'PATCH' : 'POST',
+    headers:{ Authorization:'Bearer '+accessToken, 'Content-Type':`multipart/related; boundary=${boundary}` },
+    body
+  });
+  const json = await res.json();
+  if(!json.id) throw {code:'upload_failed'};
+  return json.id;
 }
-async function syncFromDrive(){
-  if(!accessToken) return;
-  driveFileId = await driveFind();
-  if(!driveFileId){ await syncToDrive(); return; }
-  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`, {headers:{Authorization:`Bearer ${accessToken}`}});
-  const data = await res.json();
-  if(data.products) products = data.products;
-  if(data.sales) sales = data.sales;
-  if(data.cats) cats = data.cats;
-  if(data.seq) localStorage.setItem(LS_SEQ, data.seq);
+async function driveVerify(fileId, expected){
+  try{
+    const remote = await driveDownloadFile(fileId);
+    return !!remote && remote.timestamp === expected.timestamp && remote.deviceId === expected.deviceId;
+  }catch(e){ return false; }
+}
+
+/* ---- payload helpers ---- */
+function buildLocalPayload(){
+  return {
+    products, sales, cats,
+    seq: parseInt(localStorage.getItem(LS_SEQ)||'0',10),
+    timestamp: Date.now(),
+    version: DATA_VERSION,
+    deviceId: DEVICE_ID
+  };
+}
+function isEmptyDataset(d){ return (!d.products || d.products.length===0) && (!d.sales || d.sales.length===0); }
+function hashPayload(data){
+  const str = JSON.stringify({products:data.products, sales:data.sales, cats:data.cats, seq:data.seq});
+  let h = 0;
+  for(let i=0;i<str.length;i++){ h = (Math.imul(31,h) + str.charCodeAt(i)) | 0; }
+  return h;
+}
+/* Union-merge: additive data (sales, catalog entries) is never dropped from either side;
+   product edits favour whichever side has the newer overall timestamp. Never deletes newer cloud data. */
+function mergeData(local, cloud){
+  const productMap = new Map();
+  (cloud.products||[]).forEach(p=>productMap.set(p.code,p));
+  (local.products||[]).forEach(p=>{
+    if(!productMap.has(p.code) || local.timestamp >= cloud.timestamp) productMap.set(p.code,p);
+  });
+
+  const saleKey = s => `${s.invoice}__${s.code}__${s.date}__${s.qty}__${s.revenue}`;
+  const saleMap = new Map();
+  (cloud.sales||[]).forEach(s=>saleMap.set(saleKey(s), s));
+  (local.sales||[]).forEach(s=>saleMap.set(saleKey(s), s));
+
+  const mergedCats = JSON.parse(JSON.stringify(cloud.cats || local.cats || defaultCats));
+  Object.keys(local.cats||{}).forEach(key=>{
+    if(!mergedCats[key]){ mergedCats[key] = local.cats[key]; return; }
+    const existingCodes = new Set(mergedCats[key].items.map(i=>i.code));
+    (local.cats[key].items||[]).forEach(it=>{
+      if(!existingCodes.has(it.code)){ mergedCats[key].items.push(it); existingCodes.add(it.code); }
+    });
+  });
+
+  return {
+    products: Array.from(productMap.values()),
+    sales: Array.from(saleMap.values()),
+    cats: mergedCats,
+    seq: Math.max(local.seq||0, cloud.seq||0),
+    timestamp: Date.now(),
+    version: DATA_VERSION,
+    deviceId: DEVICE_ID
+  };
+}
+function applyRemoteData(data){
+  products = data.products || [];
+  sales = data.sales || [];
+  cats = data.cats || defaultCats;
+  localStorage.setItem(LS_SEQ, String(data.seq || 0));
   save(LS_PRODUCTS, products); save(LS_SALES, sales); save(LS_CATS, cats);
   CAT_KEYS.forEach(populateSelect);
   renderProducts(); renderHistory();
-  const now=new Date().toLocaleString(); localStorage.setItem(LS_SYNCED, now); document.getElementById('lastSyncText').textContent='Last synced: '+now;
+  lastSyncedTimestamp = data.timestamp || Date.now();
+  lastSyncedHash = hashPayload(data);
 }
-let syncTimer=null;
-function queueSync(){ if(!accessToken) return; clearTimeout(syncTimer); syncTimer=setTimeout(()=>syncToDrive(false), 1500); }
+function markSynced(){
+  const now = new Date().toLocaleString();
+  localStorage.setItem(LS_SYNCED, now);
+}
 
-if(localStorage.getItem(LS_SYNCED)) document.getElementById('lastSyncText').textContent='Last synced: '+localStorage.getItem(LS_SYNCED);
+/* ---- the single sync entry point ---- */
+async function performSync(trigger){
+  if(!navigator.onLine){ setStatus('offline'); return; }
+  if(!isDriveConnected() && trigger!=='connect'){ if(trigger==='manual') setStatus('failed', mapError({code:'no_client'})); return; }
+  if(syncInProgress) return; // never run two syncs at once
+  syncInProgress = true;
+  setButtonsBusy(true);
 
-/* ---------------- Utilities ---------------- */
+  try{
+    setStatus('connecting');
+    const interactive = (trigger==='manual' || trigger==='connect');
+    await ensureValidToken(interactive);
+
+    setStatus('downloading');
+    if(!driveFileId) driveFileId = await driveFindFile();
+    let cloudData = driveFileId ? await driveDownloadFile(driveFileId) : null;
+
+    const localData = buildLocalPayload();
+    let finalData = localData;
+
+    if(cloudData){
+      if(isEmptyDataset(localData) && !isEmptyDataset(cloudData)){
+        // Guard: never let an empty local state clobber a good cloud backup — restore instead.
+        applyRemoteData(cloudData);
+        localStorage.setItem(LS_CONNECTED,'1');
+        setStatus('success', 'Restored from cloud backup');
+        markSynced();
+        return;
+      }
+      if((cloudData.timestamp||0) > lastSyncedTimestamp){
+        finalData = mergeData(localData, cloudData);
+        applyRemoteData(finalData);
+      }
+    }
+
+    const currentHash = hashPayload(finalData);
+    if(currentHash === lastSyncedHash && driveFileId){
+      localStorage.setItem(LS_CONNECTED,'1');
+      setStatus('success', 'Already up to date');
+      markSynced();
+      return;
+    }
+
+    setStatus('uploading');
+    const savedId = await driveSaveFile(driveFileId, finalData);
+    const verified = await driveVerify(savedId, finalData);
+    if(!verified) throw {code:'verify_failed'};
+
+    driveFileId = savedId;
+    lastSyncedTimestamp = finalData.timestamp;
+    lastSyncedHash = currentHash;
+    localStorage.setItem(LS_CONNECTED,'1');
+    setStatus('success', 'Sync successful');
+    markSynced();
+
+  }catch(err){
+    console.error('Drive sync error:', err);
+    if(trigger==='startup'){
+      // Startup syncs are silent by design — never alarm the user, just fall back to local data.
+      setStatus('disconnected', 'Working offline — reconnect Drive to sync');
+    }else{
+      setStatus('failed', mapError(err));
+      toast(mapError(err));
+    }
+  }finally{
+    syncInProgress = false;
+    setButtonsBusy(false);
+  }
+}
+
+/* ---- debounced automatic sync, called after every mutation ---- */
+function queueSync(){
+  if(!isDriveConnected()) return;
+  clearTimeout(syncDebounceTimer);
+  syncDebounceTimer = setTimeout(()=>performSync('auto'), 1500);
+}
+
+/* ---- UI wiring ---- */
+document.getElementById('connectDriveBtn').addEventListener('click', async ()=>{
+  const clientId = localStorage.getItem(LS_CLIENTID);
+  if(!clientId){ toast('Paste your Google OAuth Client ID first'); return; }
+  if(!gisReady || typeof google==='undefined'){ toast('Google sign-in is still loading — try again in a moment'); return; }
+  if(!tokenClient) initTokenClient(clientId);
+  localStorage.setItem(LS_CONNECTED,'1');
+  await performSync('connect');
+});
+document.getElementById('disconnectDriveBtn').addEventListener('click', ()=>{
+  accessToken = null; driveFileId = null; lastSyncedHash = null; lastSyncedTimestamp = 0;
+  localStorage.removeItem(LS_CONNECTED);
+  localStorage.removeItem(LS_TOKEN_EXP);
+  setStatus('disconnected');
+  toast('Disconnected from Google Drive');
+});
+document.getElementById('syncNowBtn').addEventListener('click', ()=>performSync('manual'));
+
+window.addEventListener('online', ()=>{ if(isDriveConnected()) performSync('auto'); });
+window.addEventListener('offline', ()=>setStatus('offline'));
+
+if(localStorage.getItem(LS_SYNCED)) setStatus(isDriveConnected() ? 'success' : 'disconnected');
+else setStatus('disconnected');
+
+/* =========================================================================
+   UTILITIES
+   ========================================================================= */
 function money(n){ return '₹'+(Number(n)||0).toFixed(2); }
 function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function esc(str){ return String(str).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._h); toast._h=setTimeout(()=>t.classList.remove('show'),2200); }
+function toast(msg, isErr){ const t=document.getElementById('toast'); t.textContent=msg; t.className='toast show'+(isErr?' err':''); clearTimeout(toast._h); toast._h=setTimeout(()=>t.classList.remove('show'),2600); }
 
 /* ---------------- Init ---------------- */
 renderCart(); renderProducts(); renderHistory();
