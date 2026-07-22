@@ -50,18 +50,20 @@
   label{ display:block; font-size:11px; font-weight:600; color:var(--grey); margin-bottom:5px; text-transform:uppercase; letter-spacing:0.4px; }
   input[type=text], input[type=number], input[type=tel], select{ width:100%; padding:9px 10px; border:1px solid var(--line-strong); border-radius:7px; font-size:14px; background:#FBFAF7; color:var(--ink); }
   input:focus, select:focus{ background:#fff; }
-  .field{ margin-bottom:12px; } .row{ display:flex; gap:10px; flex-wrap:wrap; } .row > .field{ flex:1; min-width:130px; }
+  .field{ margin-bottom:12px; } .row{ display:flex; gap:10px; flex-wrap:wrap; } .row > .field{ flex:1; min-width:120px; }
   .btn{ display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:10px 16px; border-radius:7px; border:1px solid transparent; font-size:14px; font-weight:600; }
   .btn-primary{ background:var(--teal); color:#fff; } .btn-primary:hover{ background:#173a30; }
   .btn-gold{ background:var(--gold); color:#fff; } .btn-gold:hover{ background:#af8730; }
   .btn-ghost{ background:transparent; border:1px solid var(--line-strong); color:var(--ink); } .btn-ghost:hover{ background:var(--teal-soft); }
   .btn-danger{ background:transparent; border:1px solid var(--brick); color:var(--brick); } .btn-danger:hover{ background:var(--brick-soft); }
   .btn-sm{ padding:6px 10px; font-size:12px; border-radius:6px; } .btn[disabled]{ opacity:.45; cursor:not-allowed; }
-  table{ width:100%; border-collapse:collapse; font-size:13.5px; }
-  th{ text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:0.4px; color:var(--grey); border-bottom:1px solid var(--line-strong); padding:8px; }
-  td{ padding:9px 8px; border-bottom:1px solid var(--line); vertical-align:top; } tr:last-child td{ border-bottom:none; }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th{ text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:0.3px; color:var(--grey); border-bottom:1px solid var(--line-strong); padding:7px; white-space:nowrap; }
+  td{ padding:8px 7px; border-bottom:1px solid var(--line); vertical-align:top; } tr:last-child td{ border-bottom:none; }
   .num{ font-family:'IBM Plex Mono',monospace; text-align:right; white-space:nowrap; } .mono{ font-family:'IBM Plex Mono',monospace; }
   .empty-row td{ color:var(--grey); font-style:italic; text-align:center; padding:20px 8px; }
+  .table-scroll{ overflow-x:auto; }
+  .adj-pos{ color:var(--green); font-weight:600; } .adj-neg{ color:var(--brick); font-weight:600; } .adj-zero{ color:var(--grey); }
   .totals{ margin-top:12px; padding-top:12px; border-top:1px dashed var(--line-strong); }
   .totals .line{ display:flex; justify-content:space-between; font-size:14px; padding:3px 0; color:var(--grey); }
   .totals .line.grand{ color:var(--teal); font-weight:700; font-size:17px; font-family:'Cormorant Garamond',serif; padding-top:6px; }
@@ -102,8 +104,7 @@
   .settings-panel .sync-state{ display:flex; align-items:center; gap:8px; font-size:12.5px; margin-top:12px; padding:10px; border-radius:7px; background:var(--teal-soft); color:var(--ink); }
   .settings-panel .sync-state.err{ background:var(--brick-soft); color:var(--brick); }
   .settings-panel .sync-state.ok{ background:var(--teal-light); color:var(--teal); }
-  .stock-ok{ color:var(--green); font-weight:600; }
-  .stock-out{ color:var(--brick); font-weight:600; }
+  .stock-ok{ color:var(--green); font-weight:600; } .stock-out{ color:var(--brick); font-weight:600; }
   .warn-banner{ background:var(--brick-soft); color:var(--brick); border:1px solid var(--brick); border-radius:8px; padding:10px 12px; font-size:13px; margin-bottom:12px; display:none; }
   .warn-banner.show{ display:block; }
   footer.hint{ text-align:center; color:var(--grey); font-size:12px; padding:10px 24px 30px; max-width:1200px; margin:0 auto; }
@@ -154,22 +155,27 @@
         </div>
         <div class="card">
           <h2>Add Item</h2>
-          <p class="sub">Type a product code from your catalog — description, price and stock fill in automatically.</p>
+          <p class="sub">Type a product code — description, stock, and expected price fill in. Adjust the selling price to record a discount or markup.</p>
           <div class="warn-banner" id="stockWarning"></div>
           <div class="row">
             <div class="field" style="flex:0.9;"><label for="itemCode">Product Code</label><input type="text" id="itemCode" class="mono" placeholder="12-character code"></div>
-            <div class="field" style="flex:1.6;"><label for="itemName">Description</label><input type="text" id="itemName" disabled placeholder="—"></div>
+            <div class="field" style="flex:1.4;"><label for="itemName">Description</label><input type="text" id="itemName" disabled placeholder="—"></div>
+          </div>
+          <div class="row">
             <div class="field" style="flex:0.5;"><label for="itemQty">Qty</label><input type="number" id="itemQty" min="1" value="1"></div>
+            <div class="field" style="flex:0.8;"><label for="itemSellPrice">Selling Price (₹)</label><input type="number" id="itemSellPrice" min="0" step="0.01" placeholder="0.00"></div>
           </div>
           <div class="lookup-hint" id="lookupHint" style="font-size:12px; margin-top:-6px; margin-bottom:10px;"></div>
           <button class="btn btn-primary" id="addToCartBtn">Add to Bill</button>
         </div>
         <div class="card">
           <h2>Items in this Bill</h2>
+          <div class="table-scroll">
           <table>
-            <thead><tr><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Amount</th><th></th></tr></thead>
-            <tbody id="cartBody"><tr class="empty-row"><td colspan="6">No items added yet</td></tr></tbody>
+            <thead><tr><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Adj</th><th class="num">Amount</th><th></th></tr></thead>
+            <tbody id="cartBody"><tr class="empty-row"><td colspan="7">No items added yet</td></tr></tbody>
           </table>
+          </div>
           <div class="totals">
             <div class="line"><span>Items</span><span id="cartCount">0</span></div>
             <div class="line grand"><span>Total</span><span id="cartTotal">₹0.00</span></div>
@@ -220,8 +226,10 @@
       </div>
       <div class="card" style="margin-top:0;">
         <h2>Catalog</h2>
+        <div class="table-scroll">
         <table><thead><tr><th>Code</th><th>Description</th><th class="num">Stock</th><th class="num">Cost</th><th class="num">Price</th><th class="num">Margin</th><th></th></tr></thead>
           <tbody id="productBody"><tr class="empty-row"><td colspan="7">No products yet</td></tr></tbody></table>
+        </div>
       </div>
     </div>
   </section>
@@ -241,8 +249,10 @@
           <button class="btn btn-danger btn-sm" id="clearHistoryBtn">Clear All Records</button>
         </div>
       </div>
-      <table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Number</th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">Price</th><th class="num">Revenue</th><th class="num">Profit</th><th></th></tr></thead>
-        <tbody id="historyBody"><tr class="empty-row"><td colspan="12">No sales recorded yet</td></tr></tbody></table>
+      <div class="table-scroll">
+      <table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Number</th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">Expected</th><th class="num">Selling</th><th class="num">Adj</th><th class="num">Revenue</th><th class="num">Profit</th><th></th></tr></thead>
+        <tbody id="historyBody"><tr class="empty-row"><td colspan="14">No sales recorded yet</td></tr></tbody></table>
+      </div>
     </div>
   </section>
 </main>
@@ -254,23 +264,36 @@
 /* ===== Storage keys ===== */
 const LS_PRODUCTS='ledger_products', LS_SALES='ledger_sales', LS_SEQ='ledger_invoice_seq',
       LS_CATS='ledger_categories', LS_CLIENTID='ledger_drive_client_id', LS_SYNCED='ledger_last_sync',
-      LS_CONNECTED='ledger_drive_connected', LS_DEVICE='ledger_device_id', LS_TOKEN_EXP='ledger_token_expiry';
+      LS_CONNECTED='ledger_drive_connected', LS_DEVICE='ledger_device_id', LS_TOKEN_EXP='ledger_token_expiry',
+      LS_PROD_TOMB='ledger_product_tombstones', LS_SALE_TOMB='ledger_sale_tombstones',
+      LS_LAST_HASH='ledger_last_sync_hash', LS_LAST_TS='ledger_last_sync_ts';
 
 function load(key,fallback){ try{ const v=JSON.parse(localStorage.getItem(key)); return v===null||v===undefined?fallback:v; }catch(e){ return fallback; } }
 function save(key,val){ localStorage.setItem(key, JSON.stringify(val)); }
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function uuid(){ return crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2); }
 
 let products = load(LS_PRODUCTS, []);
 let sales = load(LS_SALES, []);
+let productTombstones = load(LS_PROD_TOMB, []); // [{id, deletedAt}] — records of deleted products so sync can't resurrect them
+let saleTombstones = load(LS_SALE_TOMB, []);     // same idea, for sales
 let cart = [];
 let editingCode = null;
 
-if(!localStorage.getItem(LS_DEVICE)){
-  const id = (crypto.randomUUID ? crypto.randomUUID() : 'dev-'+Date.now()+'-'+Math.random().toString(16).slice(2));
-  localStorage.setItem(LS_DEVICE, id);
-}
+/* One-time migration: give any pre-existing rows (from older versions of this app)
+   a stable id and updatedAt so the new sync engine can track them correctly. */
+(function migrate(){
+  let touched = false;
+  products.forEach(p=>{ if(!p.id){ p.id = uuid(); touched = true; } if(!p.updatedAt){ p.updatedAt = Date.now(); touched = true; } });
+  sales.forEach(s=>{ if(!s.id){ s.id = uuid(); touched = true; } if(!s.updatedAt){ s.updatedAt = Date.now(); touched = true; }
+    if(s.expectedPrice===undefined){ s.expectedPrice = s.price; touched = true; }
+    if(s.adjustment===undefined){ s.adjustment = 0; touched = true; } });
+  if(touched){ save(LS_PRODUCTS, products); save(LS_SALES, sales); }
+})();
+
+if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 2; // bumped: products now carry a `stock` field, serial subsection removed
+const DATA_VERSION = 3; // v3: row-level ids/timestamps + tombstone-based deletion sync
 
 /* ===== Product code categories (Serial Number subsection removed) ===== */
 const defaultCats = {
@@ -294,7 +317,7 @@ const defaultCats = {
 };
 let cats = load(LS_CATS, defaultCats);
 const CAT_KEYS = ['series','fabric','work','print','colour','style'];
-const DESC_KEYS = ['fabric','work','print','colour']; // subset used to build the auto product description
+const DESC_KEYS = ['fabric','work','print','colour'];
 const selected = {};
 
 function nextCode(list){ const max = list.reduce((m,i)=>Math.max(m, parseInt(i.code,36)||0), 0); return String(max+1).padStart(2,'0'); }
@@ -355,7 +378,7 @@ function addCustom(key){
   onSelectChange(key);
   document.getElementById(`newdesc_${key}`).value=''; if(mnemInput) mnemInput.value='';
   toast(`Added "${desc}" to ${cat.label}`);
-  pushChange('category changed');
+  pushChange();
 }
 
 function assembledCode(){
@@ -363,25 +386,17 @@ function assembledCode(){
   if(parts.some(p=>!p)) return null;
   return parts.join('');
 }
-function assembledDescription(){
-  const parts = DESC_KEYS.map(k=>selected[k]?.desc).filter(Boolean);
-  return parts.join(' ');
-}
+function assembledDescription(){ return DESC_KEYS.map(k=>selected[k]?.desc).filter(Boolean).join(' '); }
 function updatePreview(){
   const code = assembledCode();
   const preview = document.getElementById('codePreview'), decode = document.getElementById('codeDecode'), autoDesc = document.getElementById('autoDescPreview');
-  if(code){
-    preview.textContent = code;
-    decode.textContent = CAT_KEYS.map(k=>selected[k]?.desc).filter(Boolean).join(' · ');
-  }else{
-    preview.textContent = '— — — — — —';
-    decode.textContent = 'Select each subsection above';
-  }
+  if(code){ preview.textContent = code; decode.textContent = CAT_KEYS.map(k=>selected[k]?.desc).filter(Boolean).join(' · '); }
+  else{ preview.textContent = '— — — — — —'; decode.textContent = 'Select each subsection above'; }
   const desc = assembledDescription();
   autoDesc.innerHTML = `Description: <b>${desc ? esc(desc) : '—'}</b>`;
 }
 
-/* ===== Products CRUD ===== */
+/* ===== Products CRUD — every mutation stamps updatedAt and syncs immediately ===== */
 function findProduct(code){ code=(code||'').trim().toUpperCase(); return products.find(p=>p.code.toUpperCase()===code); }
 function inStock(p){ return p && (p.stock||0) > 0; }
 
@@ -396,7 +411,7 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
 
   if(editingCode){
     const idx = products.findIndex(p=>p.code===editingCode);
-    if(idx>-1) products[idx] = {...products[idx], code, cost, price, stock};
+    if(idx>-1) products[idx] = {...products[idx], code, cost, price, stock, updatedAt: Date.now()};
     editingCode=null;
     document.getElementById('productFormTitle').textContent='Add Product';
     document.getElementById('cancelEditBtn').style.display='none';
@@ -404,13 +419,13 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
   }else{
     const desc = assembledDescription();
     if(findProduct(code)){ toast('This exact code combination already exists'); return; }
-    products.push({code, name:desc, cost, price, stock});
+    products.push({id:uuid(), code, name:desc, cost, price, stock, updatedAt: Date.now()});
     toast('Product added');
   }
   save(LS_PRODUCTS, products);
   document.getElementById('pStock').value=''; document.getElementById('pCost').value=''; document.getElementById('pPrice').value='';
   renderProducts();
-  pushChange('product added/edited');
+  pushChange();
 });
 document.getElementById('cancelEditBtn').addEventListener('click', ()=>{
   editingCode=null;
@@ -420,10 +435,12 @@ document.getElementById('cancelEditBtn').addEventListener('click', ()=>{
 });
 function deleteProduct(code){
   if(!confirm('Delete this product? Past sales records are unaffected.')) return;
-  products = products.filter(p=>p.code!==code);
-  save(LS_PRODUCTS, products);
+  const p = findProduct(code);
+  if(p) productTombstones.push({id:p.id, deletedAt: Date.now()});
+  products = products.filter(pr=>pr.code!==code);
+  save(LS_PRODUCTS, products); save(LS_PROD_TOMB, productTombstones);
   renderProducts();
-  pushChange('product deleted');
+  pushChange();
 }
 function editProduct(code){
   const p = findProduct(code);
@@ -440,8 +457,7 @@ function renderProducts(){
   body.innerHTML = products.length===0
     ? '<tr class="empty-row"><td colspan="7">No products yet</td></tr>'
     : products.map(p=>{
-        const margin = p.price - p.cost;
-        const stock = p.stock||0;
+        const margin = p.price - p.cost, stock = p.stock||0;
         return `<tr>
           <td class="mono">${esc(p.code)}</td><td>${esc(p.name)}</td>
           <td class="num ${stock>0?'stock-ok':'stock-out'}">${stock>0?stock:'Out of stock'}</td>
@@ -453,8 +469,9 @@ function renderProducts(){
       }).join('');
 }
 
-/* ===== Billing (stock-aware) ===== */
+/* ===== Billing (stock-aware, with editable selling price) ===== */
 const itemCode=document.getElementById('itemCode'), itemName=document.getElementById('itemName'), lookupHint=document.getElementById('lookupHint');
+const itemSellPrice = document.getElementById('itemSellPrice');
 const stockWarning = document.getElementById('stockWarning');
 function showStockWarning(msg){ stockWarning.textContent = msg; stockWarning.classList.add('show'); }
 function hideStockWarning(){ stockWarning.classList.remove('show'); stockWarning.textContent=''; }
@@ -464,24 +481,26 @@ function doLookup(){
   hideStockWarning();
   if(!code){ itemName.value=''; lookupHint.textContent=''; return null; }
   const p=findProduct(code);
-  if(!p){ itemName.value=''; lookupHint.style.color='var(--brick)'; lookupHint.textContent='Unknown code — add it in the Product Catalog tab first.'; return null; }
+  if(!p){ itemName.value=''; itemSellPrice.value=''; lookupHint.style.color='var(--brick)'; lookupHint.textContent='Unknown code — add it in the Product Catalog tab first.'; return null; }
   itemName.value=p.name;
+  if(itemSellPrice.dataset.autoFilledFor !== p.code){ itemSellPrice.value = p.price; itemSellPrice.dataset.autoFilledFor = p.code; }
   if(!inStock(p)){
-    lookupHint.style.color='var(--brick)';
-    lookupHint.textContent='This product is out of stock.';
+    lookupHint.style.color='var(--brick)'; lookupHint.textContent='This product is out of stock.';
     showStockWarning(`⚠ "${p.name}" (${p.code}) is out of stock and cannot be added to a bill.`);
     return p;
   }
   lookupHint.style.color='var(--green)';
-  lookupHint.textContent=`Cost ${money(p.cost)} · Selling ${money(p.price)} · ${p.stock} in stock`;
+  lookupHint.textContent=`Cost ${money(p.cost)} · Expected ${money(p.price)} · ${p.stock} in stock`;
   return p;
 }
 itemCode.addEventListener('input', doLookup);
 itemCode.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('addToCartBtn').click(); }});
 document.getElementById('addToCartBtn').addEventListener('click', ()=>{
   const p=doLookup(); const qty=parseInt(document.getElementById('itemQty').value,10);
+  const sellPrice = parseFloat(itemSellPrice.value);
   if(!p){ toast('Enter a valid, known product code'); return; }
   if(!qty||qty<1){ toast('Quantity must be at least 1'); return; }
+  if(isNaN(sellPrice) || sellPrice<0){ toast('Enter a valid selling price'); return; }
   if(!inStock(p)){ toast('This product is out of stock and cannot be added to the bill.', true); return; }
   const existing = cart.find(c=>c.code===p.code);
   const alreadyInCart = existing ? existing.qty : 0;
@@ -491,20 +510,29 @@ document.getElementById('addToCartBtn').addEventListener('click', ()=>{
     toast(`Only ${remaining} more unit(s) available`, true);
     return;
   }
-  if(existing) existing.qty+=qty; else cart.push({code:p.code,name:p.name,cost:p.cost,price:p.price,qty});
-  itemCode.value=''; itemName.value=''; document.getElementById('itemQty').value=1; lookupHint.textContent=''; hideStockWarning();
+  if(existing){ existing.qty+=qty; existing.price = sellPrice; } // latest entered price applies to the combined line
+  else cart.push({code:p.code,name:p.name,cost:p.cost,expectedPrice:p.price,price:sellPrice,qty});
+  itemCode.value=''; itemName.value=''; itemSellPrice.value=''; itemSellPrice.dataset.autoFilledFor='';
+  document.getElementById('itemQty').value=1; lookupHint.textContent=''; hideStockWarning();
   renderCart();
 });
 document.getElementById('clearCartBtn').addEventListener('click', ()=>{ cart=[]; renderCart(); });
 function cartTotal(){ return cart.reduce((s,c)=>s+c.qty*c.price,0); }
 function removeCartItem(i){ cart.splice(i,1); renderCart(); }
+function adjClass(v){ return v>0 ? 'adj-pos' : (v<0 ? 'adj-neg' : 'adj-zero'); }
+function adjText(v){ return (v>0?'+':'') + money(v); }
 function renderCart(){
   const body=document.getElementById('cartBody'), rv=document.getElementById('rvBody');
   if(cart.length===0){
-    body.innerHTML='<tr class="empty-row"><td colspan="6">No items added yet</td></tr>';
+    body.innerHTML='<tr class="empty-row"><td colspan="7">No items added yet</td></tr>';
     rv.innerHTML='<tr class="empty-row"><td colspan="3">Cart is empty</td></tr>';
   }else{
-    body.innerHTML=cart.map((c,i)=>`<tr><td class="mono">${esc(c.code)}</td><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.price)}</td><td class="num">${money(c.qty*c.price)}</td><td><button class="btn btn-ghost btn-sm" onclick="removeCartItem(${i})">Remove</button></td></tr>`).join('');
+    body.innerHTML=cart.map((c,i)=>{
+      const adj = (c.price - c.expectedPrice) * c.qty;
+      return `<tr><td class="mono">${esc(c.code)}</td><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.price)}</td>
+        <td class="num ${adjClass(adj)}">${adjText(adj)}</td><td class="num">${money(c.qty*c.price)}</td>
+        <td><button class="btn btn-ghost btn-sm" onclick="removeCartItem(${i})">Remove</button></td></tr>`;
+    }).join('');
     rv.innerHTML=cart.map(c=>`<tr><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.qty*c.price)}</td></tr>`).join('');
   }
   document.getElementById('cartCount').textContent=cart.reduce((s,c)=>s+c.qty,0);
@@ -520,12 +548,8 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
   if(!name||!number){ toast('Enter customer name and number'); return; }
   if(cart.length===0){ toast('Add at least one item'); return; }
 
-  // Final stock check — catches cases where stock changed (e.g. another device synced) since items were added to the cart.
   const shortages = [];
-  cart.forEach(c=>{
-    const p = findProduct(c.code);
-    if(!p || p.stock < c.qty) shortages.push(`${c.name} (need ${c.qty}, ${p?p.stock:0} available)`);
-  });
+  cart.forEach(c=>{ const p = findProduct(c.code); if(!p || p.stock < c.qty) shortages.push(`${c.name} (need ${c.qty}, ${p?p.stock:0} available)`); });
   if(shortages.length){
     showStockWarning(`⚠ Cannot generate bill — insufficient stock: ${shortages.join('; ')}`);
     toast('Insufficient stock for one or more items', true);
@@ -537,13 +561,14 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
   const date = todayStr();
 
   cart.forEach(c=>{
-    const revenue=c.qty*c.price, costTotal=c.qty*c.cost;
-    sales.push({invoice:invoiceNo,date,customer:name,number,code:c.code,product:c.name,qty:c.qty,cost:c.cost,price:c.price,revenue,profit:revenue-costTotal});
+    const revenue=c.qty*c.price, costTotal=c.qty*c.cost, adjustment=(c.price-c.expectedPrice)*c.qty;
+    sales.push({id:uuid(), invoice:invoiceNo, date, customer:name, number, code:c.code, product:c.name,
+      qty:c.qty, cost:c.cost, expectedPrice:c.expectedPrice, price:c.price, revenue, profit:revenue-costTotal,
+      adjustment, updatedAt: Date.now()});
     const p = findProduct(c.code);
-    if(p) p.stock = Math.max(0, (p.stock||0) - c.qty); // decrement stock; floors at 0 → out of stock
+    if(p){ p.stock = Math.max(0, (p.stock||0) - c.qty); p.updatedAt = Date.now(); }
   });
-  save(LS_SALES, sales);
-  save(LS_PRODUCTS, products);
+  save(LS_SALES, sales); save(LS_PRODUCTS, products);
   renderProducts();
 
   const { jsPDF } = window.jspdf;
@@ -571,7 +596,7 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
   toast(`Bill ${invoiceNo} generated and saved`);
   cart=[]; document.getElementById('custName').value=''; document.getElementById('custNumber').value='';
   renderCart(); hideStockWarning();
-  pushChange('bill generated');
+  pushChange();
 });
 function loadLogoDataUrl(){
   return new Promise(resolve=>{
@@ -583,17 +608,22 @@ function loadLogoDataUrl(){
   });
 }
 
-/* ===== History ===== */
+/* ===== History — delete & edit both create tombstones/updatedAt for safe sync ===== */
 function renderHistory(){
   const body=document.getElementById('historyBody');
-  body.innerHTML = sales.length===0 ? '<tr class="empty-row"><td colspan="12">No sales recorded yet</td></tr>' :
-    sales.map((s,i)=>`<tr>
+  body.innerHTML = sales.length===0 ? '<tr class="empty-row"><td colspan="14">No sales recorded yet</td></tr>' :
+    sales.map((s,i)=>{
+      const adj = s.adjustment ?? ((s.price - (s.expectedPrice??s.price)) * s.qty);
+      return `<tr>
       <td class="mono">${esc(s.invoice)}</td><td>${esc(s.date)}</td><td>${esc(s.customer)}</td><td class="mono">${esc(s.number)}</td>
       <td class="mono">${esc(s.code)}</td><td>${esc(s.product)}</td><td class="num">${s.qty}</td>
-      <td class="num">${money(s.cost)}</td><td class="num">${money(s.price)}</td><td class="num">${money(s.revenue)}</td>
+      <td class="num">${money(s.cost)}</td><td class="num">${money(s.expectedPrice??s.price)}</td><td class="num">${money(s.price)}</td>
+      <td class="num ${adjClass(adj)}">${adjText(adj)}</td>
+      <td class="num">${money(s.revenue)}</td>
       <td class="num" style="color:${s.profit>=0?'var(--green)':'var(--brick)'}">${money(s.profit)}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="editSaleRow(${i})">Edit</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteSaleRow(${i})">Delete</button></td></tr>`).join('');
+          <button class="btn btn-danger btn-sm" onclick="deleteSaleRow(${i})">Delete</button></td></tr>`;
+    }).join('');
   const bills=new Set(sales.map(s=>s.invoice)).size;
   const revenue=sales.reduce((a,s)=>a+s.revenue,0), cost=sales.reduce((a,s)=>a+s.cost*s.qty,0), profit=sales.reduce((a,s)=>a+s.profit,0);
   document.getElementById('statBills').textContent=bills;
@@ -604,40 +634,57 @@ function renderHistory(){
 function editSaleRow(i){
   const s = sales[i];
   if(!s) return;
-  const input = prompt(`Correct quantity for "${s.product}" (Invoice ${s.invoice}):`, s.qty);
-  if(input===null) return;
-  const newQty = parseInt(input,10);
+  const qtyInput = prompt(`Correct quantity for "${s.product}" (Invoice ${s.invoice}):`, s.qty);
+  if(qtyInput===null) return;
+  const newQty = parseInt(qtyInput,10);
   if(!newQty || newQty<1){ toast('Enter a valid quantity'); return; }
-  const diff = newQty - s.qty; // positive = selling more, needs more stock; negative = returning stock
+  const priceInput = prompt(`Selling price per unit (expected was ${money(s.expectedPrice??s.price)}):`, s.price);
+  if(priceInput===null) return;
+  const newPrice = parseFloat(priceInput);
+  if(isNaN(newPrice) || newPrice<0){ toast('Enter a valid price'); return; }
+
+  const diff = newQty - s.qty;
   const p = findProduct(s.code);
   if(p && diff>0 && diff > p.stock){ toast(`Only ${p.stock} more unit(s) of this product are available`, true); return; }
-  if(p) p.stock = Math.max(0, (p.stock||0) - diff);
-  s.qty = newQty; s.revenue = newQty * s.price; s.profit = s.revenue - (newQty * s.cost);
+  if(p){ p.stock = Math.max(0, (p.stock||0) - diff); p.updatedAt = Date.now(); }
+
+  s.qty = newQty; s.price = newPrice;
+  s.revenue = newQty * newPrice;
+  s.profit = s.revenue - (newQty * s.cost);
+  s.adjustment = (newPrice - (s.expectedPrice??newPrice)) * newQty;
+  s.updatedAt = Date.now();
+
   save(LS_SALES, sales); save(LS_PRODUCTS, products);
   renderHistory(); renderProducts();
   toast('Sale record updated');
-  pushChange('sale edited');
+  pushChange();
 }
 function deleteSaleRow(i){
   if(!confirm('Delete this sale record? Its quantity will be returned to stock.')) return;
   const s = sales[i];
   const p = findProduct(s.code);
-  if(p) p.stock = (p.stock||0) + s.qty; // deleting a sale returns the stock
-  sales.splice(i,1); save(LS_SALES,sales); save(LS_PRODUCTS, products);
+  if(p){ p.stock = (p.stock||0) + s.qty; p.updatedAt = Date.now(); }
+  saleTombstones.push({id:s.id, deletedAt: Date.now()});
+  sales.splice(i,1);
+  save(LS_SALES,sales); save(LS_PRODUCTS, products); save(LS_SALE_TOMB, saleTombstones);
   renderHistory(); renderProducts();
-  pushChange('sale deleted');
+  pushChange();
 }
 document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{
   if(sales.length===0) return;
   if(!confirm('Clear ALL sales records? Export a backup first if needed. Stock quantities will not be restored.')) return;
-  sales=[]; save(LS_SALES,sales); renderHistory(); toast('Sales Book cleared');
-  pushChange('history cleared');
+  const now = Date.now();
+  sales.forEach(s=> saleTombstones.push({id:s.id, deletedAt: now})); // tombstone every row so sync can never bring them back
+  sales=[];
+  save(LS_SALES,sales); save(LS_SALE_TOMB, saleTombstones);
+  renderHistory(); toast('Sales Book cleared');
+  pushChange();
 });
 document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   if(sales.length===0){ toast('No sales to export yet'); return; }
-  const rows = sales.map(s=>({'Invoice No':s.invoice,'Date':s.date,'Customer Name':s.customer,'Customer Number':s.number,'Product Code':s.code,'Description':s.product,'Qty':s.qty,'Cost Price':s.cost,'Selling Price':s.price,'Revenue':s.revenue,'Profit':s.profit}));
+  const rows = sales.map(s=>({'Invoice No':s.invoice,'Date':s.date,'Customer Name':s.customer,'Customer Number':s.number,'Product Code':s.code,'Description':s.product,'Qty':s.qty,'Cost Price':s.cost,'Expected Selling Price':s.expectedPrice??s.price,'Selling Price':s.price,'Adjustment':s.adjustment??0,'Revenue':s.revenue,'Profit':s.profit}));
   const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols']=[{wch:12},{wch:12},{wch:18},{wch:14},{wch:16},{wch:24},{wch:6},{wch:10},{wch:12},{wch:10},{wch:10}];
+  ws['!cols']=[{wch:12},{wch:12},{wch:18},{wch:14},{wch:16},{wch:24},{wch:6},{wch:10},{wch:14},{wch:12},{wch:12},{wch:10},{wch:10}];
   const bills=new Set(sales.map(s=>s.invoice)).size, revenue=sales.reduce((a,s)=>a+s.revenue,0), cost=sales.reduce((a,s)=>a+s.cost*s.qty,0), profit=sales.reduce((a,s)=>a+s.profit,0);
   const summary = XLSX.utils.aoa_to_sheet([['Nagmeena — Sales Summary'],[],['Bills Raised',bills],['Total Revenue',revenue],['Total Cost of Goods',cost],['Total Profit',profit]]);
   const wb = XLSX.utils.book_new();
@@ -647,7 +694,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   toast('Excel file downloaded');
 });
 
-/* ===== Tabs / Settings toggle (auto-closes on outside click) ===== */
+/* ===== Tabs / Settings (auto-closes on outside click) ===== */
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -660,20 +707,41 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsPanel = document.getElementById('settingsPanel');
 settingsBtn.addEventListener('click', (e)=>{ e.stopPropagation(); settingsPanel.classList.toggle('show'); });
-settingsPanel.addEventListener('click', (e)=>e.stopPropagation()); // clicks inside the panel never close it
-document.addEventListener('click', ()=>{ settingsPanel.classList.remove('show'); }); // any other click closes it
-
+settingsPanel.addEventListener('click', (e)=>e.stopPropagation());
+document.addEventListener('click', ()=>{ settingsPanel.classList.remove('show'); });
 document.getElementById('clientIdInput').value = localStorage.getItem(LS_CLIENTID) || '';
 document.getElementById('clientIdInput').addEventListener('change', e=>{
   localStorage.setItem(LS_CLIENTID, e.target.value.trim());
   if(e.target.value.trim()) initTokenClient(e.target.value.trim());
 });
 
-/* ===== Google Drive sync (unchanged from previous version) ===== */
+/* =========================================================================
+   GOOGLE DRIVE SYNC (v3) — row-level, tombstone-based merge
+   =========================================================================
+   Every product and sale row carries an `id` (stable, never reused) and
+   `updatedAt`. Deleting a row doesn't just remove it — it also records a
+   tombstone {id, deletedAt}. When merging local + cloud data:
+     - for each id, the row with the newer `updatedAt` wins (last-write-wins,
+       same principle Excel/Sheets co-authoring uses per cell/row)
+     - a tombstone beats a row if its deletedAt is >= that row's updatedAt,
+       so a delete can never be silently undone by a stale copy elsewhere
+     - two devices adding different rows, or editing different rows, merge
+       cleanly with nothing duplicated (matched by id, not content)
+   Tombstones older than 90 days are pruned on every sync so the backup file
+   doesn't grow forever once a deletion has clearly propagated everywhere.
+   `lastSyncedHash`/`lastSyncedTimestamp` are now persisted to localStorage
+   (not just an in-memory variable), so a page reload doesn't mistakenly
+   treat the cloud as "newer" and force redundant merges.
+   ========================================================================= */
+
 const DRIVE_FILENAME = 'nagmeena_ledger_data.json';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const TOMBSTONE_RETENTION_MS = 90*24*60*60*1000;
+
 let gisReady = false, tokenClient = null, accessToken = null, driveFileId = null;
-let syncInProgress = false, syncQueued = false, lastSyncedHash = null, lastSyncedTimestamp = 0;
+let syncInProgress = false, syncQueued = false;
+let lastSyncedHash = load(LS_LAST_HASH, null);
+let lastSyncedTimestamp = load(LS_LAST_TS, 0);
 
 const STATUS = {
   connecting:{dot:'busy',text:'Connecting…'}, downloading:{dot:'busy',text:'Downloading…'}, uploading:{dot:'busy',text:'Uploading…'},
@@ -781,36 +849,86 @@ async function driveVerify(fileId, expected){
   try{ const remote = await driveDownloadFile(fileId); return !!remote && remote.timestamp === expected.timestamp && remote.deviceId === expected.deviceId; }
   catch(e){ return false; }
 }
-function buildLocalPayload(){ return { products, sales, cats, seq: parseInt(localStorage.getItem(LS_SEQ)||'0',10), timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID }; }
-function isEmptyDataset(d){ return (!d.products || d.products.length===0) && (!d.sales || d.sales.length===0); }
+function normalizeRows(rows){
+  // Guards against pre-v3 cloud backups that don't have id/updatedAt yet.
+  return (rows||[]).map(r=> (r.id && r.updatedAt) ? r : {...r, id: r.id || uuid(), updatedAt: r.updatedAt || Date.now()});
+}
+function buildLocalPayload(){
+  return {
+    products, productTombstones, sales, saleTombstones, cats,
+    seq: parseInt(localStorage.getItem(LS_SEQ)||'0',10),
+    timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID
+  };
+}
+function isFreshLocalState(d){
+  return (d.products||[]).length===0 && (d.sales||[]).length===0 &&
+         (d.productTombstones||[]).length===0 && (d.saleTombstones||[]).length===0;
+}
 function hashPayload(data){
-  const str = JSON.stringify({products:data.products, sales:data.sales, cats:data.cats, seq:data.seq});
+  const str = JSON.stringify({
+    products:data.products, productTombstones:data.productTombstones,
+    sales:data.sales, saleTombstones:data.saleTombstones, cats:data.cats, seq:data.seq
+  });
   let h = 0; for(let i=0;i<str.length;i++){ h = (Math.imul(31,h) + str.charCodeAt(i)) | 0; } return h;
 }
-function mergeData(local, cloud){
-  const productMap = new Map();
-  (cloud.products||[]).forEach(p=>productMap.set(p.code,p));
-  (local.products||[]).forEach(p=>{ if(!productMap.has(p.code) || local.timestamp >= cloud.timestamp) productMap.set(p.code,p); });
-  const saleKey = s => `${s.invoice}__${s.code}__${s.date}__${s.qty}__${s.revenue}`;
-  const saleMap = new Map();
-  (cloud.sales||[]).forEach(s=>saleMap.set(saleKey(s), s));
-  (local.sales||[]).forEach(s=>saleMap.set(saleKey(s), s));
-  const mergedCats = JSON.parse(JSON.stringify(cloud.cats || local.cats || defaultCats));
-  Object.keys(local.cats||{}).forEach(key=>{
-    if(!mergedCats[key]){ mergedCats[key] = local.cats[key]; return; }
-    const existingCodes = new Set(mergedCats[key].items.map(i=>i.code));
-    (local.cats[key].items||[]).forEach(it=>{ if(!existingCodes.has(it.code)){ mergedCats[key].items.push(it); existingCodes.add(it.code); } });
+/* Generic row-level merge: newest updatedAt wins per id; a tombstone whose
+   deletedAt is newer than (or equal to) a row's updatedAt keeps that row deleted. */
+function mergeRows(localRows, cloudRows, localTomb, cloudTomb){
+  const rowMap = new Map();
+  [cloudRows, localRows].forEach(list=> list.forEach(r=>{
+    const ex = rowMap.get(r.id);
+    if(!ex || (r.updatedAt||0) > (ex.updatedAt||0)) rowMap.set(r.id, r);
+  }));
+  const tombMap = new Map();
+  [cloudTomb, localTomb].forEach(list=> list.forEach(t=>{
+    const ex = tombMap.get(t.id);
+    if(!ex || (t.deletedAt||0) > (ex.deletedAt||0)) tombMap.set(t.id, t);
+  }));
+  const rows = [];
+  rowMap.forEach((r,id)=>{
+    const t = tombMap.get(id);
+    if(t && (t.deletedAt||0) >= (r.updatedAt||0)) return; // deletion wins — never resurrected
+    rows.push(r);
   });
-  return { products: Array.from(productMap.values()), sales: Array.from(saleMap.values()), cats: mergedCats, seq: Math.max(local.seq||0, cloud.seq||0), timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID };
+  const now = Date.now();
+  const tombstones = Array.from(tombMap.values()).filter(t => (now - (t.deletedAt||0)) < TOMBSTONE_RETENTION_MS);
+  return { rows, tombstones };
+}
+function mergeCats(localCats, cloudCats){
+  const mergedCats = JSON.parse(JSON.stringify(cloudCats || localCats || defaultCats));
+  Object.keys(localCats||{}).forEach(key=>{
+    if(!mergedCats[key]){ mergedCats[key] = localCats[key]; return; }
+    const existingCodes = new Set(mergedCats[key].items.map(i=>i.code));
+    (localCats[key].items||[]).forEach(it=>{ if(!existingCodes.has(it.code)){ mergedCats[key].items.push(it); existingCodes.add(it.code); } });
+  });
+  return mergedCats;
+}
+function mergeData(local, cloud){
+  const cloudProducts = normalizeRows(cloud.products), cloudSales = normalizeRows(cloud.sales);
+  const localProducts = normalizeRows(local.products), localSales = normalizeRows(local.sales);
+  const pMerge = mergeRows(localProducts, cloudProducts, local.productTombstones||[], cloud.productTombstones||[]);
+  const sMerge = mergeRows(localSales, cloudSales, local.saleTombstones||[], cloud.saleTombstones||[]);
+  return {
+    products: pMerge.rows, productTombstones: pMerge.tombstones,
+    sales: sMerge.rows, saleTombstones: sMerge.tombstones,
+    cats: mergeCats(local.cats, cloud.cats),
+    seq: Math.max(local.seq||0, cloud.seq||0),
+    timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID
+  };
 }
 function applyRemoteData(data){
-  products = data.products || []; sales = data.sales || []; cats = data.cats || defaultCats;
+  products = data.products || []; sales = data.sales || [];
+  productTombstones = data.productTombstones || []; saleTombstones = data.saleTombstones || [];
+  cats = data.cats || defaultCats;
   localStorage.setItem(LS_SEQ, String(data.seq || 0));
-  save(LS_PRODUCTS, products); save(LS_SALES, sales); save(LS_CATS, cats);
+  save(LS_PRODUCTS, products); save(LS_SALES, sales);
+  save(LS_PROD_TOMB, productTombstones); save(LS_SALE_TOMB, saleTombstones); save(LS_CATS, cats);
   CAT_KEYS.forEach(populateSelect); renderProducts(); renderHistory();
   lastSyncedTimestamp = data.timestamp || Date.now(); lastSyncedHash = hashPayload(data);
+  save(LS_LAST_TS, lastSyncedTimestamp); save(LS_LAST_HASH, lastSyncedHash);
 }
 function markSynced(){ localStorage.setItem(LS_SYNCED, new Date().toLocaleString()); }
+
 async function performSync(trigger){
   if(!navigator.onLine){ setStatus('offline'); return; }
   if(!isDriveConnected() && trigger!=='connect'){ if(trigger==='manual') setStatus('failed', mapError({code:'no_client'})); return; }
@@ -824,8 +942,12 @@ async function performSync(trigger){
     let cloudData = driveFileId ? await driveDownloadFile(driveFileId) : null;
     const localData = buildLocalPayload();
     let finalData = localData;
+
     if(cloudData){
-      if(isEmptyDataset(localData) && !isEmptyDataset(cloudData)){
+      // Only restore-from-cloud wholesale if this device has genuinely never synced anything
+      // (no rows AND no deletion history). If local is empty because the user cleared it on
+      // purpose, tombstones exist and the normal merge below correctly keeps it cleared.
+      if(isFreshLocalState(localData) && !isFreshLocalState(cloudData)){
         applyRemoteData(cloudData); localStorage.setItem(LS_CONNECTED,'1');
         setStatus('success', 'Restored from cloud backup'); markSynced(); return;
       }
@@ -834,17 +956,21 @@ async function performSync(trigger){
         applyRemoteData(finalData);
       }
     }
+
     const currentHash = hashPayload(finalData);
     if(currentHash === lastSyncedHash && driveFileId){
       localStorage.setItem(LS_CONNECTED,'1');
       setStatus('success', trigger==='manual' ? 'Already up to date' : 'Sync successful');
       markSynced(); return;
     }
+
     setStatus('uploading');
     const savedId = await driveSaveFile(driveFileId, finalData);
     const verified = await driveVerify(savedId, finalData);
     if(!verified) throw {code:'verify_failed'};
-    driveFileId = savedId; lastSyncedTimestamp = finalData.timestamp; lastSyncedHash = currentHash;
+    driveFileId = savedId;
+    lastSyncedTimestamp = finalData.timestamp; lastSyncedHash = currentHash;
+    save(LS_LAST_TS, lastSyncedTimestamp); save(LS_LAST_HASH, lastSyncedHash);
     localStorage.setItem(LS_CONNECTED,'1');
     setStatus('success', 'Sync successful'); markSynced();
   }catch(err){
@@ -856,7 +982,7 @@ async function performSync(trigger){
     if(syncQueued){ syncQueued = false; performSync('auto'); }
   }
 }
-function pushChange(reason){ if(!isDriveConnected()) return; performSync('auto'); }
+function pushChange(){ if(!isDriveConnected()) return; performSync('auto'); }
 
 document.getElementById('connectDriveBtn').addEventListener('click', async (e)=>{
   e.stopPropagation();
@@ -869,7 +995,7 @@ document.getElementById('connectDriveBtn').addEventListener('click', async (e)=>
 });
 document.getElementById('disconnectDriveBtn').addEventListener('click', (e)=>{
   e.stopPropagation();
-  accessToken = null; driveFileId = null; lastSyncedHash = null; lastSyncedTimestamp = 0;
+  accessToken = null; driveFileId = null;
   localStorage.removeItem(LS_CONNECTED); localStorage.removeItem(LS_TOKEN_EXP);
   setStatus('disconnected'); toast('Disconnected from Google Drive');
 });
