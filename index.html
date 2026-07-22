@@ -90,6 +90,8 @@
   .codepreview{ background:var(--teal-soft); border:1px solid var(--teal-light); border-radius:8px; padding:12px 14px; margin:12px 0 16px 0; }
   .codepreview .code{ font-family:'IBM Plex Mono',monospace; font-size:18px; font-weight:600; color:var(--teal); letter-spacing:1px; }
   .codepreview .decode{ font-size:11.5px; color:var(--grey); margin-top:4px; }
+  .codepreview .autodesc{ font-size:13px; color:var(--ink); margin-top:8px; padding-top:8px; border-top:1px dashed var(--line-strong); }
+  .codepreview .autodesc b{ color:var(--teal); }
   .inline-add{ display:none; gap:8px; margin-top:6px; padding:10px; background:var(--gold-soft); border-radius:7px; }
   .inline-add.show{ display:flex; flex-wrap:wrap; } .inline-add input{ flex:1; min-width:100px; }
   .settings-panel{ display:none; position:fixed; top:70px; right:24px; width:360px; max-width:90vw; background:#fff; border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px; z-index:60; }
@@ -100,6 +102,10 @@
   .settings-panel .sync-state{ display:flex; align-items:center; gap:8px; font-size:12.5px; margin-top:12px; padding:10px; border-radius:7px; background:var(--teal-soft); color:var(--ink); }
   .settings-panel .sync-state.err{ background:var(--brick-soft); color:var(--brick); }
   .settings-panel .sync-state.ok{ background:var(--teal-light); color:var(--teal); }
+  .stock-ok{ color:var(--green); font-weight:600; }
+  .stock-out{ color:var(--brick); font-weight:600; }
+  .warn-banner{ background:var(--brick-soft); color:var(--brick); border:1px solid var(--brick); border-radius:8px; padding:10px 12px; font-size:13px; margin-bottom:12px; display:none; }
+  .warn-banner.show{ display:block; }
   footer.hint{ text-align:center; color:var(--grey); font-size:12px; padding:10px 24px 30px; max-width:1200px; margin:0 auto; }
 </style>
 </head>
@@ -148,9 +154,10 @@
         </div>
         <div class="card">
           <h2>Add Item</h2>
-          <p class="sub">Type a product code from your catalog — description and price fill in automatically.</p>
+          <p class="sub">Type a product code from your catalog — description, price and stock fill in automatically.</p>
+          <div class="warn-banner" id="stockWarning"></div>
           <div class="row">
-            <div class="field" style="flex:0.9;"><label for="itemCode">Product Code</label><input type="text" id="itemCode" class="mono" placeholder="14-character code"></div>
+            <div class="field" style="flex:0.9;"><label for="itemCode">Product Code</label><input type="text" id="itemCode" class="mono" placeholder="12-character code"></div>
             <div class="field" style="flex:1.6;"><label for="itemName">Description</label><input type="text" id="itemName" disabled placeholder="—"></div>
             <div class="field" style="flex:0.5;"><label for="itemQty">Qty</label><input type="number" id="itemQty" min="1" value="1"></div>
           </div>
@@ -194,13 +201,14 @@
     <div class="grid-2">
       <div class="card">
         <h2 id="productFormTitle">Add Product</h2>
-        <p class="sub">Build the product code from its subsections, then set the description and prices.</p>
+        <p class="sub">Build the product code from its subsections — description is generated automatically.</p>
         <div class="codebuilder" id="codeBuilder"></div>
         <div class="codepreview">
-          <div class="code" id="codePreview">— — — — — — —</div>
+          <div class="code" id="codePreview">— — — — — —</div>
           <div class="decode" id="codeDecode">Select each subsection above</div>
+          <div class="autodesc" id="autoDescPreview">Description: <b>—</b></div>
         </div>
-        <div class="field"><label for="pDesc">Product Description</label><input type="text" id="pDesc" placeholder="e.g. Cotton Cutdana Floral Suit"></div>
+        <div class="field"><label for="pStock">Quantity</label><input type="number" id="pStock" min="0" step="1" placeholder="e.g. 10"></div>
         <div class="row">
           <div class="field"><label for="pCost">Cost Price (₹)</label><input type="number" id="pCost" min="0" step="0.01" placeholder="0.00"></div>
           <div class="field"><label for="pPrice">Expected Selling Price (₹)</label><input type="number" id="pPrice" min="0" step="0.01" placeholder="0.00"></div>
@@ -212,8 +220,8 @@
       </div>
       <div class="card" style="margin-top:0;">
         <h2>Catalog</h2>
-        <table><thead><tr><th>Code</th><th>Description</th><th class="num">Cost</th><th class="num">Price</th><th class="num">Margin</th><th></th></tr></thead>
-          <tbody id="productBody"><tr class="empty-row"><td colspan="6">No products yet</td></tr></tbody></table>
+        <table><thead><tr><th>Code</th><th>Description</th><th class="num">Stock</th><th class="num">Cost</th><th class="num">Price</th><th class="num">Margin</th><th></th></tr></thead>
+          <tbody id="productBody"><tr class="empty-row"><td colspan="7">No products yet</td></tr></tbody></table>
       </div>
     </div>
   </section>
@@ -262,9 +270,9 @@ if(!localStorage.getItem(LS_DEVICE)){
   localStorage.setItem(LS_DEVICE, id);
 }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 1;
+const DATA_VERSION = 2; // bumped: products now carry a `stock` field, serial subsection removed
 
-/* ===== Product code categories ===== */
+/* ===== Product code categories (Serial Number subsection removed) ===== */
 const defaultCats = {
   series:{label:'Series', hasMnemonic:false, items:[
     {desc:'Series 1', code:'01'},{desc:'Series 2', code:'02'},{desc:'Series 3', code:'03'}]},
@@ -286,16 +294,10 @@ const defaultCats = {
 };
 let cats = load(LS_CATS, defaultCats);
 const CAT_KEYS = ['series','fabric','work','print','colour','style'];
+const DESC_KEYS = ['fabric','work','print','colour']; // subset used to build the auto product description
 const selected = {};
 
 function nextCode(list){ const max = list.reduce((m,i)=>Math.max(m, parseInt(i.code,36)||0), 0); return String(max+1).padStart(2,'0'); }
-function serialCode(n){
-  n = parseInt(n,10);
-  if(!n || n<1) return '';
-  if(n<=9) return '0'+n;
-  const dec = Math.floor(n/10), unit = n%10;
-  return String(unit) + String.fromCharCode(64+dec);
-}
 
 const builder = document.getElementById('codeBuilder');
 CAT_KEYS.forEach(key=>{
@@ -313,17 +315,6 @@ CAT_KEYS.forEach(key=>{
   builder.appendChild(wrap);
   populateSelect(key);
   document.getElementById(`sel_${key}`).addEventListener('change', ()=>onSelectChange(key));
-});
-
-const serialWrap = document.createElement('div');
-serialWrap.innerHTML = `<label>Serial Number</label><input type="number" id="serialInput" min="1" placeholder="e.g. 5"><div class="sub-hint" id="hint_serial"></div>`;
-builder.appendChild(serialWrap);
-document.getElementById('serialInput').addEventListener('input', ()=>{
-  const n = document.getElementById('serialInput').value;
-  const code = serialCode(n);
-  selected.serial = code ? {desc:'Piece #'+n, code} : null;
-  document.getElementById('hint_serial').textContent = code ? `Code: ${code}` : '';
-  updatePreview();
 });
 
 function populateSelect(key){
@@ -364,56 +355,68 @@ function addCustom(key){
   onSelectChange(key);
   document.getElementById(`newdesc_${key}`).value=''; if(mnemInput) mnemInput.value='';
   toast(`Added "${desc}" to ${cat.label}`);
-  pushChange('category changed'); // sync immediately
+  pushChange('category changed');
 }
 
 function assembledCode(){
-  const parts = CAT_KEYS.map(k=>selected[k]?.code).concat([selected.serial?.code]);
+  const parts = CAT_KEYS.map(k=>selected[k]?.code);
   if(parts.some(p=>!p)) return null;
   return parts.join('');
 }
+function assembledDescription(){
+  const parts = DESC_KEYS.map(k=>selected[k]?.desc).filter(Boolean);
+  return parts.join(' ');
+}
 function updatePreview(){
   const code = assembledCode();
-  const preview = document.getElementById('codePreview'), decode = document.getElementById('codeDecode');
+  const preview = document.getElementById('codePreview'), decode = document.getElementById('codeDecode'), autoDesc = document.getElementById('autoDescPreview');
   if(code){
     preview.textContent = code;
-    decode.textContent = CAT_KEYS.map(k=>selected[k]?.desc).concat([selected.serial?.desc]).filter(Boolean).join(' · ');
-  }else{ preview.textContent = '— — — — — — —'; decode.textContent = 'Select each subsection above'; }
+    decode.textContent = CAT_KEYS.map(k=>selected[k]?.desc).filter(Boolean).join(' · ');
+  }else{
+    preview.textContent = '— — — — — —';
+    decode.textContent = 'Select each subsection above';
+  }
+  const desc = assembledDescription();
+  autoDesc.innerHTML = `Description: <b>${desc ? esc(desc) : '—'}</b>`;
 }
 
-/* ===== Products CRUD — each mutation syncs immediately ===== */
+/* ===== Products CRUD ===== */
 function findProduct(code){ code=(code||'').trim().toUpperCase(); return products.find(p=>p.code.toUpperCase()===code); }
+function inStock(p){ return p && (p.stock||0) > 0; }
 
 document.getElementById('saveProductBtn').addEventListener('click', ()=>{
   const code = assembledCode();
-  const desc = document.getElementById('pDesc').value.trim();
+  const stock = parseInt(document.getElementById('pStock').value,10);
   const cost = parseFloat(document.getElementById('pCost').value);
   const price = parseFloat(document.getElementById('pPrice').value);
   if(!code){ toast('Complete every subsection to build the product code'); return; }
-  if(!desc){ toast('Enter a product description'); return; }
+  if(isNaN(stock) || stock<0){ toast('Enter a valid quantity (0 or more)'); return; }
   if(isNaN(cost)||isNaN(price)||cost<0||price<0){ toast('Enter valid cost and selling price'); return; }
 
   if(editingCode){
     const idx = products.findIndex(p=>p.code===editingCode);
-    if(idx>-1) products[idx] = {code, name:desc, cost, price};
+    if(idx>-1) products[idx] = {...products[idx], code, cost, price, stock};
     editingCode=null;
     document.getElementById('productFormTitle').textContent='Add Product';
     document.getElementById('cancelEditBtn').style.display='none';
     toast('Product updated');
   }else{
+    const desc = assembledDescription();
     if(findProduct(code)){ toast('This exact code combination already exists'); return; }
-    products.push({code, name:desc, cost, price});
+    products.push({code, name:desc, cost, price, stock});
     toast('Product added');
   }
   save(LS_PRODUCTS, products);
-  document.getElementById('pDesc').value=''; document.getElementById('pCost').value=''; document.getElementById('pPrice').value='';
+  document.getElementById('pStock').value=''; document.getElementById('pCost').value=''; document.getElementById('pPrice').value='';
   renderProducts();
-  pushChange('product added/edited'); // upload immediately
+  pushChange('product added/edited');
 });
 document.getElementById('cancelEditBtn').addEventListener('click', ()=>{
   editingCode=null;
   document.getElementById('productFormTitle').textContent='Add Product';
   document.getElementById('cancelEditBtn').style.display='none';
+  document.getElementById('pStock').value=''; document.getElementById('pCost').value=''; document.getElementById('pPrice').value='';
 });
 function deleteProduct(code){
   if(!confirm('Delete this product? Past sales records are unaffected.')) return;
@@ -425,7 +428,7 @@ function deleteProduct(code){
 function editProduct(code){
   const p = findProduct(code);
   if(!p) return;
-  document.getElementById('pDesc').value = p.name;
+  document.getElementById('pStock').value = p.stock ?? 0;
   document.getElementById('pCost').value = p.cost;
   document.getElementById('pPrice').value = p.price;
   editingCode = code;
@@ -435,11 +438,13 @@ function editProduct(code){
 function renderProducts(){
   const body = document.getElementById('productBody');
   body.innerHTML = products.length===0
-    ? '<tr class="empty-row"><td colspan="6">No products yet</td></tr>'
+    ? '<tr class="empty-row"><td colspan="7">No products yet</td></tr>'
     : products.map(p=>{
         const margin = p.price - p.cost;
+        const stock = p.stock||0;
         return `<tr>
           <td class="mono">${esc(p.code)}</td><td>${esc(p.name)}</td>
+          <td class="num ${stock>0?'stock-ok':'stock-out'}">${stock>0?stock:'Out of stock'}</td>
           <td class="num">${money(p.cost)}</td><td class="num">${money(p.price)}</td>
           <td class="num" style="color:${margin>=0?'var(--green)':'var(--brick)'}">${money(margin)}</td>
           <td><button class="btn btn-ghost btn-sm" onclick="editProduct('${p.code}')">Edit</button>
@@ -448,14 +453,28 @@ function renderProducts(){
       }).join('');
 }
 
-/* ===== Billing ===== */
+/* ===== Billing (stock-aware) ===== */
 const itemCode=document.getElementById('itemCode'), itemName=document.getElementById('itemName'), lookupHint=document.getElementById('lookupHint');
+const stockWarning = document.getElementById('stockWarning');
+function showStockWarning(msg){ stockWarning.textContent = msg; stockWarning.classList.add('show'); }
+function hideStockWarning(){ stockWarning.classList.remove('show'); stockWarning.textContent=''; }
+
 function doLookup(){
   const code=itemCode.value.trim();
+  hideStockWarning();
   if(!code){ itemName.value=''; lookupHint.textContent=''; return null; }
   const p=findProduct(code);
-  if(p){ itemName.value=p.name; lookupHint.style.color='var(--green)'; lookupHint.textContent=`Cost ${money(p.cost)} · Selling ${money(p.price)}`; return p; }
-  itemName.value=''; lookupHint.style.color='var(--brick)'; lookupHint.textContent='Unknown code — add it in the Product Catalog tab first.'; return null;
+  if(!p){ itemName.value=''; lookupHint.style.color='var(--brick)'; lookupHint.textContent='Unknown code — add it in the Product Catalog tab first.'; return null; }
+  itemName.value=p.name;
+  if(!inStock(p)){
+    lookupHint.style.color='var(--brick)';
+    lookupHint.textContent='This product is out of stock.';
+    showStockWarning(`⚠ "${p.name}" (${p.code}) is out of stock and cannot be added to a bill.`);
+    return p;
+  }
+  lookupHint.style.color='var(--green)';
+  lookupHint.textContent=`Cost ${money(p.cost)} · Selling ${money(p.price)} · ${p.stock} in stock`;
+  return p;
 }
 itemCode.addEventListener('input', doLookup);
 itemCode.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('addToCartBtn').click(); }});
@@ -463,9 +482,17 @@ document.getElementById('addToCartBtn').addEventListener('click', ()=>{
   const p=doLookup(); const qty=parseInt(document.getElementById('itemQty').value,10);
   if(!p){ toast('Enter a valid, known product code'); return; }
   if(!qty||qty<1){ toast('Quantity must be at least 1'); return; }
+  if(!inStock(p)){ toast('This product is out of stock and cannot be added to the bill.', true); return; }
   const existing = cart.find(c=>c.code===p.code);
+  const alreadyInCart = existing ? existing.qty : 0;
+  if(alreadyInCart + qty > p.stock){
+    const remaining = Math.max(0, p.stock - alreadyInCart);
+    showStockWarning(`⚠ Only ${remaining} more unit(s) of "${p.name}" available.`);
+    toast(`Only ${remaining} more unit(s) available`, true);
+    return;
+  }
   if(existing) existing.qty+=qty; else cart.push({code:p.code,name:p.name,cost:p.cost,price:p.price,qty});
-  itemCode.value=''; itemName.value=''; document.getElementById('itemQty').value=1; lookupHint.textContent='';
+  itemCode.value=''; itemName.value=''; document.getElementById('itemQty').value=1; lookupHint.textContent=''; hideStockWarning();
   renderCart();
 });
 document.getElementById('clearCartBtn').addEventListener('click', ()=>{ cart=[]; renderCart(); });
@@ -492,6 +519,19 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
   const name=document.getElementById('custName').value.trim(), number=document.getElementById('custNumber').value.trim();
   if(!name||!number){ toast('Enter customer name and number'); return; }
   if(cart.length===0){ toast('Add at least one item'); return; }
+
+  // Final stock check — catches cases where stock changed (e.g. another device synced) since items were added to the cart.
+  const shortages = [];
+  cart.forEach(c=>{
+    const p = findProduct(c.code);
+    if(!p || p.stock < c.qty) shortages.push(`${c.name} (need ${c.qty}, ${p?p.stock:0} available)`);
+  });
+  if(shortages.length){
+    showStockWarning(`⚠ Cannot generate bill — insufficient stock: ${shortages.join('; ')}`);
+    toast('Insufficient stock for one or more items', true);
+    return;
+  }
+
   const invoiceNo = 'INV-'+String(parseInt(localStorage.getItem(LS_SEQ)||'0',10)+1).padStart(5,'0');
   localStorage.setItem(LS_SEQ, String(parseInt(localStorage.getItem(LS_SEQ)||'0',10)+1));
   const date = todayStr();
@@ -499,8 +539,12 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
   cart.forEach(c=>{
     const revenue=c.qty*c.price, costTotal=c.qty*c.cost;
     sales.push({invoice:invoiceNo,date,customer:name,number,code:c.code,product:c.name,qty:c.qty,cost:c.cost,price:c.price,revenue,profit:revenue-costTotal});
+    const p = findProduct(c.code);
+    if(p) p.stock = Math.max(0, (p.stock||0) - c.qty); // decrement stock; floors at 0 → out of stock
   });
   save(LS_SALES, sales);
+  save(LS_PRODUCTS, products);
+  renderProducts();
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:'pt', format:'a4'});
@@ -526,8 +570,8 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
 
   toast(`Bill ${invoiceNo} generated and saved`);
   cart=[]; document.getElementById('custName').value=''; document.getElementById('custNumber').value='';
-  renderCart();
-  pushChange('bill generated'); // upload immediately
+  renderCart(); hideStockWarning();
+  pushChange('bill generated');
 });
 function loadLogoDataUrl(){
   return new Promise(resolve=>{
@@ -539,7 +583,7 @@ function loadLogoDataUrl(){
   });
 }
 
-/* ===== History — delete AND edit both sync immediately ===== */
+/* ===== History ===== */
 function renderHistory(){
   const body=document.getElementById('historyBody');
   body.innerHTML = sales.length===0 ? '<tr class="empty-row"><td colspan="12">No sales recorded yet</td></tr>' :
@@ -564,22 +608,28 @@ function editSaleRow(i){
   if(input===null) return;
   const newQty = parseInt(input,10);
   if(!newQty || newQty<1){ toast('Enter a valid quantity'); return; }
-  s.qty = newQty;
-  s.revenue = newQty * s.price;
-  s.profit = s.revenue - (newQty * s.cost);
-  save(LS_SALES, sales);
-  renderHistory();
+  const diff = newQty - s.qty; // positive = selling more, needs more stock; negative = returning stock
+  const p = findProduct(s.code);
+  if(p && diff>0 && diff > p.stock){ toast(`Only ${p.stock} more unit(s) of this product are available`, true); return; }
+  if(p) p.stock = Math.max(0, (p.stock||0) - diff);
+  s.qty = newQty; s.revenue = newQty * s.price; s.profit = s.revenue - (newQty * s.cost);
+  save(LS_SALES, sales); save(LS_PRODUCTS, products);
+  renderHistory(); renderProducts();
   toast('Sale record updated');
   pushChange('sale edited');
 }
 function deleteSaleRow(i){
-  if(!confirm('Delete this sale record?')) return;
-  sales.splice(i,1); save(LS_SALES,sales); renderHistory();
+  if(!confirm('Delete this sale record? Its quantity will be returned to stock.')) return;
+  const s = sales[i];
+  const p = findProduct(s.code);
+  if(p) p.stock = (p.stock||0) + s.qty; // deleting a sale returns the stock
+  sales.splice(i,1); save(LS_SALES,sales); save(LS_PRODUCTS, products);
+  renderHistory(); renderProducts();
   pushChange('sale deleted');
 }
 document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{
   if(sales.length===0) return;
-  if(!confirm('Clear ALL sales records? Export a backup first if needed.')) return;
+  if(!confirm('Clear ALL sales records? Export a backup first if needed. Stock quantities will not be restored.')) return;
   sales=[]; save(LS_SALES,sales); renderHistory(); toast('Sales Book cleared');
   pushChange('history cleared');
 });
@@ -597,7 +647,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   toast('Excel file downloaded');
 });
 
-/* ===== Tabs / Settings toggle ===== */
+/* ===== Tabs / Settings toggle (auto-closes on outside click) ===== */
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -607,51 +657,27 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     if(btn.dataset.tab==='history') renderHistory();
   });
 });
-document.getElementById('settingsBtn').addEventListener('click', ()=>document.getElementById('settingsPanel').classList.toggle('show'));
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsPanel = document.getElementById('settingsPanel');
+settingsBtn.addEventListener('click', (e)=>{ e.stopPropagation(); settingsPanel.classList.toggle('show'); });
+settingsPanel.addEventListener('click', (e)=>e.stopPropagation()); // clicks inside the panel never close it
+document.addEventListener('click', ()=>{ settingsPanel.classList.remove('show'); }); // any other click closes it
+
 document.getElementById('clientIdInput').value = localStorage.getItem(LS_CLIENTID) || '';
 document.getElementById('clientIdInput').addEventListener('change', e=>{
   localStorage.setItem(LS_CLIENTID, e.target.value.trim());
   if(e.target.value.trim()) initTokenClient(e.target.value.trim());
 });
 
-/* =========================================================================
-   GOOGLE DRIVE SYNC (v2)
-   =========================================================================
-   Key change from before: no fixed debounce timer. Every trigger calls
-   performSync() right away. If a sync is already running, the new request
-   is queued (syncQueued=true) and re-run the instant the current one
-   finishes — so bursts of changes never get silently dropped, and nothing
-   waits an artificial 1.5s before it starts uploading.
-
-   "Sync Now" (trigger='manual') always re-downloads the cloud file and
-   re-renders the UI from it — that's the literal "pull & display" behaviour
-   requested. To avoid ever discarding not-yet-uploaded local edits, it first
-   merges local + cloud (union of products/sales/categories, invoice sequence
-   takes the max) before displaying and re-uploading the reconciled result.
-   This means Sync Now can never make you lose local work, even though it
-   always shows you the latest cloud state.
-   ========================================================================= */
-
+/* ===== Google Drive sync (unchanged from previous version) ===== */
 const DRIVE_FILENAME = 'nagmeena_ledger_data.json';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
-
-let gisReady = false;
-let tokenClient = null;
-let accessToken = null;
-let driveFileId = null;
-let syncInProgress = false;
-let syncQueued = false;
-let lastSyncedHash = null;
-let lastSyncedTimestamp = 0;
+let gisReady = false, tokenClient = null, accessToken = null, driveFileId = null;
+let syncInProgress = false, syncQueued = false, lastSyncedHash = null, lastSyncedTimestamp = 0;
 
 const STATUS = {
-  connecting:  {dot:'busy', text:'Connecting…'},
-  downloading: {dot:'busy', text:'Downloading…'},
-  uploading:   {dot:'busy', text:'Uploading…'},
-  success:     {dot:'ok',   text:'Drive Connected'},
-  failed:      {dot:'err',  text:'Sync failed'},
-  offline:     {dot:'',     text:'Offline'},
-  disconnected:{dot:'',     text:'Drive not connected'}
+  connecting:{dot:'busy',text:'Connecting…'}, downloading:{dot:'busy',text:'Downloading…'}, uploading:{dot:'busy',text:'Uploading…'},
+  success:{dot:'ok',text:'Drive Connected'}, failed:{dot:'err',text:'Sync failed'}, offline:{dot:'',text:'Offline'}, disconnected:{dot:'',text:'Drive not connected'}
 };
 function setStatus(state, detail){
   const cfg = STATUS[state] || STATUS.disconnected;
@@ -663,47 +689,36 @@ function setStatus(state, detail){
   const lastSync = localStorage.getItem(LS_SYNCED);
   box.textContent = (detail || cfg.text) + (lastSync ? ` · Last sync: ${lastSync}` : '');
 }
-function setButtonsBusy(busy){
-  document.getElementById('syncNowBtn').disabled = busy;
-  document.getElementById('connectDriveBtn').disabled = busy;
-}
+function setButtonsBusy(busy){ document.getElementById('syncNowBtn').disabled = busy; document.getElementById('connectDriveBtn').disabled = busy; }
 function isDriveConnected(){ return localStorage.getItem(LS_CONNECTED)==='1' && !!localStorage.getItem(LS_CLIENTID); }
-
 function mapError(err){
   const code = (err && (err.code || err.status)) || (err && err.message) || 'unknown';
   const map = {
-    'popup_closed_by_user': 'Sign-in popup was closed before finishing — try again and approve access.',
-    'popup_failed_to_open': 'Popup was blocked by your browser. Allow popups for this page and try again.',
-    'access_denied': 'Access to Google Drive was denied.',
-    'timeout': 'Sign-in timed out — check your Client ID and Authorized JavaScript origins.',
-    'no_client': "Drive sync isn't set up yet — add your Google Client ID in Settings.",
-    'token_expired': 'Your session expired — reconnecting…',
-    'network_error': 'No internet connection — working from local data.',
-    'verify_failed': 'Upload could not be verified — please try Sync Now again.',
-    'corrupted_json': 'The cloud backup looked corrupted, so it was left untouched.',
-    'invalid_json': 'Local data could not be serialized safely — sync skipped.',
-    'upload_failed': 'Google Drive did not confirm the upload — please try again.',
-    401: 'Session expired — please reconnect Google Drive.',
-    403: 'Google Drive denied access — confirm the Drive API is enabled and this origin is authorized.',
-    404: 'Backup file not found — a new one will be created.',
-    409: 'The Drive file changed elsewhere — merging changes.',
-    429: 'Google Drive rate limit reached — will retry shortly.',
-    500: 'Google Drive is having issues — will retry shortly.',
-    503: 'Google Drive is temporarily unavailable — will retry shortly.'
+    'popup_closed_by_user':'Sign-in popup was closed before finishing — try again and approve access.',
+    'popup_failed_to_open':'Popup was blocked by your browser. Allow popups for this page and try again.',
+    'access_denied':'Access to Google Drive was denied.',
+    'timeout':'Sign-in timed out — check your Client ID and Authorized JavaScript origins.',
+    'no_client':"Drive sync isn't set up yet — add your Google Client ID in Settings.",
+    'token_expired':'Your session expired — reconnecting…','network_error':'No internet connection — working from local data.',
+    'verify_failed':'Upload could not be verified — please try Sync Now again.',
+    'corrupted_json':'The cloud backup looked corrupted, so it was left untouched.',
+    'invalid_json':'Local data could not be serialized safely — sync skipped.',
+    'upload_failed':'Google Drive did not confirm the upload — please try again.',
+    401:'Session expired — please reconnect Google Drive.',
+    403:'Google Drive denied access — confirm the Drive API is enabled and this origin is authorized.',
+    404:'Backup file not found — a new one will be created.', 409:'The Drive file changed elsewhere — merging changes.',
+    429:'Google Drive rate limit reached — will retry shortly.', 500:'Google Drive is having issues — will retry shortly.',
+    503:'Google Drive is temporarily unavailable — will retry shortly.'
   };
   if(map[code]) return map[code];
-  if(typeof code==='string' && (code.includes('invalid_client')||code.includes('unauthorized_origin'))){
-    return 'Google rejected this Client ID for this page — check the Client ID and Authorized JavaScript origins.';
-  }
+  if(typeof code==='string' && (code.includes('invalid_client')||code.includes('unauthorized_origin'))) return 'Google rejected this Client ID for this page — check the Client ID and Authorized JavaScript origins.';
   return 'Sync failed: ' + code;
 }
-
 function onGisLoaded(){
   gisReady = true;
   const clientId = localStorage.getItem(LS_CLIENTID);
   if(clientId) initTokenClient(clientId);
-  if(isDriveConnected()) performSync('startup');
-  else setStatus('disconnected');
+  if(isDriveConnected()) performSync('startup'); else setStatus('disconnected');
 }
 function initTokenClient(clientId){
   if(typeof google === 'undefined' || !google.accounts) return;
@@ -715,8 +730,7 @@ function requestToken(interactive){
     let settled = false;
     const timer = setTimeout(()=>{ if(!settled){ settled=true; reject({code:'timeout'}); } }, 25000);
     tokenClient.callback = (resp)=>{
-      if(settled) return;
-      settled = true; clearTimeout(timer);
+      if(settled) return; settled = true; clearTimeout(timer);
       if(resp.error){ reject({code:resp.error}); return; }
       accessToken = resp.access_token;
       localStorage.setItem(LS_TOKEN_EXP, String(Date.now() + (resp.expires_in||3600)*1000));
@@ -729,26 +743,19 @@ function requestToken(interactive){
 async function ensureValidToken(interactive){
   const expiry = parseInt(localStorage.getItem(LS_TOKEN_EXP)||'0',10);
   if(accessToken && Date.now() < expiry - 30000) return accessToken;
-  try{ return await requestToken(false); }
-  catch(e){ if(interactive) return await requestToken(true); throw e; }
+  try{ return await requestToken(false); } catch(e){ if(interactive) return await requestToken(true); throw e; }
 }
 async function fetchWithRetry(url, options={}, attempt=1){
-  const MAX_ATTEMPTS = 3;
-  let res;
+  const MAX_ATTEMPTS = 3; let res;
   try{ res = await fetch(url, options); }
-  catch(networkErr){
-    if(attempt < MAX_ATTEMPTS){ await sleep(attempt*800); return fetchWithRetry(url, options, attempt+1); }
-    throw {code:'network_error'};
-  }
+  catch(networkErr){ if(attempt<MAX_ATTEMPTS){ await sleep(attempt*800); return fetchWithRetry(url, options, attempt+1); } throw {code:'network_error'}; }
   if(res.status === 401) throw {code:'token_expired', status:401};
-  if([429,500,503].includes(res.status) && attempt < MAX_ATTEMPTS){ await sleep(attempt*1000); return fetchWithRetry(url, options, attempt+1); }
+  if([429,500,503].includes(res.status) && attempt<MAX_ATTEMPTS){ await sleep(attempt*1000); return fetchWithRetry(url, options, attempt+1); }
   if(!res.ok) throw {code:res.status, status:res.status};
   return res;
 }
 async function driveFindFile(){
-  const res = await fetchWithRetry(
-    `https://www.googleapis.com/drive/v3/files?q=name='${DRIVE_FILENAME}' and trashed=false&fields=files(id,name)&spaces=drive`,
-    { headers:{ Authorization:'Bearer '+accessToken } });
+  const res = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files?q=name='${DRIVE_FILENAME}' and trashed=false&fields=files(id,name)&spaces=drive`, { headers:{ Authorization:'Bearer '+accessToken } });
   const data = await res.json();
   return (data.files && data.files[0]) ? data.files[0].id : null;
 }
@@ -759,17 +766,13 @@ async function driveDownloadFile(fileId){
 }
 async function driveSaveFile(fileId, data){
   let payload;
-  try{ payload = JSON.stringify(data); JSON.parse(payload); }
-  catch(e){ throw {code:'invalid_json'}; }
+  try{ payload = JSON.stringify(data); JSON.parse(payload); } catch(e){ throw {code:'invalid_json'}; }
   const metadata = { name: DRIVE_FILENAME, mimeType:'application/json' };
   const boundary = 'ledgerboundary_' + Date.now();
   const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}` +
     `\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${payload}\r\n--${boundary}--`;
-  const url = fileId
-    ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
-    : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
-  const res = await fetchWithRetry(url, { method: fileId?'PATCH':'POST',
-    headers:{ Authorization:'Bearer '+accessToken, 'Content-Type':`multipart/related; boundary=${boundary}` }, body });
+  const url = fileId ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart` : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
+  const res = await fetchWithRetry(url, { method: fileId?'PATCH':'POST', headers:{ Authorization:'Bearer '+accessToken, 'Content-Type':`multipart/related; boundary=${boundary}` }, body });
   const json = await res.json();
   if(!json.id) throw {code:'upload_failed'};
   return json.id;
@@ -778,128 +781,85 @@ async function driveVerify(fileId, expected){
   try{ const remote = await driveDownloadFile(fileId); return !!remote && remote.timestamp === expected.timestamp && remote.deviceId === expected.deviceId; }
   catch(e){ return false; }
 }
-function buildLocalPayload(){
-  return { products, sales, cats, seq: parseInt(localStorage.getItem(LS_SEQ)||'0',10),
-    timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID };
-}
+function buildLocalPayload(){ return { products, sales, cats, seq: parseInt(localStorage.getItem(LS_SEQ)||'0',10), timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID }; }
 function isEmptyDataset(d){ return (!d.products || d.products.length===0) && (!d.sales || d.sales.length===0); }
 function hashPayload(data){
   const str = JSON.stringify({products:data.products, sales:data.sales, cats:data.cats, seq:data.seq});
-  let h = 0;
-  for(let i=0;i<str.length;i++){ h = (Math.imul(31,h) + str.charCodeAt(i)) | 0; }
-  return h;
+  let h = 0; for(let i=0;i<str.length;i++){ h = (Math.imul(31,h) + str.charCodeAt(i)) | 0; } return h;
 }
 function mergeData(local, cloud){
   const productMap = new Map();
   (cloud.products||[]).forEach(p=>productMap.set(p.code,p));
   (local.products||[]).forEach(p=>{ if(!productMap.has(p.code) || local.timestamp >= cloud.timestamp) productMap.set(p.code,p); });
-
   const saleKey = s => `${s.invoice}__${s.code}__${s.date}__${s.qty}__${s.revenue}`;
   const saleMap = new Map();
   (cloud.sales||[]).forEach(s=>saleMap.set(saleKey(s), s));
   (local.sales||[]).forEach(s=>saleMap.set(saleKey(s), s));
-
   const mergedCats = JSON.parse(JSON.stringify(cloud.cats || local.cats || defaultCats));
   Object.keys(local.cats||{}).forEach(key=>{
     if(!mergedCats[key]){ mergedCats[key] = local.cats[key]; return; }
     const existingCodes = new Set(mergedCats[key].items.map(i=>i.code));
     (local.cats[key].items||[]).forEach(it=>{ if(!existingCodes.has(it.code)){ mergedCats[key].items.push(it); existingCodes.add(it.code); } });
   });
-
-  return { products: Array.from(productMap.values()), sales: Array.from(saleMap.values()), cats: mergedCats,
-    seq: Math.max(local.seq||0, cloud.seq||0), timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID };
+  return { products: Array.from(productMap.values()), sales: Array.from(saleMap.values()), cats: mergedCats, seq: Math.max(local.seq||0, cloud.seq||0), timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID };
 }
 function applyRemoteData(data){
   products = data.products || []; sales = data.sales || []; cats = data.cats || defaultCats;
   localStorage.setItem(LS_SEQ, String(data.seq || 0));
   save(LS_PRODUCTS, products); save(LS_SALES, sales); save(LS_CATS, cats);
-  CAT_KEYS.forEach(populateSelect);
-  renderProducts(); renderHistory();
-  lastSyncedTimestamp = data.timestamp || Date.now();
-  lastSyncedHash = hashPayload(data);
+  CAT_KEYS.forEach(populateSelect); renderProducts(); renderHistory();
+  lastSyncedTimestamp = data.timestamp || Date.now(); lastSyncedHash = hashPayload(data);
 }
 function markSynced(){ localStorage.setItem(LS_SYNCED, new Date().toLocaleString()); }
-
-/* Single entry point for every kind of sync (startup / auto / manual / connect).
-   Re-entrancy safe: if called while already running, it queues one follow-up run
-   instead of dropping the request, so bursts of edits never get lost. */
 async function performSync(trigger){
   if(!navigator.onLine){ setStatus('offline'); return; }
-  if(!isDriveConnected() && trigger!=='connect'){
-    if(trigger==='manual') setStatus('failed', mapError({code:'no_client'}));
-    return;
-  }
+  if(!isDriveConnected() && trigger!=='connect'){ if(trigger==='manual') setStatus('failed', mapError({code:'no_client'})); return; }
   if(syncInProgress){ syncQueued = true; return; }
-  syncInProgress = true;
-  setButtonsBusy(true);
-
+  syncInProgress = true; setButtonsBusy(true);
   try{
     setStatus('connecting');
-    const interactive = (trigger==='manual' || trigger==='connect');
-    await ensureValidToken(interactive);
-
+    await ensureValidToken(trigger==='manual' || trigger==='connect');
     setStatus('downloading');
     if(!driveFileId) driveFileId = await driveFindFile();
     let cloudData = driveFileId ? await driveDownloadFile(driveFileId) : null;
-
     const localData = buildLocalPayload();
     let finalData = localData;
-
     if(cloudData){
       if(isEmptyDataset(localData) && !isEmptyDataset(cloudData)){
-        // Guard: never let an empty local state overwrite a good cloud backup — restore instead.
-        applyRemoteData(cloudData);
-        localStorage.setItem(LS_CONNECTED,'1');
-        setStatus('success', 'Restored from cloud backup');
-        markSynced();
-        return;
+        applyRemoteData(cloudData); localStorage.setItem(LS_CONNECTED,'1');
+        setStatus('success', 'Restored from cloud backup'); markSynced(); return;
       }
-      // Manual "Sync Now" always reconciles + re-displays, regardless of timestamps.
-      // Other triggers only merge when the cloud actually looks newer than our last sync.
       if(trigger==='manual' || (cloudData.timestamp||0) > lastSyncedTimestamp){
         finalData = mergeData(localData, cloudData);
-        applyRemoteData(finalData); // display immediately — satisfies "download & show"
+        applyRemoteData(finalData);
       }
     }
-
     const currentHash = hashPayload(finalData);
     if(currentHash === lastSyncedHash && driveFileId){
       localStorage.setItem(LS_CONNECTED,'1');
       setStatus('success', trigger==='manual' ? 'Already up to date' : 'Sync successful');
-      markSynced();
-      return;
+      markSynced(); return;
     }
-
     setStatus('uploading');
     const savedId = await driveSaveFile(driveFileId, finalData);
     const verified = await driveVerify(savedId, finalData);
     if(!verified) throw {code:'verify_failed'};
-
-    driveFileId = savedId;
-    lastSyncedTimestamp = finalData.timestamp;
-    lastSyncedHash = currentHash;
+    driveFileId = savedId; lastSyncedTimestamp = finalData.timestamp; lastSyncedHash = currentHash;
     localStorage.setItem(LS_CONNECTED,'1');
-    setStatus('success', 'Sync successful');
-    markSynced();
-
+    setStatus('success', 'Sync successful'); markSynced();
   }catch(err){
     console.error('Drive sync error:', err);
     if(trigger==='startup') setStatus('disconnected', 'Working offline — reconnect Drive to sync');
     else{ setStatus('failed', mapError(err)); toast(mapError(err), true); }
   }finally{
-    syncInProgress = false;
-    setButtonsBusy(false);
-    if(syncQueued){ syncQueued = false; performSync('auto'); } // run whatever came in while we were busy
+    syncInProgress = false; setButtonsBusy(false);
+    if(syncQueued){ syncQueued = false; performSync('auto'); }
   }
 }
+function pushChange(reason){ if(!isDriveConnected()) return; performSync('auto'); }
 
-/* Call this right after any mutation — no artificial delay. */
-function pushChange(reason){
-  if(!isDriveConnected()) return;
-  performSync('auto');
-}
-
-document.getElementById('connectDriveBtn').addEventListener('click', async ()=>{
+document.getElementById('connectDriveBtn').addEventListener('click', async (e)=>{
+  e.stopPropagation();
   const clientId = localStorage.getItem(LS_CLIENTID);
   if(!clientId){ toast('Paste your Google OAuth Client ID first'); return; }
   if(!gisReady || typeof google==='undefined'){ toast('Google sign-in is still loading — try again in a moment'); return; }
@@ -907,26 +867,19 @@ document.getElementById('connectDriveBtn').addEventListener('click', async ()=>{
   localStorage.setItem(LS_CONNECTED,'1');
   await performSync('connect');
 });
-document.getElementById('disconnectDriveBtn').addEventListener('click', ()=>{
+document.getElementById('disconnectDriveBtn').addEventListener('click', (e)=>{
+  e.stopPropagation();
   accessToken = null; driveFileId = null; lastSyncedHash = null; lastSyncedTimestamp = 0;
   localStorage.removeItem(LS_CONNECTED); localStorage.removeItem(LS_TOKEN_EXP);
-  setStatus('disconnected');
-  toast('Disconnected from Google Drive');
+  setStatus('disconnected'); toast('Disconnected from Google Drive');
 });
-document.getElementById('syncNowBtn').addEventListener('click', ()=>performSync('manual'));
-
+document.getElementById('syncNowBtn').addEventListener('click', (e)=>{ e.stopPropagation(); performSync('manual'); });
 window.addEventListener('online', ()=>{ if(isDriveConnected()) performSync('auto'); });
 window.addEventListener('offline', ()=>setStatus('offline'));
-
-// Warn before closing the tab if there are changes that haven't reached the cloud yet.
 window.addEventListener('beforeunload', (e)=>{
-  if(isDriveConnected() && hashPayload(buildLocalPayload()) !== lastSyncedHash){
-    e.preventDefault(); e.returnValue = '';
-  }
+  if(isDriveConnected() && hashPayload(buildLocalPayload()) !== lastSyncedHash){ e.preventDefault(); e.returnValue = ''; }
 });
-
-if(localStorage.getItem(LS_SYNCED)) setStatus(isDriveConnected() ? 'success' : 'disconnected');
-else setStatus('disconnected');
+if(localStorage.getItem(LS_SYNCED)) setStatus(isDriveConnected() ? 'success' : 'disconnected'); else setStatus('disconnected');
 
 /* ===== Utilities ===== */
 function money(n){ return '₹'+(Number(n)||0).toFixed(2); }
