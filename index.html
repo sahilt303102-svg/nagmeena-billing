@@ -155,7 +155,7 @@
         </div>
         <div class="card">
           <h2>Add Item</h2>
-          <p class="sub">Type a product code — description, stock, and expected price fill in. Adjust the selling price to record a discount or markup.</p>
+          <p class="sub">Type a product code — description and stock fill in. Adjust the selling price to record a discount or markup.</p>
           <div class="warn-banner" id="stockWarning"></div>
           <div class="row">
             <div class="field" style="flex:0.9;"><label for="itemCode">Product Code</label><input type="text" id="itemCode" class="mono" placeholder="12-character code"></div>
@@ -172,7 +172,7 @@
           <h2>Items in this Bill</h2>
           <div class="table-scroll">
           <table>
-            <thead><tr><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Adj</th><th class="num">Amount</th><th></th></tr></thead>
+            <thead><tr><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Margin/Pc</th><th class="num">Amount</th><th></th></tr></thead>
             <tbody id="cartBody"><tr class="empty-row"><td colspan="7">No items added yet</td></tr></tbody>
           </table>
           </div>
@@ -180,8 +180,9 @@
             <div class="line"><span>Items</span><span id="cartCount">0</span></div>
             <div class="line grand"><span>Total</span><span id="cartTotal">₹0.00</span></div>
           </div>
-          <div style="margin-top:16px; display:flex; gap:10px;">
-            <button class="btn btn-gold" id="generateBillBtn">Generate Bill (PDF) &amp; Save</button>
+          <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-gold" id="generateBillBtn">Generate Bill</button>
+            <button class="btn btn-ghost" id="printBillBtn" disabled>Print Bill</button>
             <button class="btn btn-ghost" id="clearCartBtn">Clear</button>
           </div>
         </div>
@@ -250,7 +251,7 @@
         </div>
       </div>
       <div class="table-scroll">
-      <table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Number</th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">Expected</th><th class="num">Selling</th><th class="num">Adj</th><th class="num">Revenue</th><th class="num">Profit</th><th></th></tr></thead>
+      <table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Number</th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">Expected</th><th class="num">Selling</th><th class="num">Margin/Pc</th><th class="num">Revenue</th><th class="num">Profit</th><th></th></tr></thead>
         <tbody id="historyBody"><tr class="empty-row"><td colspan="14">No sales recorded yet</td></tr></tbody></table>
       </div>
     </div>
@@ -266,7 +267,7 @@ const LS_PRODUCTS='ledger_products', LS_SALES='ledger_sales', LS_SEQ='ledger_inv
       LS_CATS='ledger_categories', LS_CLIENTID='ledger_drive_client_id', LS_SYNCED='ledger_last_sync',
       LS_CONNECTED='ledger_drive_connected', LS_DEVICE='ledger_device_id', LS_TOKEN_EXP='ledger_token_expiry',
       LS_PROD_TOMB='ledger_product_tombstones', LS_SALE_TOMB='ledger_sale_tombstones',
-      LS_LAST_HASH='ledger_last_sync_hash', LS_LAST_TS='ledger_last_sync_ts';
+      LS_LAST_HASH='ledger_last_sync_hash', LS_LAST_TS='ledger_last_sync_ts', LS_LAST_INVOICE='ledger_last_invoice';
 
 function load(key,fallback){ try{ const v=JSON.parse(localStorage.getItem(key)); return v===null||v===undefined?fallback:v; }catch(e){ return fallback; } }
 function save(key,val){ localStorage.setItem(key, JSON.stringify(val)); }
@@ -275,27 +276,26 @@ function uuid(){ return crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now
 
 let products = load(LS_PRODUCTS, []);
 let sales = load(LS_SALES, []);
-let productTombstones = load(LS_PROD_TOMB, []); // [{id, deletedAt}] — records of deleted products so sync can't resurrect them
-let saleTombstones = load(LS_SALE_TOMB, []);     // same idea, for sales
+let productTombstones = load(LS_PROD_TOMB, []);
+let saleTombstones = load(LS_SALE_TOMB, []);
 let cart = [];
 let editingCode = null;
+let lastInvoice = load(LS_LAST_INVOICE, null); // {invoiceNo, date, name, number, items}
 
-/* One-time migration: give any pre-existing rows (from older versions of this app)
-   a stable id and updatedAt so the new sync engine can track them correctly. */
 (function migrate(){
   let touched = false;
   products.forEach(p=>{ if(!p.id){ p.id = uuid(); touched = true; } if(!p.updatedAt){ p.updatedAt = Date.now(); touched = true; } });
   sales.forEach(s=>{ if(!s.id){ s.id = uuid(); touched = true; } if(!s.updatedAt){ s.updatedAt = Date.now(); touched = true; }
     if(s.expectedPrice===undefined){ s.expectedPrice = s.price; touched = true; }
-    if(s.adjustment===undefined){ s.adjustment = 0; touched = true; } });
+    if(s.adjustment===undefined){ s.adjustment = s.price - s.expectedPrice; touched = true; } });
   if(touched){ save(LS_PRODUCTS, products); save(LS_SALES, sales); }
 })();
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 3; // v3: row-level ids/timestamps + tombstone-based deletion sync
+const DATA_VERSION = 4; // v4: margin is now per-piece, not per-line-total
 
-/* ===== Product code categories (Serial Number subsection removed) ===== */
+/* ===== Product code categories ===== */
 const defaultCats = {
   series:{label:'Series', hasMnemonic:false, items:[
     {desc:'Series 1', code:'01'},{desc:'Series 2', code:'02'},{desc:'Series 3', code:'03'}]},
@@ -386,7 +386,11 @@ function assembledCode(){
   if(parts.some(p=>!p)) return null;
   return parts.join('');
 }
-function assembledDescription(){ return DESC_KEYS.map(k=>selected[k]?.desc).filter(Boolean).join(' '); }
+function assembledDescription(){
+  const parts = DESC_KEYS.map(k=>selected[k]?.desc).filter(Boolean);
+  if(parts.length===0) return '';
+  return parts.join(' ') + ' Unstiched Suit';
+}
 function updatePreview(){
   const code = assembledCode();
   const preview = document.getElementById('codePreview'), decode = document.getElementById('codeDecode'), autoDesc = document.getElementById('autoDescPreview');
@@ -396,7 +400,7 @@ function updatePreview(){
   autoDesc.innerHTML = `Description: <b>${desc ? esc(desc) : '—'}</b>`;
 }
 
-/* ===== Products CRUD — every mutation stamps updatedAt and syncs immediately ===== */
+/* ===== Products CRUD ===== */
 function findProduct(code){ code=(code||'').trim().toUpperCase(); return products.find(p=>p.code.toUpperCase()===code); }
 function inStock(p){ return p && (p.stock||0) > 0; }
 
@@ -469,7 +473,7 @@ function renderProducts(){
       }).join('');
 }
 
-/* ===== Billing (stock-aware, with editable selling price) ===== */
+/* ===== Billing ===== */
 const itemCode=document.getElementById('itemCode'), itemName=document.getElementById('itemName'), lookupHint=document.getElementById('lookupHint');
 const itemSellPrice = document.getElementById('itemSellPrice');
 const stockWarning = document.getElementById('stockWarning');
@@ -490,7 +494,7 @@ function doLookup(){
     return p;
   }
   lookupHint.style.color='var(--green)';
-  lookupHint.textContent=`Cost ${money(p.cost)} · Expected ${money(p.price)} · ${p.stock} in stock`;
+  lookupHint.textContent = `${p.stock} unit(s) in stock`;
   return p;
 }
 itemCode.addEventListener('input', doLookup);
@@ -510,7 +514,7 @@ document.getElementById('addToCartBtn').addEventListener('click', ()=>{
     toast(`Only ${remaining} more unit(s) available`, true);
     return;
   }
-  if(existing){ existing.qty+=qty; existing.price = sellPrice; } // latest entered price applies to the combined line
+  if(existing){ existing.qty+=qty; existing.price = sellPrice; }
   else cart.push({code:p.code,name:p.name,cost:p.cost,expectedPrice:p.price,price:sellPrice,qty});
   itemCode.value=''; itemName.value=''; itemSellPrice.value=''; itemSellPrice.dataset.autoFilledFor='';
   document.getElementById('itemQty').value=1; lookupHint.textContent=''; hideStockWarning();
@@ -528,9 +532,9 @@ function renderCart(){
     rv.innerHTML='<tr class="empty-row"><td colspan="3">Cart is empty</td></tr>';
   }else{
     body.innerHTML=cart.map((c,i)=>{
-      const adj = (c.price - c.expectedPrice) * c.qty;
+      const marginPc = c.price - c.expectedPrice; // per piece, not multiplied by qty
       return `<tr><td class="mono">${esc(c.code)}</td><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.price)}</td>
-        <td class="num ${adjClass(adj)}">${adjText(adj)}</td><td class="num">${money(c.qty*c.price)}</td>
+        <td class="num ${adjClass(marginPc)}">${adjText(marginPc)}</td><td class="num">${money(c.qty*c.price)}</td>
         <td><button class="btn btn-ghost btn-sm" onclick="removeCartItem(${i})">Remove</button></td></tr>`;
     }).join('');
     rv.innerHTML=cart.map(c=>`<tr><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.qty*c.price)}</td></tr>`).join('');
@@ -543,7 +547,8 @@ function renderCart(){
 }
 ['custName','custNumber'].forEach(id=>document.getElementById(id).addEventListener('input', renderCart));
 
-document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
+/* Generate Bill — finalizes and saves only. No PDF here. */
+document.getElementById('generateBillBtn').addEventListener('click', ()=>{
   const name=document.getElementById('custName').value.trim(), number=document.getElementById('custNumber').value.trim();
   if(!name||!number){ toast('Enter customer name and number'); return; }
   if(cart.length===0){ toast('Add at least one item'); return; }
@@ -561,16 +566,52 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
   const date = todayStr();
 
   cart.forEach(c=>{
-    const revenue=c.qty*c.price, costTotal=c.qty*c.cost, adjustment=(c.price-c.expectedPrice)*c.qty;
+    const revenue=c.qty*c.price, costTotal=c.qty*c.cost, marginPc=c.price-c.expectedPrice;
     sales.push({id:uuid(), invoice:invoiceNo, date, customer:name, number, code:c.code, product:c.name,
       qty:c.qty, cost:c.cost, expectedPrice:c.expectedPrice, price:c.price, revenue, profit:revenue-costTotal,
-      adjustment, updatedAt: Date.now()});
+      adjustment: marginPc, updatedAt: Date.now()});
     const p = findProduct(c.code);
     if(p){ p.stock = Math.max(0, (p.stock||0) - c.qty); p.updatedAt = Date.now(); }
   });
   save(LS_SALES, sales); save(LS_PRODUCTS, products);
-  renderProducts();
+  renderProducts(); renderHistory();
 
+  lastInvoice = { invoiceNo, date, name, number, items: cart.map(c=>({code:c.code, name:c.name, qty:c.qty, price:c.price})) };
+  save(LS_LAST_INVOICE, lastInvoice);
+  document.getElementById('printBillBtn').disabled = false;
+
+  toast(`Bill ${invoiceNo} generated and saved. Click Print Bill for the PDF.`);
+  cart=[]; document.getElementById('custName').value=''; document.getElementById('custNumber').value='';
+  renderCart(); hideStockWarning();
+  pushChange();
+});
+
+/* Print Bill — generates the PDF for the most recently generated invoice. */
+document.getElementById('printBillBtn').addEventListener('click', async ()=>{
+  if(!lastInvoice){ toast('Generate a bill first'); return; }
+  await generateInvoicePDF(lastInvoice.invoiceNo, lastInvoice.date, lastInvoice.name, lastInvoice.number, lastInvoice.items);
+  toast(`Printed ${lastInvoice.invoiceNo}`);
+});
+
+/* Print any past invoice from the Sales Book — reconstructs it from its line items. */
+async function printInvoiceFromSales(invoiceNo){
+  const rows = sales.filter(s=>s.invoice===invoiceNo);
+  if(rows.length===0){ toast('No records found for this invoice'); return; }
+  const first = rows[0];
+  const items = rows.map(r=>({code:r.code, name:r.product, qty:r.qty, price:r.price}));
+  await generateInvoicePDF(invoiceNo, first.date, first.customer, first.number, items);
+}
+
+function loadLogoDataUrl(){
+  return new Promise(resolve=>{
+    const img = new Image();
+    img.onload = ()=>{ const c=document.createElement('canvas'); c.width=img.width; c.height=img.height;
+      c.getContext('2d').drawImage(img,0,0); resolve(c.toDataURL('image/png')); };
+    img.onerror = ()=>resolve(null);
+    img.src = 'nagmeena-logo.png';
+  });
+}
+async function generateInvoicePDF(invoiceNo, date, name, number, items){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:'pt', format:'a4'});
   const logoDataUrl = await loadLogoDataUrl();
@@ -582,46 +623,34 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
   doc.setTextColor(43,43,46); doc.setFontSize(10);
   doc.text(`Invoice No: ${invoiceNo}`, 400, 45); doc.text(`Date: ${date}`, 400, 60);
   doc.setFontSize(11); doc.text(`Bill To: ${name}`, 40, 95); doc.text(`Phone: ${number}`, 40, 111);
-  const rows = cart.map(c=>[c.code, c.name, String(c.qty), c.price.toFixed(2), (c.qty*c.price).toFixed(2)]);
+  const rows = items.map(c=>[c.code, c.name, String(c.qty), c.price.toFixed(2), (c.qty*c.price).toFixed(2)]);
+  const total = items.reduce((s,c)=>s+c.qty*c.price,0);
   doc.autoTable({ startY:130, head:[['Code','Description','Qty','Price','Amount']], body:rows,
     styles:{fontSize:9, cellPadding:6}, headStyles:{fillColor:[31,74,61]},
     columnStyles:{2:{halign:'right'},3:{halign:'right'},4:{halign:'right'}} });
   const finalY = doc.lastAutoTable.finalY+20;
   doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(31,74,61);
-  doc.text(`Total: ${money(cartTotal())}`, 400, finalY);
+  doc.text(`Total: ${money(total)}`, 400, finalY);
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(107,114,128);
   doc.text('Thank you for shopping with Nagmeena.', 40, finalY+30);
   doc.save(`${invoiceNo}.pdf`);
-
-  toast(`Bill ${invoiceNo} generated and saved`);
-  cart=[]; document.getElementById('custName').value=''; document.getElementById('custNumber').value='';
-  renderCart(); hideStockWarning();
-  pushChange();
-});
-function loadLogoDataUrl(){
-  return new Promise(resolve=>{
-    const img = new Image();
-    img.onload = ()=>{ const c=document.createElement('canvas'); c.width=img.width; c.height=img.height;
-      c.getContext('2d').drawImage(img,0,0); resolve(c.toDataURL('image/png')); };
-    img.onerror = ()=>resolve(null);
-    img.src = 'nagmeena-logo.png';
-  });
 }
 
-/* ===== History — delete & edit both create tombstones/updatedAt for safe sync ===== */
+/* ===== History ===== */
 function renderHistory(){
   const body=document.getElementById('historyBody');
   body.innerHTML = sales.length===0 ? '<tr class="empty-row"><td colspan="14">No sales recorded yet</td></tr>' :
     sales.map((s,i)=>{
-      const adj = s.adjustment ?? ((s.price - (s.expectedPrice??s.price)) * s.qty);
+      const marginPc = s.adjustment ?? (s.price - (s.expectedPrice??s.price));
       return `<tr>
       <td class="mono">${esc(s.invoice)}</td><td>${esc(s.date)}</td><td>${esc(s.customer)}</td><td class="mono">${esc(s.number)}</td>
       <td class="mono">${esc(s.code)}</td><td>${esc(s.product)}</td><td class="num">${s.qty}</td>
       <td class="num">${money(s.cost)}</td><td class="num">${money(s.expectedPrice??s.price)}</td><td class="num">${money(s.price)}</td>
-      <td class="num ${adjClass(adj)}">${adjText(adj)}</td>
+      <td class="num ${adjClass(marginPc)}">${adjText(marginPc)}</td>
       <td class="num">${money(s.revenue)}</td>
       <td class="num" style="color:${s.profit>=0?'var(--green)':'var(--brick)'}">${money(s.profit)}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="editSaleRow(${i})">Edit</button>
+      <td><button class="btn btn-ghost btn-sm" onclick="printInvoiceFromSales('${esc(s.invoice)}')">Print</button>
+          <button class="btn btn-ghost btn-sm" onclick="editSaleRow(${i})">Edit</button>
           <button class="btn btn-danger btn-sm" onclick="deleteSaleRow(${i})">Delete</button></td></tr>`;
     }).join('');
   const bills=new Set(sales.map(s=>s.invoice)).size;
@@ -651,7 +680,7 @@ function editSaleRow(i){
   s.qty = newQty; s.price = newPrice;
   s.revenue = newQty * newPrice;
   s.profit = s.revenue - (newQty * s.cost);
-  s.adjustment = (newPrice - (s.expectedPrice??newPrice)) * newQty;
+  s.adjustment = newPrice - (s.expectedPrice??newPrice);
   s.updatedAt = Date.now();
 
   save(LS_SALES, sales); save(LS_PRODUCTS, products);
@@ -674,7 +703,7 @@ document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{
   if(sales.length===0) return;
   if(!confirm('Clear ALL sales records? Export a backup first if needed. Stock quantities will not be restored.')) return;
   const now = Date.now();
-  sales.forEach(s=> saleTombstones.push({id:s.id, deletedAt: now})); // tombstone every row so sync can never bring them back
+  sales.forEach(s=> saleTombstones.push({id:s.id, deletedAt: now}));
   sales=[];
   save(LS_SALES,sales); save(LS_SALE_TOMB, saleTombstones);
   renderHistory(); toast('Sales Book cleared');
@@ -682,7 +711,7 @@ document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{
 });
 document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   if(sales.length===0){ toast('No sales to export yet'); return; }
-  const rows = sales.map(s=>({'Invoice No':s.invoice,'Date':s.date,'Customer Name':s.customer,'Customer Number':s.number,'Product Code':s.code,'Description':s.product,'Qty':s.qty,'Cost Price':s.cost,'Expected Selling Price':s.expectedPrice??s.price,'Selling Price':s.price,'Adjustment':s.adjustment??0,'Revenue':s.revenue,'Profit':s.profit}));
+  const rows = sales.map(s=>({'Invoice No':s.invoice,'Date':s.date,'Customer Name':s.customer,'Customer Number':s.number,'Product Code':s.code,'Description':s.product,'Qty':s.qty,'Cost Price':s.cost,'Expected Selling Price':s.expectedPrice??s.price,'Selling Price':s.price,'Margin per Piece':s.adjustment??0,'Revenue':s.revenue,'Profit':s.profit}));
   const ws = XLSX.utils.json_to_sheet(rows);
   ws['!cols']=[{wch:12},{wch:12},{wch:18},{wch:14},{wch:16},{wch:24},{wch:6},{wch:10},{wch:14},{wch:12},{wch:12},{wch:10},{wch:10}];
   const bills=new Set(sales.map(s=>s.invoice)).size, revenue=sales.reduce((a,s)=>a+s.revenue,0), cost=sales.reduce((a,s)=>a+s.cost*s.qty,0), profit=sales.reduce((a,s)=>a+s.profit,0);
@@ -694,7 +723,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   toast('Excel file downloaded');
 });
 
-/* ===== Tabs / Settings (auto-closes on outside click) ===== */
+/* ===== Tabs / Settings ===== */
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -715,25 +744,7 @@ document.getElementById('clientIdInput').addEventListener('change', e=>{
   if(e.target.value.trim()) initTokenClient(e.target.value.trim());
 });
 
-/* =========================================================================
-   GOOGLE DRIVE SYNC (v3) — row-level, tombstone-based merge
-   =========================================================================
-   Every product and sale row carries an `id` (stable, never reused) and
-   `updatedAt`. Deleting a row doesn't just remove it — it also records a
-   tombstone {id, deletedAt}. When merging local + cloud data:
-     - for each id, the row with the newer `updatedAt` wins (last-write-wins,
-       same principle Excel/Sheets co-authoring uses per cell/row)
-     - a tombstone beats a row if its deletedAt is >= that row's updatedAt,
-       so a delete can never be silently undone by a stale copy elsewhere
-     - two devices adding different rows, or editing different rows, merge
-       cleanly with nothing duplicated (matched by id, not content)
-   Tombstones older than 90 days are pruned on every sync so the backup file
-   doesn't grow forever once a deletion has clearly propagated everywhere.
-   `lastSyncedHash`/`lastSyncedTimestamp` are now persisted to localStorage
-   (not just an in-memory variable), so a page reload doesn't mistakenly
-   treat the cloud as "newer" and force redundant merges.
-   ========================================================================= */
-
+/* ===== Google Drive sync — row-level, tombstone-based merge ===== */
 const DRIVE_FILENAME = 'nagmeena_ledger_data.json';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const TOMBSTONE_RETENTION_MS = 90*24*60*60*1000;
@@ -849,47 +860,26 @@ async function driveVerify(fileId, expected){
   try{ const remote = await driveDownloadFile(fileId); return !!remote && remote.timestamp === expected.timestamp && remote.deviceId === expected.deviceId; }
   catch(e){ return false; }
 }
-function normalizeRows(rows){
-  // Guards against pre-v3 cloud backups that don't have id/updatedAt yet.
-  return (rows||[]).map(r=> (r.id && r.updatedAt) ? r : {...r, id: r.id || uuid(), updatedAt: r.updatedAt || Date.now()});
-}
+function normalizeRows(rows){ return (rows||[]).map(r=> (r.id && r.updatedAt) ? r : {...r, id: r.id || uuid(), updatedAt: r.updatedAt || Date.now()}); }
 function buildLocalPayload(){
-  return {
-    products, productTombstones, sales, saleTombstones, cats,
-    seq: parseInt(localStorage.getItem(LS_SEQ)||'0',10),
-    timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID
-  };
+  return { products, productTombstones, sales, saleTombstones, cats,
+    seq: parseInt(localStorage.getItem(LS_SEQ)||'0',10), timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID };
 }
 function isFreshLocalState(d){
   return (d.products||[]).length===0 && (d.sales||[]).length===0 &&
          (d.productTombstones||[]).length===0 && (d.saleTombstones||[]).length===0;
 }
 function hashPayload(data){
-  const str = JSON.stringify({
-    products:data.products, productTombstones:data.productTombstones,
-    sales:data.sales, saleTombstones:data.saleTombstones, cats:data.cats, seq:data.seq
-  });
+  const str = JSON.stringify({products:data.products, productTombstones:data.productTombstones, sales:data.sales, saleTombstones:data.saleTombstones, cats:data.cats, seq:data.seq});
   let h = 0; for(let i=0;i<str.length;i++){ h = (Math.imul(31,h) + str.charCodeAt(i)) | 0; } return h;
 }
-/* Generic row-level merge: newest updatedAt wins per id; a tombstone whose
-   deletedAt is newer than (or equal to) a row's updatedAt keeps that row deleted. */
 function mergeRows(localRows, cloudRows, localTomb, cloudTomb){
   const rowMap = new Map();
-  [cloudRows, localRows].forEach(list=> list.forEach(r=>{
-    const ex = rowMap.get(r.id);
-    if(!ex || (r.updatedAt||0) > (ex.updatedAt||0)) rowMap.set(r.id, r);
-  }));
+  [cloudRows, localRows].forEach(list=> list.forEach(r=>{ const ex = rowMap.get(r.id); if(!ex || (r.updatedAt||0) > (ex.updatedAt||0)) rowMap.set(r.id, r); }));
   const tombMap = new Map();
-  [cloudTomb, localTomb].forEach(list=> list.forEach(t=>{
-    const ex = tombMap.get(t.id);
-    if(!ex || (t.deletedAt||0) > (ex.deletedAt||0)) tombMap.set(t.id, t);
-  }));
+  [cloudTomb, localTomb].forEach(list=> list.forEach(t=>{ const ex = tombMap.get(t.id); if(!ex || (t.deletedAt||0) > (ex.deletedAt||0)) tombMap.set(t.id, t); }));
   const rows = [];
-  rowMap.forEach((r,id)=>{
-    const t = tombMap.get(id);
-    if(t && (t.deletedAt||0) >= (r.updatedAt||0)) return; // deletion wins — never resurrected
-    rows.push(r);
-  });
+  rowMap.forEach((r,id)=>{ const t = tombMap.get(id); if(t && (t.deletedAt||0) >= (r.updatedAt||0)) return; rows.push(r); });
   const now = Date.now();
   const tombstones = Array.from(tombMap.values()).filter(t => (now - (t.deletedAt||0)) < TOMBSTONE_RETENTION_MS);
   return { rows, tombstones };
@@ -908,13 +898,8 @@ function mergeData(local, cloud){
   const localProducts = normalizeRows(local.products), localSales = normalizeRows(local.sales);
   const pMerge = mergeRows(localProducts, cloudProducts, local.productTombstones||[], cloud.productTombstones||[]);
   const sMerge = mergeRows(localSales, cloudSales, local.saleTombstones||[], cloud.saleTombstones||[]);
-  return {
-    products: pMerge.rows, productTombstones: pMerge.tombstones,
-    sales: sMerge.rows, saleTombstones: sMerge.tombstones,
-    cats: mergeCats(local.cats, cloud.cats),
-    seq: Math.max(local.seq||0, cloud.seq||0),
-    timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID
-  };
+  return { products: pMerge.rows, productTombstones: pMerge.tombstones, sales: sMerge.rows, saleTombstones: sMerge.tombstones,
+    cats: mergeCats(local.cats, cloud.cats), seq: Math.max(local.seq||0, cloud.seq||0), timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID };
 }
 function applyRemoteData(data){
   products = data.products || []; sales = data.sales || [];
@@ -928,7 +913,6 @@ function applyRemoteData(data){
   save(LS_LAST_TS, lastSyncedTimestamp); save(LS_LAST_HASH, lastSyncedHash);
 }
 function markSynced(){ localStorage.setItem(LS_SYNCED, new Date().toLocaleString()); }
-
 async function performSync(trigger){
   if(!navigator.onLine){ setStatus('offline'); return; }
   if(!isDriveConnected() && trigger!=='connect'){ if(trigger==='manual') setStatus('failed', mapError({code:'no_client'})); return; }
@@ -942,11 +926,7 @@ async function performSync(trigger){
     let cloudData = driveFileId ? await driveDownloadFile(driveFileId) : null;
     const localData = buildLocalPayload();
     let finalData = localData;
-
     if(cloudData){
-      // Only restore-from-cloud wholesale if this device has genuinely never synced anything
-      // (no rows AND no deletion history). If local is empty because the user cleared it on
-      // purpose, tombstones exist and the normal merge below correctly keeps it cleared.
       if(isFreshLocalState(localData) && !isFreshLocalState(cloudData)){
         applyRemoteData(cloudData); localStorage.setItem(LS_CONNECTED,'1');
         setStatus('success', 'Restored from cloud backup'); markSynced(); return;
@@ -956,20 +936,17 @@ async function performSync(trigger){
         applyRemoteData(finalData);
       }
     }
-
     const currentHash = hashPayload(finalData);
     if(currentHash === lastSyncedHash && driveFileId){
       localStorage.setItem(LS_CONNECTED,'1');
       setStatus('success', trigger==='manual' ? 'Already up to date' : 'Sync successful');
       markSynced(); return;
     }
-
     setStatus('uploading');
     const savedId = await driveSaveFile(driveFileId, finalData);
     const verified = await driveVerify(savedId, finalData);
     if(!verified) throw {code:'verify_failed'};
-    driveFileId = savedId;
-    lastSyncedTimestamp = finalData.timestamp; lastSyncedHash = currentHash;
+    driveFileId = savedId; lastSyncedTimestamp = finalData.timestamp; lastSyncedHash = currentHash;
     save(LS_LAST_TS, lastSyncedTimestamp); save(LS_LAST_HASH, lastSyncedHash);
     localStorage.setItem(LS_CONNECTED,'1');
     setStatus('success', 'Sync successful'); markSynced();
