@@ -12,31 +12,17 @@
 <script src="https://accounts.google.com/gsi/client" async defer onload="onGisLoaded()"></script>
 <style>
   :root{
-    --teal:#1F4A3D;
-    --teal-light:#E7EEEB;
-    --teal-soft:#F2F6F4;
-    --gold:#C79A3B;
-    --gold-soft:#F6ECD6;
-    --grey:#6B7280;
-    --ink:#2B2B2E;
-    --paper:#FAF9F6;
-    --card:#FFFFFF;
-    --line:#E5E1D8;
-    --line-strong:#CFC8B8;
-    --brick:#A23B2E;
-    --brick-soft:#F3E0DB;
-    --green:#3C6E4A;
-    --radius:10px;
-    --shadow:0 1px 2px rgba(43,43,46,0.05), 0 8px 24px -14px rgba(43,43,46,0.18);
+    --teal:#1F4A3D; --teal-light:#E7EEEB; --teal-soft:#F2F6F4;
+    --gold:#C79A3B; --gold-soft:#F6ECD6; --grey:#6B7280; --ink:#2B2B2E;
+    --paper:#FAF9F6; --card:#FFFFFF; --line:#E5E1D8; --line-strong:#CFC8B8;
+    --brick:#A23B2E; --brick-soft:#F3E0DB; --green:#3C6E4A;
+    --radius:10px; --shadow:0 1px 2px rgba(43,43,46,0.05), 0 8px 24px -14px rgba(43,43,46,0.18);
   }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
+  *{box-sizing:border-box;} html,body{margin:0;padding:0;}
   body{ background:var(--paper); color:var(--ink); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; }
   ::selection{ background:var(--gold-soft); }
-  button{ cursor:pointer; font-family:inherit; }
-  input,select{ font-family:inherit; }
+  button{ cursor:pointer; font-family:inherit; } input,select{ font-family:inherit; }
   :focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
-
   header.top{ background:var(--card); border-bottom:1px solid var(--line); padding:16px 24px; }
   .brandrow{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; max-width:1200px; margin:0 auto; }
   .brand{ display:flex; align-items:center; gap:12px; }
@@ -46,102 +32,66 @@
   .headright{ display:flex; align-items:center; gap:10px; }
   .drive-status{ font-size:12px; color:var(--grey); display:flex; align-items:center; gap:6px; }
   .dot{ width:8px; height:8px; border-radius:50%; background:#C9C3B4; transition:background .2s ease; }
-  .dot.ok{ background:var(--green); }
-  .dot.busy{ background:var(--gold); animation:pulse 1s infinite ease-in-out; }
-  .dot.err{ background:var(--brick); }
+  .dot.ok{ background:var(--green); } .dot.busy{ background:var(--gold); animation:pulse 1s infinite ease-in-out; } .dot.err{ background:var(--brick); }
   @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
   .icon-btn{ background:transparent; border:1px solid var(--line-strong); border-radius:7px; padding:8px 12px; font-size:13px; color:var(--ink); }
   .icon-btn:hover{ background:var(--teal-soft); }
-
   nav.tabs{ max-width:1200px; margin:14px auto 0 auto; display:flex; gap:4px; padding:0 24px; }
   nav.tabs button{ background:transparent; border:none; color:var(--grey); padding:10px 16px; font-size:14px; font-weight:600; border-bottom:2px solid transparent; }
   nav.tabs button.active{ color:var(--teal); border-bottom:2px solid var(--gold); }
-
   main{ max-width:1200px; margin:0 auto; padding:24px; }
-  .panel{ display:none; }
-  .panel.active{ display:block; }
-
+  .panel{ display:none; } .panel.active{ display:block; }
   .grid-2{ display:grid; grid-template-columns:1.3fr 1fr; gap:20px; align-items:start; }
   @media (max-width:860px){ .grid-2{ grid-template-columns:1fr; } }
-
   .card{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px 22px; }
   .card + .card{ margin-top:16px; }
   .card h2{ font-family:'Cormorant Garamond',serif; font-weight:700; font-size:19px; margin:0 0 4px 0; color:var(--teal); }
   .card .sub{ color:var(--grey); font-size:12.5px; margin:0 0 14px 0; }
-
   label{ display:block; font-size:11px; font-weight:600; color:var(--grey); margin-bottom:5px; text-transform:uppercase; letter-spacing:0.4px; }
-  input[type=text], input[type=number], input[type=tel], select{
-    width:100%; padding:9px 10px; border:1px solid var(--line-strong); border-radius:7px; font-size:14px; background:#FBFAF7; color:var(--ink);
-  }
+  input[type=text], input[type=number], input[type=tel], select{ width:100%; padding:9px 10px; border:1px solid var(--line-strong); border-radius:7px; font-size:14px; background:#FBFAF7; color:var(--ink); }
   input:focus, select:focus{ background:#fff; }
-  .field{ margin-bottom:12px; }
-  .row{ display:flex; gap:10px; flex-wrap:wrap; }
-  .row > .field{ flex:1; min-width:130px; }
-
+  .field{ margin-bottom:12px; } .row{ display:flex; gap:10px; flex-wrap:wrap; } .row > .field{ flex:1; min-width:130px; }
   .btn{ display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:10px 16px; border-radius:7px; border:1px solid transparent; font-size:14px; font-weight:600; }
-  .btn-primary{ background:var(--teal); color:#fff; }
-  .btn-primary:hover{ background:#173a30; }
-  .btn-gold{ background:var(--gold); color:#fff; }
-  .btn-gold:hover{ background:#af8730; }
-  .btn-ghost{ background:transparent; border:1px solid var(--line-strong); color:var(--ink); }
-  .btn-ghost:hover{ background:var(--teal-soft); }
-  .btn-danger{ background:transparent; border:1px solid var(--brick); color:var(--brick); }
-  .btn-danger:hover{ background:var(--brick-soft); }
-  .btn-sm{ padding:6px 10px; font-size:12px; border-radius:6px; }
-  .btn[disabled]{ opacity:.45; cursor:not-allowed; }
-
+  .btn-primary{ background:var(--teal); color:#fff; } .btn-primary:hover{ background:#173a30; }
+  .btn-gold{ background:var(--gold); color:#fff; } .btn-gold:hover{ background:#af8730; }
+  .btn-ghost{ background:transparent; border:1px solid var(--line-strong); color:var(--ink); } .btn-ghost:hover{ background:var(--teal-soft); }
+  .btn-danger{ background:transparent; border:1px solid var(--brick); color:var(--brick); } .btn-danger:hover{ background:var(--brick-soft); }
+  .btn-sm{ padding:6px 10px; font-size:12px; border-radius:6px; } .btn[disabled]{ opacity:.45; cursor:not-allowed; }
   table{ width:100%; border-collapse:collapse; font-size:13.5px; }
   th{ text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:0.4px; color:var(--grey); border-bottom:1px solid var(--line-strong); padding:8px; }
-  td{ padding:9px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
-  tr:last-child td{ border-bottom:none; }
-  .num{ font-family:'IBM Plex Mono',monospace; text-align:right; white-space:nowrap; }
-  .mono{ font-family:'IBM Plex Mono',monospace; }
+  td{ padding:9px 8px; border-bottom:1px solid var(--line); vertical-align:top; } tr:last-child td{ border-bottom:none; }
+  .num{ font-family:'IBM Plex Mono',monospace; text-align:right; white-space:nowrap; } .mono{ font-family:'IBM Plex Mono',monospace; }
   .empty-row td{ color:var(--grey); font-style:italic; text-align:center; padding:20px 8px; }
-  .breakdown{ font-size:11px; color:var(--grey); margin-top:2px; }
-
   .totals{ margin-top:12px; padding-top:12px; border-top:1px dashed var(--line-strong); }
   .totals .line{ display:flex; justify-content:space-between; font-size:14px; padding:3px 0; color:var(--grey); }
   .totals .line.grand{ color:var(--teal); font-weight:700; font-size:17px; font-family:'Cormorant Garamond',serif; padding-top:6px; }
-
   .receipt{ background:#fff; border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
   .receipt-inner{ padding:20px 22px; }
   .receipt .rhead{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
   .receipt .rhead img{ height:34px; width:34px; object-fit:contain; }
   .receipt h3{ font-family:'Cormorant Garamond',serif; font-size:19px; letter-spacing:1.5px; color:var(--grey); margin:0; }
-  .receipt .meta{ font-size:12px; color:var(--grey); margin-bottom:12px; }
-  .receipt .meta div{ display:flex; justify-content:space-between; }
-  .receipt table{ font-size:12.5px; }
-  .receipt th{ padding:6px 4px; }
-  .receipt td{ padding:7px 4px; }
+  .receipt .meta{ font-size:12px; color:var(--grey); margin-bottom:12px; } .receipt .meta div{ display:flex; justify-content:space-between; }
+  .receipt table{ font-size:12.5px; } .receipt th{ padding:6px 4px; } .receipt td{ padding:7px 4px; }
   .receipt .foot{ text-align:center; color:var(--grey); font-size:11px; margin-top:14px; }
-
   .summary-cards{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:16px; }
   @media (max-width:760px){ .summary-cards{ grid-template-columns:repeat(2,1fr); } }
   .stat{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:15px 17px; box-shadow:var(--shadow); }
   .stat .label{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.4px; color:var(--grey); margin-bottom:6px; }
   .stat .value{ font-family:'Cormorant Garamond',serif; font-size:23px; font-weight:700; color:var(--teal); }
-  .stat.profit .value{ color:var(--green); }
-  .stat.cost .value{ color:var(--brick); }
-
+  .stat.profit .value{ color:var(--green); } .stat.cost .value{ color:var(--brick); }
   .toolbar{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
   .toolbar .title{ font-family:'Cormorant Garamond',serif; font-size:19px; font-weight:700; color:var(--teal); }
   .toolbar .actions{ display:flex; gap:8px; flex-wrap:wrap; }
-
   .toast{ position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--teal); color:#fff; padding:11px 18px; border-radius:8px; font-size:13.5px; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:all .25s ease; z-index:50; max-width:90vw; }
-  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
-  .toast.err{ background:var(--brick); }
-
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); } .toast.err{ background:var(--brick); }
   .codebuilder{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:6px; }
   @media (max-width:700px){ .codebuilder{ grid-template-columns:repeat(2,1fr); } }
   .sub-hint{ font-size:11px; color:var(--grey); min-height:14px; margin-top:-6px; }
   .codepreview{ background:var(--teal-soft); border:1px solid var(--teal-light); border-radius:8px; padding:12px 14px; margin:12px 0 16px 0; }
   .codepreview .code{ font-family:'IBM Plex Mono',monospace; font-size:18px; font-weight:600; color:var(--teal); letter-spacing:1px; }
   .codepreview .decode{ font-size:11.5px; color:var(--grey); margin-top:4px; }
-
   .inline-add{ display:none; gap:8px; margin-top:6px; padding:10px; background:var(--gold-soft); border-radius:7px; }
-  .inline-add.show{ display:flex; flex-wrap:wrap; }
-  .inline-add input{ flex:1; min-width:100px; }
-
+  .inline-add.show{ display:flex; flex-wrap:wrap; } .inline-add input{ flex:1; min-width:100px; }
   .settings-panel{ display:none; position:fixed; top:70px; right:24px; width:360px; max-width:90vw; background:#fff; border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px; z-index:60; }
   .settings-panel.show{ display:block; }
   .settings-panel h3{ font-family:'Cormorant Garamond',serif; font-size:17px; margin:0 0 4px 0; color:var(--teal); }
@@ -150,7 +100,6 @@
   .settings-panel .sync-state{ display:flex; align-items:center; gap:8px; font-size:12.5px; margin-top:12px; padding:10px; border-radius:7px; background:var(--teal-soft); color:var(--ink); }
   .settings-panel .sync-state.err{ background:var(--brick-soft); color:var(--brick); }
   .settings-panel .sync-state.ok{ background:var(--teal-light); color:var(--teal); }
-
   footer.hint{ text-align:center; color:var(--grey); font-size:12px; padding:10px 24px 30px; max-width:1200px; margin:0 auto; }
 </style>
 </head>
@@ -160,10 +109,7 @@
   <div class="brandrow">
     <div class="brand">
       <img src="nagmeena-logo.png" alt="Nagmeena" onerror="this.style.display='none'">
-      <div>
-        <div class="wordmark">NAGMEENA</div>
-        <div class="tagline">BILLING &amp; SALES BOOK</div>
-      </div>
+      <div><div class="wordmark">NAGMEENA</div><div class="tagline">BILLING &amp; SALES BOOK</div></div>
     </div>
     <div class="headright">
       <div class="drive-status"><span class="dot" id="driveDot"></span><span id="driveStatusText">Checking…</span></div>
@@ -180,10 +126,7 @@
 <div class="settings-panel" id="settingsPanel">
   <h3>Google Drive Sync</h3>
   <p class="help">One-time setup: create a free OAuth Client ID in Google Cloud Console (APIs &amp; Services → Credentials → OAuth client ID → "Web application"), enable the Google Drive API, add this page's URL under Authorized JavaScript origins, then paste the Client ID below.</p>
-  <div class="field">
-    <label for="clientIdInput">Google OAuth Client ID</label>
-    <input type="text" id="clientIdInput" placeholder="xxxxxxxx.apps.googleusercontent.com">
-  </div>
+  <div class="field"><label for="clientIdInput">Google OAuth Client ID</label><input type="text" id="clientIdInput" placeholder="xxxxxxxx.apps.googleusercontent.com"></div>
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
     <button class="btn btn-primary btn-sm" id="connectDriveBtn">Connect Google Drive</button>
     <button class="btn btn-ghost btn-sm" id="syncNowBtn">Sync Now</button>
@@ -193,8 +136,6 @@
 </div>
 
 <main>
-
-  <!-- ================= BILLING ================= -->
   <section id="panel-billing" class="panel active">
     <div class="grid-2">
       <div>
@@ -205,7 +146,6 @@
             <div class="field"><label for="custNumber">Customer Number</label><input type="tel" id="custNumber" placeholder="e.g. 9876543210"></div>
           </div>
         </div>
-
         <div class="card">
           <h2>Add Item</h2>
           <p class="sub">Type a product code from your catalog — description and price fill in automatically.</p>
@@ -217,7 +157,6 @@
           <div class="lookup-hint" id="lookupHint" style="font-size:12px; margin-top:-6px; margin-bottom:10px;"></div>
           <button class="btn btn-primary" id="addToCartBtn">Add to Bill</button>
         </div>
-
         <div class="card">
           <h2>Items in this Bill</h2>
           <table>
@@ -234,7 +173,6 @@
           </div>
         </div>
       </div>
-
       <div class="receipt">
         <div class="receipt-inner">
           <div class="rhead"><img src="nagmeena-logo.png" onerror="this.style.display='none'"><h3>NAGMEENA</h3></div>
@@ -243,10 +181,8 @@
             <div><span>Date</span><span id="rvDate" class="mono">—</span></div>
             <div><span>Bill To</span><span id="rvCustomer">—</span></div>
           </div>
-          <table>
-            <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Amt</th></tr></thead>
-            <tbody id="rvBody"><tr class="empty-row"><td colspan="3">Cart is empty</td></tr></tbody>
-          </table>
+          <table><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Amt</th></tr></thead>
+            <tbody id="rvBody"><tr class="empty-row"><td colspan="3">Cart is empty</td></tr></tbody></table>
           <div class="totals"><div class="line grand"><span>Total</span><span id="rvTotal">₹0.00</span></div></div>
           <div class="foot">Thank you for shopping with Nagmeena</div>
         </div>
@@ -254,20 +190,16 @@
     </div>
   </section>
 
-  <!-- ================= PRODUCTS ================= -->
   <section id="panel-products" class="panel">
     <div class="grid-2">
       <div class="card">
         <h2 id="productFormTitle">Add Product</h2>
         <p class="sub">Build the product code from its subsections, then set the description and prices.</p>
-
-        <div class="codebuilder" id="codeBuilder"><!-- dropdowns injected by JS --></div>
-
+        <div class="codebuilder" id="codeBuilder"></div>
         <div class="codepreview">
           <div class="code" id="codePreview">— — — — — — —</div>
           <div class="decode" id="codeDecode">Select each subsection above</div>
         </div>
-
         <div class="field"><label for="pDesc">Product Description</label><input type="text" id="pDesc" placeholder="e.g. Cotton Cutdana Floral Suit"></div>
         <div class="row">
           <div class="field"><label for="pCost">Cost Price (₹)</label><input type="number" id="pCost" min="0" step="0.01" placeholder="0.00"></div>
@@ -278,18 +210,14 @@
           <button class="btn btn-ghost" id="cancelEditBtn" style="display:none;">Cancel Edit</button>
         </div>
       </div>
-
       <div class="card" style="margin-top:0;">
         <h2>Catalog</h2>
-        <table>
-          <thead><tr><th>Code</th><th>Description</th><th class="num">Cost</th><th class="num">Price</th><th class="num">Margin</th><th></th></tr></thead>
-          <tbody id="productBody"><tr class="empty-row"><td colspan="6">No products yet</td></tr></tbody>
-        </table>
+        <table><thead><tr><th>Code</th><th>Description</th><th class="num">Cost</th><th class="num">Price</th><th class="num">Margin</th><th></th></tr></thead>
+          <tbody id="productBody"><tr class="empty-row"><td colspan="6">No products yet</td></tr></tbody></table>
       </div>
     </div>
   </section>
 
-  <!-- ================= HISTORY ================= -->
   <section id="panel-history" class="panel">
     <div class="summary-cards">
       <div class="stat"><div class="label">Bills Raised</div><div class="value" id="statBills">0</div></div>
@@ -305,22 +233,17 @@
           <button class="btn btn-danger btn-sm" id="clearHistoryBtn">Clear All Records</button>
         </div>
       </div>
-      <table>
-        <thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Number</th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">Price</th><th class="num">Revenue</th><th class="num">Profit</th><th></th></tr></thead>
-        <tbody id="historyBody"><tr class="empty-row"><td colspan="12">No sales recorded yet</td></tr></tbody>
-      </table>
+      <table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Number</th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">Price</th><th class="num">Revenue</th><th class="num">Profit</th><th></th></tr></thead>
+        <tbody id="historyBody"><tr class="empty-row"><td colspan="12">No sales recorded yet</td></tr></tbody></table>
     </div>
   </section>
-
 </main>
 
 <footer class="hint">Data is stored in this browser and synced to your own Google Drive when connected. Export .xlsx regularly as a backup.</footer>
 <div class="toast" id="toast"></div>
 
 <script>
-/* =========================================================================
-   STORAGE KEYS
-   ========================================================================= */
+/* ===== Storage keys ===== */
 const LS_PRODUCTS='ledger_products', LS_SALES='ledger_sales', LS_SEQ='ledger_invoice_seq',
       LS_CATS='ledger_categories', LS_CLIENTID='ledger_drive_client_id', LS_SYNCED='ledger_last_sync',
       LS_CONNECTED='ledger_drive_connected', LS_DEVICE='ledger_device_id', LS_TOKEN_EXP='ledger_token_expiry';
@@ -334,7 +257,6 @@ let sales = load(LS_SALES, []);
 let cart = [];
 let editingCode = null;
 
-/* Stable per-browser device id, used for conflict/version metadata */
 if(!localStorage.getItem(LS_DEVICE)){
   const id = (crypto.randomUUID ? crypto.randomUUID() : 'dev-'+Date.now()+'-'+Math.random().toString(16).slice(2));
   localStorage.setItem(LS_DEVICE, id);
@@ -342,9 +264,7 @@ if(!localStorage.getItem(LS_DEVICE)){
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
 const DATA_VERSION = 1;
 
-/* =========================================================================
-   PRODUCT CODE CATEGORIES (unchanged business logic)
-   ========================================================================= */
+/* ===== Product code categories ===== */
 const defaultCats = {
   series:{label:'Series', hasMnemonic:false, items:[
     {desc:'Series 1', code:'01'},{desc:'Series 2', code:'02'},{desc:'Series 3', code:'03'}]},
@@ -368,10 +288,7 @@ let cats = load(LS_CATS, defaultCats);
 const CAT_KEYS = ['series','fabric','work','print','colour','style'];
 const selected = {};
 
-function nextCode(list){
-  const max = list.reduce((m,i)=>Math.max(m, parseInt(i.code,36)||0), 0);
-  return String(max+1).padStart(2,'0');
-}
+function nextCode(list){ const max = list.reduce((m,i)=>Math.max(m, parseInt(i.code,36)||0), 0); return String(max+1).padStart(2,'0'); }
 function serialCode(n){
   n = parseInt(n,10);
   if(!n || n<1) return '';
@@ -399,10 +316,7 @@ CAT_KEYS.forEach(key=>{
 });
 
 const serialWrap = document.createElement('div');
-serialWrap.innerHTML = `
-  <label>Serial Number</label>
-  <input type="number" id="serialInput" min="1" placeholder="e.g. 5">
-  <div class="sub-hint" id="hint_serial"></div>`;
+serialWrap.innerHTML = `<label>Serial Number</label><input type="number" id="serialInput" min="1" placeholder="e.g. 5"><div class="sub-hint" id="hint_serial"></div>`;
 builder.appendChild(serialWrap);
 document.getElementById('serialInput').addEventListener('input', ()=>{
   const n = document.getElementById('serialInput').value;
@@ -425,11 +339,9 @@ function onSelectChange(key){
   const sel = document.getElementById(`sel_${key}`);
   const addBox = document.getElementById(`add_${key}`);
   const hint = document.getElementById(`hint_${key}`);
-  if(sel.value === '__custom__'){
-    addBox.classList.add('show'); selected[key] = null; hint.textContent = '';
-  }else if(sel.value === ''){
-    addBox.classList.remove('show'); selected[key] = null; hint.textContent = '';
-  }else{
+  if(sel.value === '__custom__'){ addBox.classList.add('show'); selected[key] = null; hint.textContent = ''; }
+  else if(sel.value === ''){ addBox.classList.remove('show'); selected[key] = null; hint.textContent = ''; }
+  else{
     addBox.classList.remove('show');
     const item = cats[key].items[parseInt(sel.value,10)];
     selected[key] = item;
@@ -450,10 +362,9 @@ function addCustom(key){
   populateSelect(key);
   document.getElementById(`sel_${key}`).value = String(cat.items.length-1);
   onSelectChange(key);
-  document.getElementById(`newdesc_${key}`).value='';
-  if(mnemInput) mnemInput.value='';
+  document.getElementById(`newdesc_${key}`).value=''; if(mnemInput) mnemInput.value='';
   toast(`Added "${desc}" to ${cat.label}`);
-  queueSync(); // category change → sync
+  pushChange('category changed'); // sync immediately
 }
 
 function assembledCode(){
@@ -463,21 +374,14 @@ function assembledCode(){
 }
 function updatePreview(){
   const code = assembledCode();
-  const preview = document.getElementById('codePreview');
-  const decode = document.getElementById('codeDecode');
+  const preview = document.getElementById('codePreview'), decode = document.getElementById('codeDecode');
   if(code){
     preview.textContent = code;
-    const labels = CAT_KEYS.map(k=>selected[k]?.desc).concat([selected.serial?.desc]).filter(Boolean);
-    decode.textContent = labels.join(' · ');
-  }else{
-    preview.textContent = '— — — — — — —';
-    decode.textContent = 'Select each subsection above';
-  }
+    decode.textContent = CAT_KEYS.map(k=>selected[k]?.desc).concat([selected.serial?.desc]).filter(Boolean).join(' · ');
+  }else{ preview.textContent = '— — — — — — —'; decode.textContent = 'Select each subsection above'; }
 }
 
-/* =========================================================================
-   PRODUCTS CRUD
-   ========================================================================= */
+/* ===== Products CRUD — each mutation syncs immediately ===== */
 function findProduct(code){ code=(code||'').trim().toUpperCase(); return products.find(p=>p.code.toUpperCase()===code); }
 
 document.getElementById('saveProductBtn').addEventListener('click', ()=>{
@@ -504,7 +408,7 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
   save(LS_PRODUCTS, products);
   document.getElementById('pDesc').value=''; document.getElementById('pCost').value=''; document.getElementById('pPrice').value='';
   renderProducts();
-  queueSync();
+  pushChange('product added/edited'); // upload immediately
 });
 document.getElementById('cancelEditBtn').addEventListener('click', ()=>{
   editingCode=null;
@@ -516,7 +420,7 @@ function deleteProduct(code){
   products = products.filter(p=>p.code!==code);
   save(LS_PRODUCTS, products);
   renderProducts();
-  queueSync();
+  pushChange('product deleted');
 }
 function editProduct(code){
   const p = findProduct(code);
@@ -535,10 +439,8 @@ function renderProducts(){
     : products.map(p=>{
         const margin = p.price - p.cost;
         return `<tr>
-          <td class="mono">${esc(p.code)}</td>
-          <td>${esc(p.name)}</td>
-          <td class="num">${money(p.cost)}</td>
-          <td class="num">${money(p.price)}</td>
+          <td class="mono">${esc(p.code)}</td><td>${esc(p.name)}</td>
+          <td class="num">${money(p.cost)}</td><td class="num">${money(p.price)}</td>
           <td class="num" style="color:${margin>=0?'var(--green)':'var(--brick)'}">${money(margin)}</td>
           <td><button class="btn btn-ghost btn-sm" onclick="editProduct('${p.code}')">Edit</button>
               <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.code}')">Delete</button></td>
@@ -546,9 +448,7 @@ function renderProducts(){
       }).join('');
 }
 
-/* =========================================================================
-   BILLING
-   ========================================================================= */
+/* ===== Billing ===== */
 const itemCode=document.getElementById('itemCode'), itemName=document.getElementById('itemName'), lookupHint=document.getElementById('lookupHint');
 function doLookup(){
   const code=itemCode.value.trim();
@@ -610,13 +510,9 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
   doc.text('NAGMEENA', logoDataUrl?90:40, 52);
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(107,114,128);
   doc.text('INVOICE', logoDataUrl?90:40, 66);
-  doc.setTextColor(43,43,46);
-  doc.setFontSize(10);
-  doc.text(`Invoice No: ${invoiceNo}`, 400, 45);
-  doc.text(`Date: ${date}`, 400, 60);
-  doc.setFontSize(11);
-  doc.text(`Bill To: ${name}`, 40, 95);
-  doc.text(`Phone: ${number}`, 40, 111);
+  doc.setTextColor(43,43,46); doc.setFontSize(10);
+  doc.text(`Invoice No: ${invoiceNo}`, 400, 45); doc.text(`Date: ${date}`, 400, 60);
+  doc.setFontSize(11); doc.text(`Bill To: ${name}`, 40, 95); doc.text(`Phone: ${number}`, 40, 111);
   const rows = cart.map(c=>[c.code, c.name, String(c.qty), c.price.toFixed(2), (c.qty*c.price).toFixed(2)]);
   doc.autoTable({ startY:130, head:[['Code','Description','Qty','Price','Amount']], body:rows,
     styles:{fontSize:9, cellPadding:6}, headStyles:{fillColor:[31,74,61]},
@@ -631,7 +527,7 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
   toast(`Bill ${invoiceNo} generated and saved`);
   cart=[]; document.getElementById('custName').value=''; document.getElementById('custNumber').value='';
   renderCart();
-  queueSync();
+  pushChange('bill generated'); // upload immediately
 });
 function loadLogoDataUrl(){
   return new Promise(resolve=>{
@@ -643,9 +539,7 @@ function loadLogoDataUrl(){
   });
 }
 
-/* =========================================================================
-   HISTORY
-   ========================================================================= */
+/* ===== History — delete AND edit both sync immediately ===== */
 function renderHistory(){
   const body=document.getElementById('historyBody');
   body.innerHTML = sales.length===0 ? '<tr class="empty-row"><td colspan="12">No sales recorded yet</td></tr>' :
@@ -654,7 +548,8 @@ function renderHistory(){
       <td class="mono">${esc(s.code)}</td><td>${esc(s.product)}</td><td class="num">${s.qty}</td>
       <td class="num">${money(s.cost)}</td><td class="num">${money(s.price)}</td><td class="num">${money(s.revenue)}</td>
       <td class="num" style="color:${s.profit>=0?'var(--green)':'var(--brick)'}">${money(s.profit)}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="deleteSaleRow(${i})">Delete</button></td></tr>`).join('');
+      <td><button class="btn btn-ghost btn-sm" onclick="editSaleRow(${i})">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSaleRow(${i})">Delete</button></td></tr>`).join('');
   const bills=new Set(sales.map(s=>s.invoice)).size;
   const revenue=sales.reduce((a,s)=>a+s.revenue,0), cost=sales.reduce((a,s)=>a+s.cost*s.qty,0), profit=sales.reduce((a,s)=>a+s.profit,0);
   document.getElementById('statBills').textContent=bills;
@@ -662,11 +557,31 @@ function renderHistory(){
   document.getElementById('statCost').textContent=money(cost);
   document.getElementById('statProfit').textContent=money(profit);
 }
-function deleteSaleRow(i){ if(!confirm('Delete this sale record?')) return; sales.splice(i,1); save(LS_SALES,sales); renderHistory(); queueSync(); }
+function editSaleRow(i){
+  const s = sales[i];
+  if(!s) return;
+  const input = prompt(`Correct quantity for "${s.product}" (Invoice ${s.invoice}):`, s.qty);
+  if(input===null) return;
+  const newQty = parseInt(input,10);
+  if(!newQty || newQty<1){ toast('Enter a valid quantity'); return; }
+  s.qty = newQty;
+  s.revenue = newQty * s.price;
+  s.profit = s.revenue - (newQty * s.cost);
+  save(LS_SALES, sales);
+  renderHistory();
+  toast('Sale record updated');
+  pushChange('sale edited');
+}
+function deleteSaleRow(i){
+  if(!confirm('Delete this sale record?')) return;
+  sales.splice(i,1); save(LS_SALES,sales); renderHistory();
+  pushChange('sale deleted');
+}
 document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{
   if(sales.length===0) return;
   if(!confirm('Clear ALL sales records? Export a backup first if needed.')) return;
-  sales=[]; save(LS_SALES,sales); renderHistory(); toast('Sales Book cleared'); queueSync();
+  sales=[]; save(LS_SALES,sales); renderHistory(); toast('Sales Book cleared');
+  pushChange('history cleared');
 });
 document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   if(sales.length===0){ toast('No sales to export yet'); return; }
@@ -682,9 +597,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   toast('Excel file downloaded');
 });
 
-/* =========================================================================
-   TABS
-   ========================================================================= */
+/* ===== Tabs / Settings toggle ===== */
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -702,19 +615,21 @@ document.getElementById('clientIdInput').addEventListener('change', e=>{
 });
 
 /* =========================================================================
-   GOOGLE DRIVE SYNC — refactored, production-oriented implementation
+   GOOGLE DRIVE SYNC (v2)
    =========================================================================
-   Design:
-   - One JSON backup file per user: "nagmeena_ledger_data.json" (Drive, drive.file scope)
-   - Every payload carries {timestamp, version, deviceId} for conflict detection
-   - Token is requested via Google Identity Services (popup). Expiry is tracked
-     locally so we proactively refresh instead of discovering a 401 mid-request.
-   - All network calls go through fetchWithRetry(), which retries transient
-     failures (429/500/503/network) with backoff and throws typed errors for
-     everything else so the UI can show an exact, human-readable reason.
-   - performSync() is the single entry point for manual, automatic, and
-     startup syncs; it is re-entrant safe (a flag prevents overlapping runs)
-     and debounced for automatic triggers.
+   Key change from before: no fixed debounce timer. Every trigger calls
+   performSync() right away. If a sync is already running, the new request
+   is queued (syncQueued=true) and re-run the instant the current one
+   finishes — so bursts of changes never get silently dropped, and nothing
+   waits an artificial 1.5s before it starts uploading.
+
+   "Sync Now" (trigger='manual') always re-downloads the cloud file and
+   re-renders the UI from it — that's the literal "pull & display" behaviour
+   requested. To avoid ever discarding not-yet-uploaded local edits, it first
+   merges local + cloud (union of products/sales/categories, invoice sequence
+   takes the max) before displaying and re-uploading the reconciled result.
+   This means Sync Now can never make you lose local work, even though it
+   always shows you the latest cloud state.
    ========================================================================= */
 
 const DRIVE_FILENAME = 'nagmeena_ledger_data.json';
@@ -725,11 +640,10 @@ let tokenClient = null;
 let accessToken = null;
 let driveFileId = null;
 let syncInProgress = false;
-let syncDebounceTimer = null;
+let syncQueued = false;
 let lastSyncedHash = null;
 let lastSyncedTimestamp = 0;
 
-/* ---- small state machine for the sync status pill ---- */
 const STATUS = {
   connecting:  {dot:'busy', text:'Connecting…'},
   downloading: {dot:'busy', text:'Downloading…'},
@@ -744,7 +658,6 @@ function setStatus(state, detail){
   const dot = document.getElementById('driveDot');
   dot.className = 'dot' + (cfg.dot ? ' '+cfg.dot : '');
   document.getElementById('driveStatusText').textContent = cfg.text;
-
   const box = document.getElementById('syncStateBox');
   box.className = 'sync-state' + (state==='failed' ? ' err' : (state==='success' ? ' ok' : ''));
   const lastSync = localStorage.getItem(LS_SYNCED);
@@ -756,7 +669,6 @@ function setButtonsBusy(busy){
 }
 function isDriveConnected(){ return localStorage.getItem(LS_CONNECTED)==='1' && !!localStorage.getItem(LS_CLIENTID); }
 
-/* ---- friendly error messages for every failure mode we handle ---- */
 function mapError(err){
   const code = (err && (err.code || err.status)) || (err && err.message) || 'unknown';
   const map = {
@@ -786,27 +698,17 @@ function mapError(err){
   return 'Sync failed: ' + code;
 }
 
-/* ---- GIS bootstrap ---- */
 function onGisLoaded(){
   gisReady = true;
   const clientId = localStorage.getItem(LS_CLIENTID);
   if(clientId) initTokenClient(clientId);
-  if(isDriveConnected()){
-    performSync('startup');
-  }else{
-    setStatus('disconnected');
-  }
+  if(isDriveConnected()) performSync('startup');
+  else setStatus('disconnected');
 }
 function initTokenClient(clientId){
   if(typeof google === 'undefined' || !google.accounts) return;
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: clientId,
-    scope: DRIVE_SCOPE,
-    callback: ()=>{} // overridden per-request in requestToken()
-  });
+  tokenClient = google.accounts.oauth2.initTokenClient({ client_id: clientId, scope: DRIVE_SCOPE, callback: ()=>{} });
 }
-
-/* ---- token acquisition with silent-first, popup-fallback strategy ---- */
 function requestToken(interactive){
   return new Promise((resolve, reject)=>{
     if(!tokenClient){ reject({code:'no_client'}); return; }
@@ -820,100 +722,65 @@ function requestToken(interactive){
       localStorage.setItem(LS_TOKEN_EXP, String(Date.now() + (resp.expires_in||3600)*1000));
       resolve(accessToken);
     };
-    try{
-      tokenClient.requestAccessToken({ prompt: interactive ? 'consent' : '' });
-    }catch(e){
-      settled = true; clearTimeout(timer);
-      reject({code:'popup_failed_to_open'});
-    }
+    try{ tokenClient.requestAccessToken({ prompt: interactive ? 'consent' : '' }); }
+    catch(e){ settled = true; clearTimeout(timer); reject({code:'popup_failed_to_open'}); }
   });
 }
 async function ensureValidToken(interactive){
   const expiry = parseInt(localStorage.getItem(LS_TOKEN_EXP)||'0',10);
-  if(accessToken && Date.now() < expiry - 30000) return accessToken; // still valid
-  try{
-    return await requestToken(false); // try silent refresh first
-  }catch(e){
-    if(interactive) return await requestToken(true); // fall back to popup
-    throw e;
-  }
+  if(accessToken && Date.now() < expiry - 30000) return accessToken;
+  try{ return await requestToken(false); }
+  catch(e){ if(interactive) return await requestToken(true); throw e; }
 }
-
-/* ---- fetch wrapper: retries transient failures, throws typed errors ---- */
 async function fetchWithRetry(url, options={}, attempt=1){
   const MAX_ATTEMPTS = 3;
   let res;
-  try{
-    res = await fetch(url, options);
-  }catch(networkErr){
+  try{ res = await fetch(url, options); }
+  catch(networkErr){
     if(attempt < MAX_ATTEMPTS){ await sleep(attempt*800); return fetchWithRetry(url, options, attempt+1); }
     throw {code:'network_error'};
   }
   if(res.status === 401) throw {code:'token_expired', status:401};
-  if([429,500,503].includes(res.status) && attempt < MAX_ATTEMPTS){
-    await sleep(attempt*1000);
-    return fetchWithRetry(url, options, attempt+1);
-  }
+  if([429,500,503].includes(res.status) && attempt < MAX_ATTEMPTS){ await sleep(attempt*1000); return fetchWithRetry(url, options, attempt+1); }
   if(!res.ok) throw {code:res.status, status:res.status};
   return res;
 }
-
-/* ---- Drive primitives ---- */
 async function driveFindFile(){
   const res = await fetchWithRetry(
     `https://www.googleapis.com/drive/v3/files?q=name='${DRIVE_FILENAME}' and trashed=false&fields=files(id,name)&spaces=drive`,
-    { headers:{ Authorization:'Bearer '+accessToken } }
-  );
+    { headers:{ Authorization:'Bearer '+accessToken } });
   const data = await res.json();
   return (data.files && data.files[0]) ? data.files[0].id : null;
 }
 async function driveDownloadFile(fileId){
-  const res = await fetchWithRetry(
-    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-    { headers:{ Authorization:'Bearer '+accessToken } }
-  );
+  const res = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers:{ Authorization:'Bearer '+accessToken } });
   const text = await res.text();
-  try{ return JSON.parse(text); }
-  catch(e){ throw {code:'corrupted_json'}; }
+  try{ return JSON.parse(text); } catch(e){ throw {code:'corrupted_json'}; }
 }
 async function driveSaveFile(fileId, data){
   let payload;
-  try{ payload = JSON.stringify(data); JSON.parse(payload); } // round-trip validation, prevents corrupted uploads
+  try{ payload = JSON.stringify(data); JSON.parse(payload); }
   catch(e){ throw {code:'invalid_json'}; }
-
   const metadata = { name: DRIVE_FILENAME, mimeType:'application/json' };
   const boundary = 'ledgerboundary_' + Date.now();
-  const body =
-    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}` +
+  const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}` +
     `\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${payload}\r\n--${boundary}--`;
   const url = fileId
     ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
     : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
-  const res = await fetchWithRetry(url, {
-    method: fileId ? 'PATCH' : 'POST',
-    headers:{ Authorization:'Bearer '+accessToken, 'Content-Type':`multipart/related; boundary=${boundary}` },
-    body
-  });
+  const res = await fetchWithRetry(url, { method: fileId?'PATCH':'POST',
+    headers:{ Authorization:'Bearer '+accessToken, 'Content-Type':`multipart/related; boundary=${boundary}` }, body });
   const json = await res.json();
   if(!json.id) throw {code:'upload_failed'};
   return json.id;
 }
 async function driveVerify(fileId, expected){
-  try{
-    const remote = await driveDownloadFile(fileId);
-    return !!remote && remote.timestamp === expected.timestamp && remote.deviceId === expected.deviceId;
-  }catch(e){ return false; }
+  try{ const remote = await driveDownloadFile(fileId); return !!remote && remote.timestamp === expected.timestamp && remote.deviceId === expected.deviceId; }
+  catch(e){ return false; }
 }
-
-/* ---- payload helpers ---- */
 function buildLocalPayload(){
-  return {
-    products, sales, cats,
-    seq: parseInt(localStorage.getItem(LS_SEQ)||'0',10),
-    timestamp: Date.now(),
-    version: DATA_VERSION,
-    deviceId: DEVICE_ID
-  };
+  return { products, sales, cats, seq: parseInt(localStorage.getItem(LS_SEQ)||'0',10),
+    timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID };
 }
 function isEmptyDataset(d){ return (!d.products || d.products.length===0) && (!d.sales || d.sales.length===0); }
 function hashPayload(data){
@@ -922,14 +789,10 @@ function hashPayload(data){
   for(let i=0;i<str.length;i++){ h = (Math.imul(31,h) + str.charCodeAt(i)) | 0; }
   return h;
 }
-/* Union-merge: additive data (sales, catalog entries) is never dropped from either side;
-   product edits favour whichever side has the newer overall timestamp. Never deletes newer cloud data. */
 function mergeData(local, cloud){
   const productMap = new Map();
   (cloud.products||[]).forEach(p=>productMap.set(p.code,p));
-  (local.products||[]).forEach(p=>{
-    if(!productMap.has(p.code) || local.timestamp >= cloud.timestamp) productMap.set(p.code,p);
-  });
+  (local.products||[]).forEach(p=>{ if(!productMap.has(p.code) || local.timestamp >= cloud.timestamp) productMap.set(p.code,p); });
 
   const saleKey = s => `${s.invoice}__${s.code}__${s.date}__${s.qty}__${s.revenue}`;
   const saleMap = new Map();
@@ -940,25 +803,14 @@ function mergeData(local, cloud){
   Object.keys(local.cats||{}).forEach(key=>{
     if(!mergedCats[key]){ mergedCats[key] = local.cats[key]; return; }
     const existingCodes = new Set(mergedCats[key].items.map(i=>i.code));
-    (local.cats[key].items||[]).forEach(it=>{
-      if(!existingCodes.has(it.code)){ mergedCats[key].items.push(it); existingCodes.add(it.code); }
-    });
+    (local.cats[key].items||[]).forEach(it=>{ if(!existingCodes.has(it.code)){ mergedCats[key].items.push(it); existingCodes.add(it.code); } });
   });
 
-  return {
-    products: Array.from(productMap.values()),
-    sales: Array.from(saleMap.values()),
-    cats: mergedCats,
-    seq: Math.max(local.seq||0, cloud.seq||0),
-    timestamp: Date.now(),
-    version: DATA_VERSION,
-    deviceId: DEVICE_ID
-  };
+  return { products: Array.from(productMap.values()), sales: Array.from(saleMap.values()), cats: mergedCats,
+    seq: Math.max(local.seq||0, cloud.seq||0), timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID };
 }
 function applyRemoteData(data){
-  products = data.products || [];
-  sales = data.sales || [];
-  cats = data.cats || defaultCats;
+  products = data.products || []; sales = data.sales || []; cats = data.cats || defaultCats;
   localStorage.setItem(LS_SEQ, String(data.seq || 0));
   save(LS_PRODUCTS, products); save(LS_SALES, sales); save(LS_CATS, cats);
   CAT_KEYS.forEach(populateSelect);
@@ -966,16 +818,18 @@ function applyRemoteData(data){
   lastSyncedTimestamp = data.timestamp || Date.now();
   lastSyncedHash = hashPayload(data);
 }
-function markSynced(){
-  const now = new Date().toLocaleString();
-  localStorage.setItem(LS_SYNCED, now);
-}
+function markSynced(){ localStorage.setItem(LS_SYNCED, new Date().toLocaleString()); }
 
-/* ---- the single sync entry point ---- */
+/* Single entry point for every kind of sync (startup / auto / manual / connect).
+   Re-entrancy safe: if called while already running, it queues one follow-up run
+   instead of dropping the request, so bursts of edits never get lost. */
 async function performSync(trigger){
   if(!navigator.onLine){ setStatus('offline'); return; }
-  if(!isDriveConnected() && trigger!=='connect'){ if(trigger==='manual') setStatus('failed', mapError({code:'no_client'})); return; }
-  if(syncInProgress) return; // never run two syncs at once
+  if(!isDriveConnected() && trigger!=='connect'){
+    if(trigger==='manual') setStatus('failed', mapError({code:'no_client'}));
+    return;
+  }
+  if(syncInProgress){ syncQueued = true; return; }
   syncInProgress = true;
   setButtonsBusy(true);
 
@@ -993,23 +847,25 @@ async function performSync(trigger){
 
     if(cloudData){
       if(isEmptyDataset(localData) && !isEmptyDataset(cloudData)){
-        // Guard: never let an empty local state clobber a good cloud backup — restore instead.
+        // Guard: never let an empty local state overwrite a good cloud backup — restore instead.
         applyRemoteData(cloudData);
         localStorage.setItem(LS_CONNECTED,'1');
         setStatus('success', 'Restored from cloud backup');
         markSynced();
         return;
       }
-      if((cloudData.timestamp||0) > lastSyncedTimestamp){
+      // Manual "Sync Now" always reconciles + re-displays, regardless of timestamps.
+      // Other triggers only merge when the cloud actually looks newer than our last sync.
+      if(trigger==='manual' || (cloudData.timestamp||0) > lastSyncedTimestamp){
         finalData = mergeData(localData, cloudData);
-        applyRemoteData(finalData);
+        applyRemoteData(finalData); // display immediately — satisfies "download & show"
       }
     }
 
     const currentHash = hashPayload(finalData);
     if(currentHash === lastSyncedHash && driveFileId){
       localStorage.setItem(LS_CONNECTED,'1');
-      setStatus('success', 'Already up to date');
+      setStatus('success', trigger==='manual' ? 'Already up to date' : 'Sync successful');
       markSynced();
       return;
     }
@@ -1028,27 +884,21 @@ async function performSync(trigger){
 
   }catch(err){
     console.error('Drive sync error:', err);
-    if(trigger==='startup'){
-      // Startup syncs are silent by design — never alarm the user, just fall back to local data.
-      setStatus('disconnected', 'Working offline — reconnect Drive to sync');
-    }else{
-      setStatus('failed', mapError(err));
-      toast(mapError(err));
-    }
+    if(trigger==='startup') setStatus('disconnected', 'Working offline — reconnect Drive to sync');
+    else{ setStatus('failed', mapError(err)); toast(mapError(err), true); }
   }finally{
     syncInProgress = false;
     setButtonsBusy(false);
+    if(syncQueued){ syncQueued = false; performSync('auto'); } // run whatever came in while we were busy
   }
 }
 
-/* ---- debounced automatic sync, called after every mutation ---- */
-function queueSync(){
+/* Call this right after any mutation — no artificial delay. */
+function pushChange(reason){
   if(!isDriveConnected()) return;
-  clearTimeout(syncDebounceTimer);
-  syncDebounceTimer = setTimeout(()=>performSync('auto'), 1500);
+  performSync('auto');
 }
 
-/* ---- UI wiring ---- */
 document.getElementById('connectDriveBtn').addEventListener('click', async ()=>{
   const clientId = localStorage.getItem(LS_CLIENTID);
   if(!clientId){ toast('Paste your Google OAuth Client ID first'); return; }
@@ -1059,8 +909,7 @@ document.getElementById('connectDriveBtn').addEventListener('click', async ()=>{
 });
 document.getElementById('disconnectDriveBtn').addEventListener('click', ()=>{
   accessToken = null; driveFileId = null; lastSyncedHash = null; lastSyncedTimestamp = 0;
-  localStorage.removeItem(LS_CONNECTED);
-  localStorage.removeItem(LS_TOKEN_EXP);
+  localStorage.removeItem(LS_CONNECTED); localStorage.removeItem(LS_TOKEN_EXP);
   setStatus('disconnected');
   toast('Disconnected from Google Drive');
 });
@@ -1069,18 +918,22 @@ document.getElementById('syncNowBtn').addEventListener('click', ()=>performSync(
 window.addEventListener('online', ()=>{ if(isDriveConnected()) performSync('auto'); });
 window.addEventListener('offline', ()=>setStatus('offline'));
 
+// Warn before closing the tab if there are changes that haven't reached the cloud yet.
+window.addEventListener('beforeunload', (e)=>{
+  if(isDriveConnected() && hashPayload(buildLocalPayload()) !== lastSyncedHash){
+    e.preventDefault(); e.returnValue = '';
+  }
+});
+
 if(localStorage.getItem(LS_SYNCED)) setStatus(isDriveConnected() ? 'success' : 'disconnected');
 else setStatus('disconnected');
 
-/* =========================================================================
-   UTILITIES
-   ========================================================================= */
+/* ===== Utilities ===== */
 function money(n){ return '₹'+(Number(n)||0).toFixed(2); }
 function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function esc(str){ return String(str).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 function toast(msg, isErr){ const t=document.getElementById('toast'); t.textContent=msg; t.className='toast show'+(isErr?' err':''); clearTimeout(toast._h); toast._h=setTimeout(()=>t.classList.remove('show'),2600); }
 
-/* ---------------- Init ---------------- */
 renderCart(); renderProducts(); renderHistory();
 </script>
 </body>
