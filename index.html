@@ -26,7 +26,7 @@
   header.top{ background:var(--card); border-bottom:1px solid var(--line); padding:16px 24px; }
   .brandrow{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; max-width:1200px; margin:0 auto; }
   .brand{ display:flex; align-items:center; gap:12px; }
-  .brand img{ height:52px; width:52px; object-fit:contain; }
+  .brand img{ height:73px; width:73px; object-fit:contain; }
   .brand .wordmark{ font-family:'Cormorant Garamond',serif; font-weight:600; font-size:26px; letter-spacing:2px; color:var(--grey); }
   .brand .tagline{ font-size:11px; color:var(--grey); letter-spacing:0.5px; margin-top:-2px; }
   .headright{ display:flex; align-items:center; gap:10px; }
@@ -50,7 +50,7 @@
   label{ display:block; font-size:11px; font-weight:600; color:var(--grey); margin-bottom:5px; text-transform:uppercase; letter-spacing:0.4px; }
   input[type=text], input[type=number], input[type=tel], select{ width:100%; padding:9px 10px; border:1px solid var(--line-strong); border-radius:7px; font-size:14px; background:#FBFAF7; color:var(--ink); }
   input:focus, select:focus{ background:#fff; }
-  .field{ margin-bottom:12px; } .row{ display:flex; gap:10px; flex-wrap:wrap; } .row > .field{ flex:1; min-width:120px; }
+  .field{ margin-bottom:16px; } .row{ display:flex; gap:10px; flex-wrap:wrap; } .row > .field{ flex:1; min-width:120px; }
   .btn{ display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:10px 16px; border-radius:7px; border:1px solid transparent; font-size:14px; font-weight:600; }
   .btn-primary{ background:var(--teal); color:#fff; } .btn-primary:hover{ background:#173a30; }
   .btn-gold{ background:var(--gold); color:#fff; } .btn-gold:hover{ background:#af8730; }
@@ -58,9 +58,11 @@
   .btn-danger{ background:transparent; border:1px solid var(--brick); color:var(--brick); } .btn-danger:hover{ background:var(--brick-soft); }
   .btn-sm{ padding:6px 10px; font-size:12px; border-radius:6px; } .btn[disabled]{ opacity:.45; cursor:not-allowed; }
   table{ width:100%; border-collapse:collapse; font-size:13px; }
-  th{ text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:0.3px; color:var(--grey); border-bottom:1px solid var(--line-strong); padding:7px; white-space:nowrap; }
+  th{ text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:0.3px; color:var(--grey); border-bottom:1px solid var(--line-strong); padding:7px; white-space:nowrap; font-family:'Inter',sans-serif; font-weight:600; }
   td{ padding:8px 7px; border-bottom:1px solid var(--line); vertical-align:top; } tr:last-child td{ border-bottom:none; }
-  .num{ font-family:'IBM Plex Mono',monospace; text-align:right; white-space:nowrap; } .mono{ font-family:'IBM Plex Mono',monospace; }
+  .num{ text-align:right; white-space:nowrap; }
+  td.num{ font-family:'IBM Plex Mono',monospace; }
+  .mono{ font-family:'IBM Plex Mono',monospace; }
   .empty-row td{ color:var(--grey); font-style:italic; text-align:center; padding:20px 8px; }
   .table-scroll{ overflow-x:auto; }
   .adj-pos{ color:var(--green); font-weight:600; } .adj-neg{ color:var(--brick); font-weight:600; } .adj-zero{ color:var(--grey); }
@@ -70,16 +72,17 @@
   .receipt{ background:#fff; border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
   .receipt-inner{ padding:20px 22px; }
   .receipt .rhead{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
-  .receipt .rhead img{ height:34px; width:34px; object-fit:contain; }
+  .receipt .rhead img{ height:48px; width:48px; object-fit:contain; }
   .receipt h3{ font-family:'Cormorant Garamond',serif; font-size:19px; letter-spacing:1.5px; color:var(--grey); margin:0; }
   .receipt .meta{ font-size:12px; color:var(--grey); margin-bottom:12px; } .receipt .meta div{ display:flex; justify-content:space-between; }
   .receipt table{ font-size:12.5px; } .receipt th{ padding:6px 4px; } .receipt td{ padding:7px 4px; }
   .receipt .foot{ text-align:center; color:var(--grey); font-size:11px; margin-top:14px; }
-  .summary-cards{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:16px; }
-  @media (max-width:760px){ .summary-cards{ grid-template-columns:repeat(2,1fr); } }
+  .summary-cards{ display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-bottom:16px; }
+  @media (max-width:980px){ .summary-cards{ grid-template-columns:repeat(3,1fr); } }
+  @media (max-width:600px){ .summary-cards{ grid-template-columns:repeat(2,1fr); } }
   .stat{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:15px 17px; box-shadow:var(--shadow); }
   .stat .label{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.4px; color:var(--grey); margin-bottom:6px; }
-  .stat .value{ font-family:'Cormorant Garamond',serif; font-size:23px; font-weight:700; color:var(--teal); }
+  .stat .value{ font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:700; color:var(--teal); }
   .stat.profit .value{ color:var(--green); } .stat.cost .value{ color:var(--brick); }
   .toolbar{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
   .toolbar .title{ font-family:'Cormorant Garamond',serif; font-size:19px; font-weight:700; color:var(--teal); }
@@ -88,7 +91,7 @@
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); } .toast.err{ background:var(--brick); }
   .codebuilder{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:6px; }
   @media (max-width:700px){ .codebuilder{ grid-template-columns:repeat(2,1fr); } }
-  .sub-hint{ font-size:11px; color:var(--grey); min-height:14px; margin-top:-6px; }
+  .sub-hint{ font-size:11px; color:var(--grey); min-height:14px; margin-top:5px; line-height:1.4; }
   .codepreview{ background:var(--teal-soft); border:1px solid var(--teal-light); border-radius:8px; padding:12px 14px; margin:12px 0 16px 0; }
   .codepreview .code{ font-family:'IBM Plex Mono',monospace; font-size:18px; font-weight:600; color:var(--teal); letter-spacing:1px; }
   .codepreview .decode{ font-size:11.5px; color:var(--grey); margin-top:4px; }
@@ -107,6 +110,15 @@
   .stock-ok{ color:var(--green); font-weight:600; } .stock-out{ color:var(--brick); font-weight:600; }
   .warn-banner{ background:var(--brick-soft); color:var(--brick); border:1px solid var(--brick); border-radius:8px; padding:10px 12px; font-size:13px; margin-bottom:12px; display:none; }
   .warn-banner.show{ display:block; }
+  .checkbox-row{ display:flex; align-items:center; gap:8px; margin:0 4px; }
+  .checkbox-row input{ width:auto; }
+  .checkbox-row label{ margin:0; text-transform:none; font-size:13px; font-weight:500; color:var(--ink); }
+  .filter-bar{ display:flex; gap:20px; flex-wrap:wrap; align-items:flex-end; padding:14px; background:var(--teal-soft); border:1px solid var(--teal-light); border-radius:8px; margin-bottom:14px; }
+  .filter-group label{ margin-bottom:6px; }
+  .date-select-row{ display:flex; gap:6px; }
+  .date-select-row select{ width:auto; min-width:64px; padding:8px 6px; font-size:13px; }
+  .filter-actions{ display:flex; gap:8px; }
+  .filter-status{ font-size:12px; color:var(--grey); margin:-8px 0 14px 2px; }
   footer.hint{ text-align:center; color:var(--grey); font-size:12px; padding:10px 24px 30px; max-width:1200px; margin:0 auto; }
 </style>
 </head>
@@ -148,6 +160,7 @@
       <div>
         <div class="card">
           <h2>Customer</h2>
+          <p class="sub">At least one of name or number is required.</p>
           <div class="row">
             <div class="field"><label for="custName">Customer Name</label><input type="text" id="custName" placeholder="e.g. Ramesh Kumar"></div>
             <div class="field"><label for="custNumber">Customer Number</label><input type="tel" id="custNumber" placeholder="e.g. 9876543210"></div>
@@ -172,17 +185,17 @@
           <h2>Items in this Bill</h2>
           <div class="table-scroll">
           <table>
-            <thead><tr><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Margin/Pc</th><th class="num">Amount</th><th></th></tr></thead>
-            <tbody id="cartBody"><tr class="empty-row"><td colspan="7">No items added yet</td></tr></tbody>
+            <thead><tr><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Amount</th><th></th></tr></thead>
+            <tbody id="cartBody"><tr class="empty-row"><td colspan="6">No items added yet</td></tr></tbody>
           </table>
           </div>
           <div class="totals">
             <div class="line"><span>Items</span><span id="cartCount">0</span></div>
             <div class="line grand"><span>Total</span><span id="cartTotal">₹0.00</span></div>
           </div>
-          <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
-            <button class="btn btn-gold" id="generateBillBtn">Generate Bill</button>
-            <button class="btn btn-ghost" id="printBillBtn" disabled>Print Bill</button>
+          <div style="margin-top:16px; display:flex; gap:14px; flex-wrap:wrap; align-items:center;">
+            <button class="btn btn-gold" id="generateBillBtn">Generate Invoice</button>
+            <div class="checkbox-row"><input type="checkbox" id="printInvoiceCheckbox"><label for="printInvoiceCheckbox">Print Invoice</label></div>
             <button class="btn btn-ghost" id="clearCartBtn">Clear</button>
           </div>
         </div>
@@ -218,7 +231,7 @@
         <div class="field"><label for="pStock">Quantity</label><input type="number" id="pStock" min="0" step="1" placeholder="e.g. 10"></div>
         <div class="row">
           <div class="field"><label for="pCost">Cost Price (₹)</label><input type="number" id="pCost" min="0" step="0.01" placeholder="0.00"></div>
-          <div class="field"><label for="pPrice">Expected Selling Price (₹)</label><input type="number" id="pPrice" min="0" step="0.01" placeholder="0.00"></div>
+          <div class="field"><label for="pPrice">MRP (₹)</label><input type="number" id="pPrice" min="0" step="0.01" placeholder="0.00"></div>
         </div>
         <div style="display:flex; gap:10px;">
           <button class="btn btn-primary" id="saveProductBtn">Save Product</button>
@@ -228,7 +241,7 @@
       <div class="card" style="margin-top:0;">
         <h2>Catalog</h2>
         <div class="table-scroll">
-        <table><thead><tr><th>Code</th><th>Description</th><th class="num">Stock</th><th class="num">Cost</th><th class="num">Price</th><th class="num">Margin</th><th></th></tr></thead>
+        <table><thead><tr><th>Code</th><th>Description</th><th class="num">Stock</th><th class="num">Cost</th><th class="num">MRP</th><th class="num">Margin</th><th></th></tr></thead>
           <tbody id="productBody"><tr class="empty-row"><td colspan="7">No products yet</td></tr></tbody></table>
         </div>
       </div>
@@ -241,6 +254,8 @@
       <div class="stat"><div class="label">Revenue</div><div class="value" id="statRevenue">₹0.00</div></div>
       <div class="stat cost"><div class="label">Cost of Goods</div><div class="value" id="statCost">₹0.00</div></div>
       <div class="stat profit"><div class="label">Total Profit</div><div class="value" id="statProfit">₹0.00</div></div>
+      <div class="stat"><div class="label">Avg Margin/Pc</div><div class="value" id="statAvgMargin">₹0.00</div></div>
+      <div class="stat"><div class="label">Avg Margin %</div><div class="value" id="statAvgMarginPct">0%</div></div>
     </div>
     <div class="card" style="margin-top:0;">
       <div class="toolbar">
@@ -250,9 +265,26 @@
           <button class="btn btn-danger btn-sm" id="clearHistoryBtn">Clear All Records</button>
         </div>
       </div>
+
+      <div class="filter-bar">
+        <div class="filter-group">
+          <label>From Date</label>
+          <div class="date-select-row"><select id="fromDay"></select><select id="fromMonth"></select><select id="fromYear"></select></div>
+        </div>
+        <div class="filter-group">
+          <label>To Date</label>
+          <div class="date-select-row"><select id="toDay"></select><select id="toMonth"></select><select id="toYear"></select></div>
+        </div>
+        <div class="filter-actions">
+          <button class="btn btn-primary btn-sm" id="applyFilterBtn">Apply Filter</button>
+          <button class="btn btn-ghost btn-sm" id="clearFilterBtn">Clear Filter</button>
+        </div>
+      </div>
+      <div class="filter-status" id="filterStatus"></div>
+
       <div class="table-scroll">
-      <table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Number</th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">Expected</th><th class="num">Selling</th><th class="num">Margin/Pc</th><th class="num">Revenue</th><th class="num">Profit</th><th></th></tr></thead>
-        <tbody id="historyBody"><tr class="empty-row"><td colspan="14">No sales recorded yet</td></tr></tbody></table>
+      <table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Number</th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">MRP</th><th class="num">Selling</th><th class="num">Margin/Pc</th><th class="num">Margin %</th><th class="num">Revenue</th><th class="num">Profit</th><th></th></tr></thead>
+        <tbody id="historyBody"><tr class="empty-row"><td colspan="15">No sales recorded yet</td></tr></tbody></table>
       </div>
     </div>
   </section>
@@ -267,7 +299,7 @@ const LS_PRODUCTS='ledger_products', LS_SALES='ledger_sales', LS_SEQ='ledger_inv
       LS_CATS='ledger_categories', LS_CLIENTID='ledger_drive_client_id', LS_SYNCED='ledger_last_sync',
       LS_CONNECTED='ledger_drive_connected', LS_DEVICE='ledger_device_id', LS_TOKEN_EXP='ledger_token_expiry',
       LS_PROD_TOMB='ledger_product_tombstones', LS_SALE_TOMB='ledger_sale_tombstones',
-      LS_LAST_HASH='ledger_last_sync_hash', LS_LAST_TS='ledger_last_sync_ts', LS_LAST_INVOICE='ledger_last_invoice';
+      LS_LAST_HASH='ledger_last_sync_hash', LS_LAST_TS='ledger_last_sync_ts';
 
 function load(key,fallback){ try{ const v=JSON.parse(localStorage.getItem(key)); return v===null||v===undefined?fallback:v; }catch(e){ return fallback; } }
 function save(key,val){ localStorage.setItem(key, JSON.stringify(val)); }
@@ -280,20 +312,27 @@ let productTombstones = load(LS_PROD_TOMB, []);
 let saleTombstones = load(LS_SALE_TOMB, []);
 let cart = [];
 let editingCode = null;
-let lastInvoice = load(LS_LAST_INVOICE, null); // {invoiceNo, date, name, number, items}
 
+/* Migration: give old rows ids/timestamps, and (re)compute margin fields using
+   the new formula (Selling Price − Cost Price) instead of the old vs-MRP one. */
 (function migrate(){
   let touched = false;
   products.forEach(p=>{ if(!p.id){ p.id = uuid(); touched = true; } if(!p.updatedAt){ p.updatedAt = Date.now(); touched = true; } });
-  sales.forEach(s=>{ if(!s.id){ s.id = uuid(); touched = true; } if(!s.updatedAt){ s.updatedAt = Date.now(); touched = true; }
+  sales.forEach(s=>{
+    if(!s.id){ s.id = uuid(); touched = true; }
+    if(!s.updatedAt){ s.updatedAt = Date.now(); touched = true; }
     if(s.expectedPrice===undefined){ s.expectedPrice = s.price; touched = true; }
-    if(s.adjustment===undefined){ s.adjustment = s.price - s.expectedPrice; touched = true; } });
+    const mpp = s.price - s.cost;
+    const mpct = s.price>0 ? ((s.price-s.cost)/s.price)*100 : 0;
+    if(s.marginPerPiece !== mpp){ s.marginPerPiece = mpp; touched = true; }
+    if(s.marginPercent !== mpct){ s.marginPercent = mpct; touched = true; }
+  });
   if(touched){ save(LS_PRODUCTS, products); save(LS_SALES, sales); }
 })();
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 4; // v4: margin is now per-piece, not per-line-total
+const DATA_VERSION = 5; // v5: margin/pc = SP-CP (+ margin %), date-range filtering, dedup category entries
 
 /* ===== Product code categories ===== */
 const defaultCats = {
@@ -331,7 +370,8 @@ CAT_KEYS.forEach(key=>{
     <select id="sel_${key}"></select>
     <div class="sub-hint" id="hint_${key}"></div>
     <div class="inline-add" id="add_${key}">
-      <input type="text" id="newdesc_${key}" placeholder="New ${cat.label.toLowerCase()} description">
+      <input type="text" id="newdesc_${key}" list="dl_${key}" placeholder="New ${cat.label.toLowerCase()} description">
+      <datalist id="dl_${key}"></datalist>
       ${cat.hasMnemonic ? `<input type="text" id="newmnem_${key}" placeholder="Mnemonic (e.g. CTN)" maxlength="5">` : ''}
       <button class="btn btn-gold btn-sm" onclick="addCustom('${key}')">Add</button>
     </div>`;
@@ -348,6 +388,8 @@ function populateSelect(key){
     cat.items.map((it,i)=>`<option value="${i}">${esc(it.desc)}${it.mnemonic?' ('+esc(it.mnemonic)+')':''}</option>`).join('') +
     '<option value="__custom__">+ Add custom…</option>';
   if(prevValue && prevValue!=='__custom__' && cat.items[parseInt(prevValue,10)]) sel.value = prevValue;
+  const dl = document.getElementById(`dl_${key}`);
+  if(dl) dl.innerHTML = cat.items.map(it=>`<option value="${esc(it.desc)}">`).join('');
 }
 function onSelectChange(key){
   const sel = document.getElementById(`sel_${key}`);
@@ -369,6 +411,8 @@ function addCustom(key){
   const mnemInput = document.getElementById(`newmnem_${key}`);
   const mnemonic = mnemInput ? mnemInput.value.trim().toUpperCase() : undefined;
   if(!desc){ toast('Enter a description'); return; }
+  const dupe = cat.items.find(it => it.desc.trim().toLowerCase() === desc.toLowerCase());
+  if(dupe){ toast(`"${desc}" already exists as "${dupe.desc}"${dupe.mnemonic?' ('+dupe.mnemonic+')':''} — pick it from the dropdown instead`, true); return; }
   const code = nextCode(cat.items);
   const item = cat.hasMnemonic ? {desc, mnemonic: mnemonic || desc.slice(0,3).toUpperCase(), code} : {desc, code};
   cat.items.push(item);
@@ -411,7 +455,7 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
   const price = parseFloat(document.getElementById('pPrice').value);
   if(!code){ toast('Complete every subsection to build the product code'); return; }
   if(isNaN(stock) || stock<0){ toast('Enter a valid quantity (0 or more)'); return; }
-  if(isNaN(cost)||isNaN(price)||cost<0||price<0){ toast('Enter valid cost and selling price'); return; }
+  if(isNaN(cost)||isNaN(price)||cost<0||price<0){ toast('Enter valid cost and MRP'); return; }
 
   if(editingCode){
     const idx = products.findIndex(p=>p.code===editingCode);
@@ -525,18 +569,14 @@ function cartTotal(){ return cart.reduce((s,c)=>s+c.qty*c.price,0); }
 function removeCartItem(i){ cart.splice(i,1); renderCart(); }
 function adjClass(v){ return v>0 ? 'adj-pos' : (v<0 ? 'adj-neg' : 'adj-zero'); }
 function adjText(v){ return (v>0?'+':'') + money(v); }
+function pctText(v){ return (v>0?'+':'') + v.toFixed(1) + '%'; }
 function renderCart(){
   const body=document.getElementById('cartBody'), rv=document.getElementById('rvBody');
   if(cart.length===0){
-    body.innerHTML='<tr class="empty-row"><td colspan="7">No items added yet</td></tr>';
+    body.innerHTML='<tr class="empty-row"><td colspan="6">No items added yet</td></tr>';
     rv.innerHTML='<tr class="empty-row"><td colspan="3">Cart is empty</td></tr>';
   }else{
-    body.innerHTML=cart.map((c,i)=>{
-      const marginPc = c.price - c.expectedPrice; // per piece, not multiplied by qty
-      return `<tr><td class="mono">${esc(c.code)}</td><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.price)}</td>
-        <td class="num ${adjClass(marginPc)}">${adjText(marginPc)}</td><td class="num">${money(c.qty*c.price)}</td>
-        <td><button class="btn btn-ghost btn-sm" onclick="removeCartItem(${i})">Remove</button></td></tr>`;
-    }).join('');
+    body.innerHTML=cart.map((c,i)=>`<tr><td class="mono">${esc(c.code)}</td><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.price)}</td><td class="num">${money(c.qty*c.price)}</td><td><button class="btn btn-ghost btn-sm" onclick="removeCartItem(${i})">Remove</button></td></tr>`).join('');
     rv.innerHTML=cart.map(c=>`<tr><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.qty*c.price)}</td></tr>`).join('');
   }
   document.getElementById('cartCount').textContent=cart.reduce((s,c)=>s+c.qty,0);
@@ -547,16 +587,15 @@ function renderCart(){
 }
 ['custName','custNumber'].forEach(id=>document.getElementById(id).addEventListener('input', renderCart));
 
-/* Generate Bill — finalizes and saves only. No PDF here. */
-document.getElementById('generateBillBtn').addEventListener('click', ()=>{
+document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
   const name=document.getElementById('custName').value.trim(), number=document.getElementById('custNumber').value.trim();
-  if(!name||!number){ toast('Enter customer name and number'); return; }
+  if(!name && !number){ toast('Enter at least a customer name or number'); return; }
   if(cart.length===0){ toast('Add at least one item'); return; }
 
   const shortages = [];
   cart.forEach(c=>{ const p = findProduct(c.code); if(!p || p.stock < c.qty) shortages.push(`${c.name} (need ${c.qty}, ${p?p.stock:0} available)`); });
   if(shortages.length){
-    showStockWarning(`⚠ Cannot generate bill — insufficient stock: ${shortages.join('; ')}`);
+    showStockWarning(`⚠ Cannot generate invoice — insufficient stock: ${shortages.join('; ')}`);
     toast('Insufficient stock for one or more items', true);
     return;
   }
@@ -564,42 +603,40 @@ document.getElementById('generateBillBtn').addEventListener('click', ()=>{
   const invoiceNo = 'INV-'+String(parseInt(localStorage.getItem(LS_SEQ)||'0',10)+1).padStart(5,'0');
   localStorage.setItem(LS_SEQ, String(parseInt(localStorage.getItem(LS_SEQ)||'0',10)+1));
   const date = todayStr();
+  const printChecked = document.getElementById('printInvoiceCheckbox').checked;
+  const itemsForPdf = cart.map(c=>({code:c.code, name:c.name, qty:c.qty, price:c.price}));
 
   cart.forEach(c=>{
-    const revenue=c.qty*c.price, costTotal=c.qty*c.cost, marginPc=c.price-c.expectedPrice;
+    const revenue=c.qty*c.price, costTotal=c.qty*c.cost;
+    const marginPerPiece = c.price - c.cost;
+    const marginPercent = c.price>0 ? ((c.price-c.cost)/c.price)*100 : 0;
     sales.push({id:uuid(), invoice:invoiceNo, date, customer:name, number, code:c.code, product:c.name,
       qty:c.qty, cost:c.cost, expectedPrice:c.expectedPrice, price:c.price, revenue, profit:revenue-costTotal,
-      adjustment: marginPc, updatedAt: Date.now()});
+      marginPerPiece, marginPercent, updatedAt: Date.now()});
     const p = findProduct(c.code);
     if(p){ p.stock = Math.max(0, (p.stock||0) - c.qty); p.updatedAt = Date.now(); }
   });
   save(LS_SALES, sales); save(LS_PRODUCTS, products);
   renderProducts(); renderHistory();
 
-  lastInvoice = { invoiceNo, date, name, number, items: cart.map(c=>({code:c.code, name:c.name, qty:c.qty, price:c.price})) };
-  save(LS_LAST_INVOICE, lastInvoice);
-  document.getElementById('printBillBtn').disabled = false;
-
-  toast(`Bill ${invoiceNo} generated and saved. Click Print Bill for the PDF.`);
+  toast(`Invoice ${invoiceNo} generated and saved`);
   cart=[]; document.getElementById('custName').value=''; document.getElementById('custNumber').value='';
+  document.getElementById('printInvoiceCheckbox').checked = false;
   renderCart(); hideStockWarning();
   pushChange();
+
+  if(printChecked){
+    await generateInvoicePDF(invoiceNo, date, name||'—', number||'—', itemsForPdf);
+  }
 });
 
-/* Print Bill — generates the PDF for the most recently generated invoice. */
-document.getElementById('printBillBtn').addEventListener('click', async ()=>{
-  if(!lastInvoice){ toast('Generate a bill first'); return; }
-  await generateInvoicePDF(lastInvoice.invoiceNo, lastInvoice.date, lastInvoice.name, lastInvoice.number, lastInvoice.items);
-  toast(`Printed ${lastInvoice.invoiceNo}`);
-});
-
-/* Print any past invoice from the Sales Book — reconstructs it from its line items. */
+/* Print any invoice from the Sales Book — reconstructs it from its line items. */
 async function printInvoiceFromSales(invoiceNo){
   const rows = sales.filter(s=>s.invoice===invoiceNo);
   if(rows.length===0){ toast('No records found for this invoice'); return; }
   const first = rows[0];
   const items = rows.map(r=>({code:r.code, name:r.product, qty:r.qty, price:r.price}));
-  await generateInvoicePDF(invoiceNo, first.date, first.customer, first.number, items);
+  await generateInvoicePDF(invoiceNo, first.date, first.customer||'—', first.number||'—', items);
 }
 
 function loadLogoDataUrl(){
@@ -615,17 +652,17 @@ async function generateInvoicePDF(invoiceNo, date, name, number, items){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:'pt', format:'a4'});
   const logoDataUrl = await loadLogoDataUrl();
-  if(logoDataUrl) doc.addImage(logoDataUrl, 'PNG', 40, 30, 40, 40);
+  if(logoDataUrl) doc.addImage(logoDataUrl, 'PNG', 40, 26, 56, 56);
   doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(31,74,61);
-  doc.text('NAGMEENA', logoDataUrl?90:40, 52);
+  doc.text('NAGMEENA', logoDataUrl?106:40, 52);
   doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(107,114,128);
-  doc.text('INVOICE', logoDataUrl?90:40, 66);
+  doc.text('INVOICE', logoDataUrl?106:40, 66);
   doc.setTextColor(43,43,46); doc.setFontSize(10);
   doc.text(`Invoice No: ${invoiceNo}`, 400, 45); doc.text(`Date: ${date}`, 400, 60);
-  doc.setFontSize(11); doc.text(`Bill To: ${name}`, 40, 95); doc.text(`Phone: ${number}`, 40, 111);
+  doc.setFontSize(11); doc.text(`Bill To: ${name}`, 40, 100); doc.text(`Phone: ${number}`, 40, 116);
   const rows = items.map(c=>[c.code, c.name, String(c.qty), c.price.toFixed(2), (c.qty*c.price).toFixed(2)]);
   const total = items.reduce((s,c)=>s+c.qty*c.price,0);
-  doc.autoTable({ startY:130, head:[['Code','Description','Qty','Price','Amount']], body:rows,
+  doc.autoTable({ startY:134, head:[['Code','Description','Qty','Price','Amount']], body:rows,
     styles:{fontSize:9, cellPadding:6}, headStyles:{fillColor:[31,74,61]},
     columnStyles:{2:{halign:'right'},3:{halign:'right'},4:{halign:'right'}} });
   const finalY = doc.lastAutoTable.finalY+20;
@@ -636,38 +673,89 @@ async function generateInvoicePDF(invoiceNo, date, name, number, items){
   doc.save(`${invoiceNo}.pdf`);
 }
 
+/* ===== Sales Book: date-range filter (day/month/year dropdowns) ===== */
+let activeFilter = null; // {from: Date|null, to: Date|null}
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function populateDateSelects(prefix){
+  const daySel = document.getElementById(prefix+'Day'), monSel = document.getElementById(prefix+'Month'), yrSel = document.getElementById(prefix+'Year');
+  daySel.innerHTML = '<option value="">Day</option>' + Array.from({length:31},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('');
+  monSel.innerHTML = '<option value="">Month</option>' + MONTH_NAMES.map((m,i)=>`<option value="${i+1}">${m}</option>`).join('');
+  const curYear = new Date().getFullYear();
+  const years = []; for(let y=curYear; y>=curYear-5; y--) years.push(y);
+  yrSel.innerHTML = '<option value="">Year</option>' + years.map(y=>`<option value="${y}">${y}</option>`).join('');
+}
+populateDateSelects('from'); populateDateSelects('to');
+function getSelectedDate(prefix){
+  const d = document.getElementById(prefix+'Day').value, m = document.getElementById(prefix+'Month').value, y = document.getElementById(prefix+'Year').value;
+  if(!d || !m || !y) return null;
+  return new Date(parseInt(y,10), parseInt(m,10)-1, parseInt(d,10));
+}
+function parseSaleDate(str){ const [y,m,d] = str.split('-').map(Number); return new Date(y, m-1, d); }
+document.getElementById('applyFilterBtn').addEventListener('click', ()=>{
+  const from = getSelectedDate('from'), to = getSelectedDate('to');
+  const today = new Date(); today.setHours(23,59,59,999);
+  if(to && to > today){ toast('To date cannot be in the future', true); return; }
+  if(from && to && from > to){ toast('From date cannot be after To date', true); return; }
+  activeFilter = (from || to) ? {from, to} : null;
+  renderHistory();
+});
+document.getElementById('clearFilterBtn').addEventListener('click', ()=>{
+  ['fromDay','fromMonth','fromYear','toDay','toMonth','toYear'].forEach(id=>document.getElementById(id).value='');
+  activeFilter = null;
+  renderHistory();
+});
+function matchesFilter(sale){
+  if(!activeFilter) return true;
+  const d = parseSaleDate(sale.date);
+  if(activeFilter.from && d < activeFilter.from) return false;
+  if(activeFilter.to){ const toEnd = new Date(activeFilter.to); toEnd.setHours(23,59,59,999); if(d > toEnd) return false; }
+  return true;
+}
+
 /* ===== History ===== */
 function renderHistory(){
+  const visible = activeFilter ? sales.filter(matchesFilter) : sales;
   const body=document.getElementById('historyBody');
-  body.innerHTML = sales.length===0 ? '<tr class="empty-row"><td colspan="14">No sales recorded yet</td></tr>' :
-    sales.map((s,i)=>{
-      const marginPc = s.adjustment ?? (s.price - (s.expectedPrice??s.price));
+  body.innerHTML = visible.length===0 ? '<tr class="empty-row"><td colspan="15">No sales recorded yet</td></tr>' :
+    visible.map((s)=>{
+      const mpp = s.marginPerPiece ?? (s.price-s.cost);
+      const mpct = s.marginPercent ?? (s.price>0 ? ((s.price-s.cost)/s.price)*100 : 0);
       return `<tr>
-      <td class="mono">${esc(s.invoice)}</td><td>${esc(s.date)}</td><td>${esc(s.customer)}</td><td class="mono">${esc(s.number)}</td>
+      <td class="mono">${esc(s.invoice)}</td><td>${esc(s.date)}</td><td>${esc(s.customer||'—')}</td><td class="mono">${esc(s.number||'—')}</td>
       <td class="mono">${esc(s.code)}</td><td>${esc(s.product)}</td><td class="num">${s.qty}</td>
       <td class="num">${money(s.cost)}</td><td class="num">${money(s.expectedPrice??s.price)}</td><td class="num">${money(s.price)}</td>
-      <td class="num ${adjClass(marginPc)}">${adjText(marginPc)}</td>
+      <td class="num ${adjClass(mpp)}">${adjText(mpp)}</td>
+      <td class="num ${adjClass(mpct)}">${pctText(mpct)}</td>
       <td class="num">${money(s.revenue)}</td>
       <td class="num" style="color:${s.profit>=0?'var(--green)':'var(--brick)'}">${money(s.profit)}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="printInvoiceFromSales('${esc(s.invoice)}')">Print</button>
-          <button class="btn btn-ghost btn-sm" onclick="editSaleRow(${i})">Edit</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteSaleRow(${i})">Delete</button></td></tr>`;
+          <button class="btn btn-ghost btn-sm" onclick="editSaleRow('${s.id}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSaleRow('${s.id}')">Delete</button></td></tr>`;
     }).join('');
-  const bills=new Set(sales.map(s=>s.invoice)).size;
-  const revenue=sales.reduce((a,s)=>a+s.revenue,0), cost=sales.reduce((a,s)=>a+s.cost*s.qty,0), profit=sales.reduce((a,s)=>a+s.profit,0);
+
+  const bills=new Set(visible.map(s=>s.invoice)).size;
+  const revenue=visible.reduce((a,s)=>a+s.revenue,0), cost=visible.reduce((a,s)=>a+s.cost*s.qty,0), profit=visible.reduce((a,s)=>a+s.profit,0);
+  const totalQty = visible.reduce((a,s)=>a+s.qty,0);
+  const avgMarginValue = totalQty ? profit/totalQty : 0;
+  const avgMarginPercent = revenue ? (profit/revenue)*100 : 0;
   document.getElementById('statBills').textContent=bills;
   document.getElementById('statRevenue').textContent=money(revenue);
   document.getElementById('statCost').textContent=money(cost);
   document.getElementById('statProfit').textContent=money(profit);
+  document.getElementById('statAvgMargin').textContent=money(avgMarginValue);
+  document.getElementById('statAvgMarginPct').textContent=avgMarginPercent.toFixed(1)+'%';
+
+  const fs = document.getElementById('filterStatus');
+  fs.textContent = activeFilter ? `Showing ${visible.length} of ${sales.length} record(s) within the selected date range.` : '';
 }
-function editSaleRow(i){
-  const s = sales[i];
+function editSaleRow(id){
+  const s = sales.find(x=>x.id===id);
   if(!s) return;
   const qtyInput = prompt(`Correct quantity for "${s.product}" (Invoice ${s.invoice}):`, s.qty);
   if(qtyInput===null) return;
   const newQty = parseInt(qtyInput,10);
   if(!newQty || newQty<1){ toast('Enter a valid quantity'); return; }
-  const priceInput = prompt(`Selling price per unit (expected was ${money(s.expectedPrice??s.price)}):`, s.price);
+  const priceInput = prompt(`Selling price per unit (MRP was ${money(s.expectedPrice??s.price)}):`, s.price);
   if(priceInput===null) return;
   const newPrice = parseFloat(priceInput);
   if(isNaN(newPrice) || newPrice<0){ toast('Enter a valid price'); return; }
@@ -680,7 +768,8 @@ function editSaleRow(i){
   s.qty = newQty; s.price = newPrice;
   s.revenue = newQty * newPrice;
   s.profit = s.revenue - (newQty * s.cost);
-  s.adjustment = newPrice - (s.expectedPrice??newPrice);
+  s.marginPerPiece = newPrice - s.cost;
+  s.marginPercent = newPrice>0 ? ((newPrice-s.cost)/newPrice)*100 : 0;
   s.updatedAt = Date.now();
 
   save(LS_SALES, sales); save(LS_PRODUCTS, products);
@@ -688,13 +777,15 @@ function editSaleRow(i){
   toast('Sale record updated');
   pushChange();
 }
-function deleteSaleRow(i){
+function deleteSaleRow(id){
   if(!confirm('Delete this sale record? Its quantity will be returned to stock.')) return;
-  const s = sales[i];
+  const idx = sales.findIndex(x=>x.id===id);
+  if(idx<0) return;
+  const s = sales[idx];
   const p = findProduct(s.code);
   if(p){ p.stock = (p.stock||0) + s.qty; p.updatedAt = Date.now(); }
   saleTombstones.push({id:s.id, deletedAt: Date.now()});
-  sales.splice(i,1);
+  sales.splice(idx,1);
   save(LS_SALES,sales); save(LS_PRODUCTS, products); save(LS_SALE_TOMB, saleTombstones);
   renderHistory(); renderProducts();
   pushChange();
@@ -711,11 +802,18 @@ document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{
 });
 document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   if(sales.length===0){ toast('No sales to export yet'); return; }
-  const rows = sales.map(s=>({'Invoice No':s.invoice,'Date':s.date,'Customer Name':s.customer,'Customer Number':s.number,'Product Code':s.code,'Description':s.product,'Qty':s.qty,'Cost Price':s.cost,'Expected Selling Price':s.expectedPrice??s.price,'Selling Price':s.price,'Margin per Piece':s.adjustment??0,'Revenue':s.revenue,'Profit':s.profit}));
+  let exportSet = sales;
+  if(activeFilter){
+    const wantFiltered = confirm('A date filter is active.\n\nOK = export only the filtered records\nCancel = export the complete Sales Book');
+    exportSet = wantFiltered ? sales.filter(matchesFilter) : sales;
+  }
+  if(exportSet.length===0){ toast('No records to export for that selection'); return; }
+  const rows = exportSet.map(s=>({'Invoice No':s.invoice,'Date':s.date,'Customer Name':s.customer||'','Customer Number':s.number||'','Product Code':s.code,'Description':s.product,'Qty':s.qty,'Cost Price':s.cost,'MRP':s.expectedPrice??s.price,'Selling Price':s.price,'Margin per Piece':s.marginPerPiece??(s.price-s.cost),'Margin %':(s.marginPercent??0).toFixed(1),'Revenue':s.revenue,'Profit':s.profit}));
   const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols']=[{wch:12},{wch:12},{wch:18},{wch:14},{wch:16},{wch:24},{wch:6},{wch:10},{wch:14},{wch:12},{wch:12},{wch:10},{wch:10}];
-  const bills=new Set(sales.map(s=>s.invoice)).size, revenue=sales.reduce((a,s)=>a+s.revenue,0), cost=sales.reduce((a,s)=>a+s.cost*s.qty,0), profit=sales.reduce((a,s)=>a+s.profit,0);
-  const summary = XLSX.utils.aoa_to_sheet([['Nagmeena — Sales Summary'],[],['Bills Raised',bills],['Total Revenue',revenue],['Total Cost of Goods',cost],['Total Profit',profit]]);
+  ws['!cols']=[{wch:12},{wch:12},{wch:18},{wch:14},{wch:16},{wch:24},{wch:6},{wch:10},{wch:10},{wch:12},{wch:12},{wch:10},{wch:10},{wch:10}];
+  const bills=new Set(exportSet.map(s=>s.invoice)).size, revenue=exportSet.reduce((a,s)=>a+s.revenue,0), cost=exportSet.reduce((a,s)=>a+s.cost*s.qty,0), profit=exportSet.reduce((a,s)=>a+s.profit,0);
+  const totalQty = exportSet.reduce((a,s)=>a+s.qty,0);
+  const summary = XLSX.utils.aoa_to_sheet([['Nagmeena — Sales Summary'],[],['Bills Raised',bills],['Total Revenue',revenue],['Total Cost of Goods',cost],['Total Profit',profit],['Avg Margin/Pc', totalQty?profit/totalQty:0],['Avg Margin %', revenue?((profit/revenue)*100).toFixed(1)+'%':'0%']]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, summary, 'Summary');
   XLSX.utils.book_append_sheet(wb, ws, 'Sales Record');
