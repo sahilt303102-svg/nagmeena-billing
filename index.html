@@ -156,14 +156,16 @@
   .inline-add{ display:none; gap:8px; margin-top:8px; padding:12px; background:var(--gold-soft); border-radius:var(--radius-sm); border:1px solid var(--gold-line); }
   .inline-add.show{ display:flex; flex-wrap:wrap; } .inline-add input{ flex:1; min-width:100px; }
 
-  .settings-panel{ display:none; position:fixed; top:78px; right:30px; width:370px; max-width:90vw; background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px; z-index:60; }
+  .settings-panel{ display:none; position:fixed; top:78px; right:30px; width:380px; max-width:90vw; background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px; z-index:60; max-height:80vh; overflow-y:auto; }
   .settings-panel.show{ display:block; animation:fadeIn .2s ease; }
   .settings-panel h3{ font-family:'Cormorant Garamond',serif; font-size:18px; margin:0 0 6px 0; color:var(--teal); }
+  .settings-panel h4{ font-family:'Cormorant Garamond',serif; font-size:15px; margin:0 0 4px 0; color:var(--teal); }
   .settings-panel p.help{ font-size:11.5px; color:var(--charcoal-muted); margin:0 0 12px 0; line-height:1.6; }
   .settings-panel .field{ margin-bottom:12px; }
   .settings-panel .sync-state{ display:flex; align-items:center; gap:8px; font-size:12px; margin-top:14px; padding:11px 13px; border-radius:var(--radius-sm); background:var(--teal-tint); color:var(--charcoal); }
   .settings-panel .sync-state.err{ background:var(--burgundy-soft); color:var(--burgundy); }
   .settings-panel .sync-state.ok{ background:var(--green-soft); color:var(--green); }
+  .settings-panel .divider{ border-top:1px dashed var(--gold-line); margin:16px 0; }
 
   .stock-ok{ color:var(--green); font-weight:600; } .stock-out{ color:var(--burgundy); font-weight:600; }
   .warn-banner{ background:var(--burgundy-soft); color:var(--burgundy); border:1px solid var(--burgundy); border-radius:var(--radius-sm); padding:12px 14px; font-size:13px; margin-bottom:14px; display:none; }
@@ -210,6 +212,24 @@
     <button class="btn btn-danger btn-sm" id="disconnectDriveBtn">Disconnect</button>
   </div>
   <div class="sync-state" id="syncStateBox">Not connected yet.</div>
+
+  <div class="divider"></div>
+  <h4>Backup &amp; Restore</h4>
+  <p class="help">Separate from automatic sync — creates or restores a full snapshot (products, sales, catalog, and your logo) on demand.</p>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <button class="btn btn-ghost btn-sm" id="backupBtn">Backup Data</button>
+    <button class="btn btn-ghost btn-sm" id="restoreBtn">Restore Data</button>
+  </div>
+  <div class="inline-add" id="backupChoice">
+    <button class="btn btn-gold btn-sm" onclick="doBackup('local')">Local File</button>
+    <button class="btn btn-gold btn-sm" onclick="doBackup('cloud')">Cloud (Drive)</button>
+    <button class="btn btn-gold btn-sm" onclick="doBackup('both')">Both</button>
+  </div>
+  <div class="inline-add" id="restoreChoice">
+    <button class="btn btn-gold btn-sm" onclick="doRestore('local')">From Local File</button>
+    <button class="btn btn-gold btn-sm" onclick="doRestore('cloud')">From Cloud (Drive)</button>
+  </div>
+  <input type="file" id="restoreFileInput" accept="application/json" style="display:none;">
 </div>
 
 <main>
@@ -226,10 +246,14 @@
         </div>
         <div class="card">
           <h2>Add Item</h2>
-          <p class="sub">Type a product code — description and stock fill in. Adjust the selling price to record a discount or markup.</p>
+          <p class="sub">Start typing a product code — matching codes from your catalog appear as suggestions.</p>
           <div class="warn-banner" id="stockWarning"></div>
           <div class="row">
-            <div class="field" style="flex:0.9;"><label for="itemCode">Product Code</label><input type="text" id="itemCode" class="mono" inputmode="numeric" placeholder="20-digit code"></div>
+            <div class="field" style="flex:0.9;">
+              <label for="itemCode">Product Code</label>
+              <input type="text" id="itemCode" class="mono" inputmode="numeric" list="itemCodeSuggestions" placeholder="20-digit code">
+              <datalist id="itemCodeSuggestions"></datalist>
+            </div>
             <div class="field" style="flex:1.4;"><label for="itemName">Description</label><input type="text" id="itemName" disabled placeholder="—"></div>
           </div>
           <div class="row">
@@ -298,7 +322,12 @@
         </div>
       </div>
       <div class="card" style="margin-top:0;">
-        <h2>Catalog</h2>
+        <div class="toolbar">
+          <div class="title">Catalog</div>
+          <div class="actions">
+            <button class="btn btn-danger btn-sm" id="deleteOutOfStockBtn">Delete All Out of Stock</button>
+          </div>
+        </div>
         <div class="row" style="align-items:flex-end;">
           <div class="field" style="flex:0.7;"><label for="stockFilterSelect">Stock Filter</label>
             <select id="stockFilterSelect"><option value="all">All</option><option value="in">In Stock</option><option value="out">Out of Stock</option></select>
@@ -372,19 +401,19 @@ const LS_PRODUCTS='ledger_products', LS_SALES='ledger_sales', LS_SEQ='ledger_inv
       LS_PROD_TOMB='ledger_product_tombstones', LS_SALE_TOMB='ledger_sale_tombstones',
       LS_LAST_HASH='ledger_last_sync_hash', LS_LAST_TS='ledger_last_sync_ts';
 
+const INSTAGRAM_URL = 'https://www.instagram.com/thenagmeena?igsh=MXMxM2lrb2N2YTZocg==';
+
 function load(key,fallback){ try{ const v=JSON.parse(localStorage.getItem(key)); return v===null||v===undefined?fallback:v; }catch(e){ return fallback; } }
 function save(key,val){ localStorage.setItem(key, JSON.stringify(val)); }
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 function uuid(){ return crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2); }
 
-/* Formats a raw product code into dashed groups of 4 for display everywhere
-   (catalog, billing, sales book, PDF). Storage always keeps the raw string. */
 function formatCode(code){
   if(!code) return '';
   const m = String(code).match(/.{1,4}/g);
   return m ? m.join('-') : String(code);
 }
-/* DDMMYYhhmm — e.g. 23 Jul 2026, 2:09pm -> "2307261409" */
+/* DDMMYYhhmm — reused both for product codes and invoice numbers */
 function generateTimestampCode(){
   const d = new Date();
   const dd = String(d.getDate()).padStart(2,'0');
@@ -419,10 +448,9 @@ let editingCode = null;
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 6; // v6: Series removed, auto date-time code prefix, editable/reusable category codes
+const DATA_VERSION = 7; // v7: invoice numbers carry a date-time stamp, manual backup/restore, thermal PDF
 
-/* ===== Product code categories — Series removed; each category now supports
-   edit-in-place and delete-with-code-reuse via a per-category freeCodes pool ===== */
+/* ===== Product code categories ===== */
 const defaultCats = {
   fabric:{label:'Fabric', hasMnemonic:true, items:[
     {desc:'Cotton', mnemonic:'CTN', code:'01'},{desc:'Rayon', mnemonic:'RYN', code:'02'},
@@ -441,7 +469,6 @@ const defaultCats = {
     {desc:'Festive', mnemonic:'FST', code:'03'}], freeCodes:[]}
 };
 let cats = load(LS_CATS, defaultCats);
-// Migration guard for anyone upgrading from a version that still had "series"
 if(cats.series) delete cats.series;
 Object.values(cats).forEach(c=>{ if(!c.freeCodes) c.freeCodes = []; });
 
@@ -449,8 +476,6 @@ const CAT_KEYS = ['fabric','work','print','colour','style'];
 const DESC_KEYS = ['fabric','work','print','colour'];
 const selected = {};
 
-/* Reuses a freed code first (smallest one), otherwise allocates the next
-   sequential code. Deleting an entry never renumbers anything else. */
 function nextCode(cat){
   if(cat.freeCodes && cat.freeCodes.length){
     cat.freeCodes.sort((a,b)=> (parseInt(a,36)||0)-(parseInt(b,36)||0));
@@ -606,14 +631,14 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
 
   if(editingCode){
     const idx = products.findIndex(p=>p.code===editingCode);
-    if(idx>-1) products[idx] = {...products[idx], cost, price, stock, updatedAt: Date.now()}; // code stays fixed
+    if(idx>-1) products[idx] = {...products[idx], cost, price, stock, updatedAt: Date.now()};
     editingCode=null;
     document.getElementById('productFormTitle').textContent='Add Product';
     document.getElementById('cancelEditBtn').style.display='none';
     toast('Product updated');
   }else{
     const desc = assembledDescription();
-    const fullCode = generateTimestampCode() + comboCode; // 10-digit stamp + 10-digit combo = 20 digits
+    const fullCode = generateTimestampCode() + comboCode;
     if(findProduct(fullCode)){ toast('A product with this exact code already exists — try again in a moment'); return; }
     products.push({id:uuid(), code:fullCode, name:desc, cost, price, stock, updatedAt: Date.now()});
     toast(`Product added — code ${formatCode(fullCode)}`);
@@ -649,6 +674,20 @@ function editProduct(code){
   document.getElementById('cancelEditBtn').style.display='inline-flex';
 }
 
+/* Manual bulk cleanup — out-of-stock items are never auto-removed, only on request here. */
+document.getElementById('deleteOutOfStockBtn').addEventListener('click', ()=>{
+  const outOfStock = products.filter(p=>!inStock(p));
+  if(outOfStock.length===0){ toast('No out-of-stock products to delete'); return; }
+  if(!confirm(`Delete all ${outOfStock.length} out-of-stock product(s) from the catalog? Past sales records are unaffected.`)) return;
+  const now = Date.now();
+  outOfStock.forEach(p=> productTombstones.push({id:p.id, deletedAt: now}));
+  products = products.filter(p=>inStock(p));
+  save(LS_PRODUCTS, products); save(LS_PROD_TOMB, productTombstones);
+  renderProducts();
+  toast(`Deleted ${outOfStock.length} out-of-stock product(s)`);
+  pushChange();
+});
+
 /* ===== Catalog: stock filter + live partial search ===== */
 let stockFilter = 'all';
 let searchField = 'code';
@@ -664,6 +703,10 @@ function updateCatalogSuggestions(){
   else if(searchField==='desc') values = products.map(p=>p.name);
   else values = products.map(p=>String(p.price));
   dl.innerHTML = Array.from(new Set(values)).map(v=>`<option value="${esc(v)}">`).join('');
+}
+function updateItemCodeSuggestions(){
+  const dl = document.getElementById('itemCodeSuggestions');
+  dl.innerHTML = products.map(p=>`<option value="${esc(formatCode(p.code))}">${esc(p.name)}</option>`).join('');
 }
 function productMatchesFilters(p){
   if(stockFilter==='in' && !inStock(p)) return false;
@@ -697,6 +740,7 @@ function renderProducts(){
         </tr>`;
       }).join('');
   updateCatalogSuggestions();
+  updateItemCodeSuggestions();
 }
 
 /* ===== Billing ===== */
@@ -723,7 +767,7 @@ function doLookup(){
   lookupHint.textContent = `Code ${formatCode(p.code)} · ${p.stock} unit(s) in stock`;
   return p;
 }
-// Product codes are numeric only now — strip anything else as the user types/pastes.
+// Product codes are numeric only — strip anything else (including dashes picked from suggestions).
 itemCode.addEventListener('input', ()=>{
   const cleaned = itemCode.value.replace(/[^0-9]/g,'');
   if(cleaned !== itemCode.value) itemCode.value = cleaned;
@@ -774,6 +818,13 @@ function renderCart(){
 }
 ['custName','custNumber'].forEach(id=>document.getElementById(id).addEventListener('input', renderCart));
 
+/* Invoice number format: INV + DDMMYYhhmm + 3-digit serial, e.g. INV2307261409001 */
+function nextInvoiceNo(){
+  const seq = parseInt(localStorage.getItem(LS_SEQ)||'0',10) + 1;
+  localStorage.setItem(LS_SEQ, String(seq));
+  return 'INV' + generateTimestampCode() + String(seq).padStart(3,'0');
+}
+
 document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
   const name=document.getElementById('custName').value.trim(), number=document.getElementById('custNumber').value.trim();
   if(!name && !number){ toast('Enter at least a customer name or number'); return; }
@@ -787,8 +838,7 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
     return;
   }
 
-  const invoiceNo = 'INV-'+String(parseInt(localStorage.getItem(LS_SEQ)||'0',10)+1).padStart(5,'0');
-  localStorage.setItem(LS_SEQ, String(parseInt(localStorage.getItem(LS_SEQ)||'0',10)+1));
+  const invoiceNo = nextInvoiceNo();
   const date = todayStr();
   const printChecked = document.getElementById('printInvoiceCheckbox').checked;
   const itemsForPdf = cart.map(c=>({code:c.code, name:c.name, qty:c.qty, price:c.price}));
@@ -834,28 +884,139 @@ function loadLogoDataUrl(){
     img.src = 'nagmeena-logo.png';
   });
 }
+/* Fetches a scannable QR encoding the brand's Instagram link. Requires internet
+   at print time; if offline, the PDF still generates — just without the QR image. */
+function loadInstagramQrDataUrl(){
+  return new Promise(async (resolve)=>{
+    try{
+      const res = await fetch(`https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=0&data=${encodeURIComponent(INSTAGRAM_URL)}`);
+      const blob = await res.blob();
+      const reader = new FileReader();
+      reader.onload = ()=>resolve(reader.result);
+      reader.onerror = ()=>resolve(null);
+      reader.readAsDataURL(blob);
+    }catch(e){ resolve(null); }
+  });
+}
+function wrapPlain(text, maxChars){
+  const words = String(text).split(' ');
+  const lines = []; let cur='';
+  words.forEach(w=>{
+    if((cur+' '+w).trim().length>maxChars){ if(cur) lines.push(cur.trim()); cur=w; }
+    else cur = (cur+' '+w).trim();
+  });
+  if(cur) lines.push(cur);
+  return lines.length?lines:[''];
+}
+/* Rs. instead of ₹ inside the PDF — jsPDF's built-in fonts don't include the
+   ₹ glyph, which is what was printing as "¹". The on-screen ₹ is untouched. */
+function moneyPdf(n){ return 'Rs. '+(Number(n)||0).toFixed(2); }
+
+/* ===== Thermal (88mm) receipt-style invoice PDF ===== */
 async function generateInvoicePDF(invoiceNo, date, name, number, items){
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({unit:'pt', format:'a4'});
-  const logoDataUrl = await loadLogoDataUrl();
-  if(logoDataUrl) doc.addImage(logoDataUrl, 'PNG', 40, 26, 56, 56);
-  doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(18,56,50);
-  doc.text('NAGMEENA', logoDataUrl?106:40, 52);
-  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(107,114,128);
-  doc.text('INVOICE', logoDataUrl?106:40, 66);
-  doc.setTextColor(43,38,32); doc.setFontSize(10);
-  doc.text(`Invoice No: ${invoiceNo}`, 400, 45); doc.text(`Date: ${date}`, 400, 60);
-  doc.setFontSize(11); doc.text(`Bill To: ${name}`, 40, 100); doc.text(`Phone: ${number}`, 40, 116);
-  const rows = items.map(c=>[formatCode(c.code), c.name, String(c.qty), c.price.toFixed(2), (c.qty*c.price).toFixed(2)]);
-  const total = items.reduce((s,c)=>s+c.qty*c.price,0);
-  doc.autoTable({ startY:134, head:[['Code','Description','Qty','Price','Amount']], body:rows,
-    styles:{fontSize:9, cellPadding:6}, headStyles:{fillColor:[18,56,50]},
-    columnStyles:{2:{halign:'right'},3:{halign:'right'},4:{halign:'right'}} });
-  const finalY = doc.lastAutoTable.finalY+20;
-  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(18,56,50);
-  doc.text(`Total: ${money(total)}`, 400, finalY);
-  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(107,114,128);
-  doc.text('Thank you for shopping with Nagmeena.', 40, finalY+30);
+  const PAGE_W = 88;          // mm — standard thermal paper width
+  const MARGIN = 3;           // mm — small margin for thermal printers
+  const USABLE = PAGE_W - MARGIN*2;
+  const LINE = 3.6;           // mm per text line at this font size
+
+  const bizLogo = null; // logo image intentionally skipped on thermal receipts to save paper/height
+  const qrDataUrl = await loadInstagramQrDataUrl();
+
+  // Pre-wrap item names so we can compute exact page height before creating the doc.
+  const nameColChars = 16;
+  const wrappedItems = items.map(it=>({ ...it, lines: wrapPlain(it.name, nameColChars) }));
+
+  let heightMM = MARGIN;
+  heightMM += 6;              // shop name
+  heightMM += 4;               // tagline
+  heightMM += 3;                // divider
+  heightMM += 4*2;              // invoice no + date
+  heightMM += 4*((name&&name!=='—')?1:0) + 4*((number&&number!=='—')?1:0);
+  heightMM += 3;                // divider
+  heightMM += 4;                 // column header
+  heightMM += 2;                  // divider
+  wrappedItems.forEach(it=>{ heightMM += Math.max(1,it.lines.length)*LINE + 0.8; });
+  heightMM += 3;                   // divider
+  heightMM += 4*3;                  // subtotal, tax, total
+  heightMM += 3;                     // divider
+  heightMM += 4*2;                    // thank-you + note
+  heightMM += (qrDataUrl ? 34 : 6);    // QR block or fallback link line
+  heightMM += MARGIN + 4;
+
+  const doc = new jsPDF({ unit:'mm', format:[PAGE_W, Math.max(heightMM, 90)] });
+  doc.setFont('courier','normal');
+  let y = MARGIN + 2;
+  const cx = PAGE_W/2;
+
+  doc.setFont('courier','bold'); doc.setFontSize(12);
+  doc.text('NAGMEENA', cx, y, {align:'center'}); y += 5;
+  doc.setFont('courier','normal'); doc.setFontSize(7.5);
+  doc.text('UNSTICHED SUITS · BOUTIQUE INVOICE', cx, y, {align:'center'}); y += 4;
+
+  doc.setLineDashPattern([0.6,0.6],0);
+  doc.line(MARGIN, y, PAGE_W-MARGIN, y); y += 3;
+
+  doc.setFontSize(8);
+  doc.text(`Invoice: ${invoiceNo}`, MARGIN, y); y += 4;
+  doc.text(`Date: ${date}`, MARGIN, y); y += 4;
+  if(name && name!=='—'){ doc.text(`Customer: ${name}`, MARGIN, y); y += 4; }
+  if(number && number!=='—'){ doc.text(`Phone: ${number}`, MARGIN, y); y += 4; }
+
+  doc.line(MARGIN, y, PAGE_W-MARGIN, y); y += 3;
+
+  doc.setFont('courier','bold'); doc.setFontSize(7.5);
+  doc.text('Item', MARGIN, y);
+  doc.text('Qty', MARGIN+38, y, {align:'right'});
+  doc.text('Rate', MARGIN+56, y, {align:'right'});
+  doc.text('Amt', PAGE_W-MARGIN, y, {align:'right'});
+  y += 2.5;
+  doc.line(MARGIN, y, PAGE_W-MARGIN, y); y += 2.5;
+
+  doc.setFont('courier','normal'); doc.setFontSize(7.5);
+  let grandTotal = 0;
+  wrappedItems.forEach(it=>{
+    const amt = it.qty*it.price; grandTotal += amt;
+    it.lines.forEach((line,i)=>{
+      doc.text(line, MARGIN, y);
+      if(i===0){
+        doc.text(String(it.qty), MARGIN+38, y, {align:'right'});
+        doc.text(it.price.toFixed(2), MARGIN+56, y, {align:'right'});
+        doc.text(amt.toFixed(2), PAGE_W-MARGIN, y, {align:'right'});
+      }
+      y += LINE;
+    });
+    y += 0.8;
+  });
+
+  doc.line(MARGIN, y, PAGE_W-MARGIN, y); y += 4;
+  doc.setFontSize(8);
+  doc.text('Subtotal', MARGIN, y); doc.text(moneyPdf(grandTotal), PAGE_W-MARGIN, y, {align:'right'}); y += 4;
+  doc.text('Tax', MARGIN, y); doc.text(moneyPdf(0), PAGE_W-MARGIN, y, {align:'right'}); y += 4;
+  doc.setFont('courier','bold'); doc.setFontSize(9.5);
+  doc.text('TOTAL', MARGIN, y); doc.text(moneyPdf(grandTotal), PAGE_W-MARGIN, y, {align:'right'}); y += 5;
+
+  doc.setLineDashPattern([0.6,0.6],0);
+  doc.line(MARGIN, y, PAGE_W-MARGIN, y); y += 4;
+
+  doc.setFont('courier','normal'); doc.setFontSize(7.5);
+  doc.text('Thank you for shopping with', cx, y, {align:'center'}); y += 3.6;
+  doc.setFont('courier','bold');
+  doc.text('NAGMEENA', cx, y, {align:'center'}); y += 5;
+
+  if(qrDataUrl){
+    const qrSize = 26;
+    doc.addImage(qrDataUrl, 'PNG', cx-qrSize/2, y, qrSize, qrSize);
+    y += qrSize + 2;
+    doc.setFont('courier','normal'); doc.setFontSize(7);
+    doc.text('Follow us on Instagram', cx, y, {align:'center'}); y += 3.4;
+    doc.setFont('courier','bold');
+    doc.text('@thenagmeena', cx, y, {align:'center'});
+  }else{
+    doc.setFontSize(7);
+    doc.text('Follow us: @thenagmeena on Instagram', cx, y, {align:'center'});
+  }
+
   doc.save(`${invoiceNo}.pdf`);
 }
 
@@ -995,7 +1156,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   if(exportSet.length===0){ toast('No records to export for that selection'); return; }
   const rows = exportSet.map(s=>({'Invoice No':s.invoice,'Date':s.date,'Customer Name':s.customer||'','Customer Number':s.number||'','Product Code':formatCode(s.code),'Description':s.product,'Qty':s.qty,'Cost Price':s.cost,'MRP':s.expectedPrice??s.price,'Selling Price':s.price,'Margin per Piece':s.marginPerPiece??(s.price-s.cost),'Margin %':(s.marginPercent??0).toFixed(1),'Revenue':s.revenue,'Profit':s.profit}));
   const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols']=[{wch:12},{wch:12},{wch:18},{wch:14},{wch:24},{wch:24},{wch:6},{wch:10},{wch:10},{wch:12},{wch:12},{wch:10},{wch:10},{wch:10}];
+  ws['!cols']=[{wch:16},{wch:12},{wch:18},{wch:14},{wch:24},{wch:24},{wch:6},{wch:10},{wch:10},{wch:12},{wch:12},{wch:10},{wch:10},{wch:10}];
   const bills=new Set(exportSet.map(s=>s.invoice)).size, revenue=exportSet.reduce((a,s)=>a+s.revenue,0), cost=exportSet.reduce((a,s)=>a+s.cost*s.qty,0), profit=exportSet.reduce((a,s)=>a+s.profit,0);
   const totalQty = exportSet.reduce((a,s)=>a+s.qty,0);
   const summary = XLSX.utils.aoa_to_sheet([['Nagmeena — Sales Summary'],[],['Bills Raised',bills],['Total Revenue',revenue],['Total Cost of Goods',cost],['Total Profit',profit],['Avg Margin/Pc', totalQty?profit/totalQty:0],['Avg Margin %', revenue?((profit/revenue)*100).toFixed(1)+'%':'0%']]);
@@ -1026,6 +1187,104 @@ document.getElementById('clientIdInput').addEventListener('change', e=>{
   localStorage.setItem(LS_CLIENTID, e.target.value.trim());
   if(e.target.value.trim()) initTokenClient(e.target.value.trim());
 });
+
+/* ===== Backup & Restore (manual — separate from automatic sync) ===== */
+document.getElementById('backupBtn').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  document.getElementById('backupChoice').classList.toggle('show');
+  document.getElementById('restoreChoice').classList.remove('show');
+});
+document.getElementById('restoreBtn').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  document.getElementById('restoreChoice').classList.toggle('show');
+  document.getElementById('backupChoice').classList.remove('show');
+});
+document.getElementById('backupChoice').addEventListener('click', e=>e.stopPropagation());
+document.getElementById('restoreChoice').addEventListener('click', e=>e.stopPropagation());
+
+async function buildBackupPayload(){
+  const logo = await loadLogoDataUrl();
+  return {
+    app:'Nagmeena Billing', backupCreatedAt: new Date().toISOString(),
+    brandLogo: logo,
+    products, productTombstones, sales, saleTombstones, cats,
+    seq: parseInt(localStorage.getItem(LS_SEQ)||'0',10),
+    version: DATA_VERSION, deviceId: DEVICE_ID
+  };
+}
+async function driveUploadNamed(fileName, data){
+  const payload = JSON.stringify(data);
+  const metadata = { name:fileName, mimeType:'application/json' };
+  const boundary = 'ledgerboundary_'+Date.now();
+  const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${payload}\r\n--${boundary}--`;
+  const res = await fetchWithRetry(`https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`, { method:'POST', headers:{Authorization:'Bearer '+accessToken, 'Content-Type':`multipart/related; boundary=${boundary}`}, body });
+  const json = await res.json();
+  if(!json.id) throw {code:'upload_failed'};
+  return json.id;
+}
+async function doBackup(target){
+  document.getElementById('backupChoice').classList.remove('show');
+  const payload = await buildBackupPayload();
+  if(target==='local' || target==='both'){
+    const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download = `Nagmeena_Backup_${todayStr()}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast('Local backup downloaded');
+  }
+  if(target==='cloud' || target==='both'){
+    if(!localStorage.getItem(LS_CLIENTID)){ toast('Add a Google Client ID and connect Drive first', true); return; }
+    try{
+      await ensureValidToken(true);
+      await driveUploadNamed(`nagmeena_backup_${Date.now()}.json`, payload);
+      toast('Cloud backup saved to Drive');
+    }catch(err){ toast('Cloud backup failed: '+mapError(err), true); }
+  }
+}
+function doRestore(target){
+  document.getElementById('restoreChoice').classList.remove('show');
+  if(target==='local'){ document.getElementById('restoreFileInput').click(); }
+  else if(target==='cloud'){ restoreFromCloud(); }
+}
+document.getElementById('restoreFileInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0]; if(!file) return;
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+    applyBackupData(data);
+    toast('Restored from local backup file');
+  }catch(err){ toast('Could not read that backup file', true); }
+  e.target.value='';
+});
+async function restoreFromCloud(){
+  if(!localStorage.getItem(LS_CLIENTID)){ toast('Add a Google Client ID and connect Drive first', true); return; }
+  try{
+    await ensureValidToken(true);
+    const res = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files?q=name contains 'nagmeena_backup_' and trashed=false&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&spaces=drive`, { headers:{ Authorization:'Bearer '+accessToken } });
+    const data = await res.json();
+    const latest = data.files && data.files[0];
+    if(!latest){ toast('No cloud backups found yet'); return; }
+    const backup = await driveDownloadFile(latest.id);
+    applyBackupData(backup);
+    toast(`Restored from cloud backup (${new Date(latest.modifiedTime).toLocaleString()})`);
+  }catch(err){ toast('Cloud restore failed: '+mapError(err), true); }
+}
+/* Restoring merges with current local data (same safe merge used for sync) so it
+   can never silently discard newer local work that hadn't been backed up yet. */
+function applyBackupData(data){
+  const local = buildLocalPayload();
+  const incoming = {
+    products:data.products||[], productTombstones:data.productTombstones||[],
+    sales:data.sales||[], saleTombstones:data.saleTombstones||[],
+    cats:data.cats||defaultCats, seq:data.seq||0,
+    timestamp: data.backupCreatedAt ? new Date(data.backupCreatedAt).getTime() : Date.now()
+  };
+  const merged = mergeData(local, incoming);
+  applyRemoteData(merged);
+  pushChange();
+}
 
 /* ===== Google Drive sync — row-level, tombstone-based merge ===== */
 const DRIVE_FILENAME = 'nagmeena_ledger_data.json';
@@ -1105,6 +1364,7 @@ function requestToken(interactive){
 async function ensureValidToken(interactive){
   const expiry = parseInt(localStorage.getItem(LS_TOKEN_EXP)||'0',10);
   if(accessToken && Date.now() < expiry - 30000) return accessToken;
+  if(!tokenClient){ const cid = localStorage.getItem(LS_CLIENTID); if(cid) initTokenClient(cid); }
   try{ return await requestToken(false); } catch(e){ if(interactive) return await requestToken(true); throw e; }
 }
 async function fetchWithRetry(url, options={}, attempt=1){
@@ -1169,12 +1429,12 @@ function mergeRows(localRows, cloudRows, localTomb, cloudTomb){
 }
 function mergeCats(localCats, cloudCats){
   const mergedCats = JSON.parse(JSON.stringify(cloudCats || localCats || defaultCats));
+  if(mergedCats.series) delete mergedCats.series;
   Object.keys(localCats||{}).forEach(key=>{
-    if(key==='series') return; // no longer used
+    if(key==='series') return;
     if(!mergedCats[key]){ mergedCats[key] = localCats[key]; return; }
     const existingCodes = new Set(mergedCats[key].items.map(i=>i.code));
     (localCats[key].items||[]).forEach(it=>{ if(!existingCodes.has(it.code)){ mergedCats[key].items.push(it); existingCodes.add(it.code); } });
-    // Union freeCodes pools too, de-duplicated
     const freeSet = new Set([...(mergedCats[key].freeCodes||[]), ...(localCats[key].freeCodes||[])]);
     mergedCats[key].freeCodes = Array.from(freeSet);
   });
