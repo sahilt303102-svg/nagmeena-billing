@@ -11,7 +11,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer onload="onGisLoaded()"></script>
 <style>
-  /* ============ Luxury Boutique Theme ============ */
   :root{
     --ivory:#FBF7EE; --cream:#F7F1E2; --beige:#F1E8D3; --beige-soft:#F5EEDD;
     --teal:#123832; --teal-deep:#0C2621; --teal-tint:#E4EBE9;
@@ -147,9 +146,11 @@
   .codebuilder{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:8px; }
   @media (max-width:700px){ .codebuilder{ grid-template-columns:repeat(2,1fr); } }
   .sub-hint{ font-size:11px; color:var(--muted-teal); min-height:14px; margin-top:6px; line-height:1.4; }
+  .cat-actions{ display:flex; gap:6px; margin-top:8px; }
   .codepreview{ background:linear-gradient(160deg, var(--teal-tint), #FFFFFF); border:1px solid var(--gold-line); border-radius:var(--radius-sm); padding:16px 18px; margin:16px 0 20px 0; }
-  .codepreview .code{ font-family:'IBM Plex Mono',monospace; font-size:19px; font-weight:600; color:var(--teal); letter-spacing:2px; }
+  .codepreview .code{ font-family:'IBM Plex Mono',monospace; font-size:18px; font-weight:600; color:var(--teal); letter-spacing:2px; }
   .codepreview .decode{ font-size:11.5px; color:var(--charcoal-muted); margin-top:6px; }
+  .codepreview .timestamp-note{ font-size:11px; color:var(--gold); margin-top:8px; font-style:italic; }
   .codepreview .autodesc{ font-size:13.5px; color:var(--charcoal); margin-top:10px; padding-top:10px; border-top:1px dashed var(--gold-line); }
   .codepreview .autodesc b{ color:var(--teal); font-family:'Cormorant Garamond',serif; font-size:15px; }
   .inline-add{ display:none; gap:8px; margin-top:8px; padding:12px; background:var(--gold-soft); border-radius:var(--radius-sm); border:1px solid var(--gold-line); }
@@ -228,7 +229,7 @@
           <p class="sub">Type a product code — description and stock fill in. Adjust the selling price to record a discount or markup.</p>
           <div class="warn-banner" id="stockWarning"></div>
           <div class="row">
-            <div class="field" style="flex:0.9;"><label for="itemCode">Product Code</label><input type="text" id="itemCode" class="mono" placeholder="12-character code"></div>
+            <div class="field" style="flex:0.9;"><label for="itemCode">Product Code</label><input type="text" id="itemCode" class="mono" inputmode="numeric" placeholder="20-digit code"></div>
             <div class="field" style="flex:1.4;"><label for="itemName">Description</label><input type="text" id="itemName" disabled placeholder="—"></div>
           </div>
           <div class="row">
@@ -278,11 +279,12 @@
     <div class="grid-2">
       <div class="card">
         <h2 id="productFormTitle">Add Product</h2>
-        <p class="sub">Build the product code from its subsections — description is generated automatically.</p>
+        <p class="sub">Build the code from its subsections. A date-time stamp is added automatically on save — description is generated automatically too.</p>
         <div class="codebuilder" id="codeBuilder"></div>
         <div class="codepreview">
-          <div class="code" id="codePreview">— — — — — —</div>
+          <div class="code" id="codePreview">— — — — —</div>
           <div class="decode" id="codeDecode">Select each subsection above</div>
+          <div class="timestamp-note">A date-time stamp (10 digits) is prepended automatically when you save — final code is 20 digits, shown as 2307-2614-0901-0201-0203.</div>
           <div class="autodesc" id="autoDescPreview">Description: <b>—</b></div>
         </div>
         <div class="field"><label for="pStock">Quantity</label><input type="number" id="pStock" min="0" step="1" placeholder="e.g. 10"></div>
@@ -297,6 +299,18 @@
       </div>
       <div class="card" style="margin-top:0;">
         <h2>Catalog</h2>
+        <div class="row" style="align-items:flex-end;">
+          <div class="field" style="flex:0.7;"><label for="stockFilterSelect">Stock Filter</label>
+            <select id="stockFilterSelect"><option value="all">All</option><option value="in">In Stock</option><option value="out">Out of Stock</option></select>
+          </div>
+          <div class="field" style="flex:0.8;"><label for="searchFieldSelect">Search By</label>
+            <select id="searchFieldSelect"><option value="code">Product Code</option><option value="desc">Description</option><option value="price">MRP</option></select>
+          </div>
+          <div class="field" style="flex:1.4;"><label for="catalogSearchInput">Search</label>
+            <input type="text" id="catalogSearchInput" list="catalogSearchSuggestions" placeholder="Start typing…">
+            <datalist id="catalogSearchSuggestions"></datalist>
+          </div>
+        </div>
         <div class="table-scroll">
         <table><thead><tr><th>Code</th><th>Description</th><th class="num">Stock</th><th class="num">Cost</th><th class="num">MRP</th><th class="num">Margin</th><th></th></tr></thead>
           <tbody id="productBody"><tr class="empty-row"><td colspan="7">No products yet</td></tr></tbody></table>
@@ -363,6 +377,24 @@ function save(key,val){ localStorage.setItem(key, JSON.stringify(val)); }
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 function uuid(){ return crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2); }
 
+/* Formats a raw product code into dashed groups of 4 for display everywhere
+   (catalog, billing, sales book, PDF). Storage always keeps the raw string. */
+function formatCode(code){
+  if(!code) return '';
+  const m = String(code).match(/.{1,4}/g);
+  return m ? m.join('-') : String(code);
+}
+/* DDMMYYhhmm — e.g. 23 Jul 2026, 2:09pm -> "2307261409" */
+function generateTimestampCode(){
+  const d = new Date();
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const yy = String(d.getFullYear()).slice(-2);
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mi = String(d.getMinutes()).padStart(2,'0');
+  return dd+mm+yy+hh+mi;
+}
+
 let products = load(LS_PRODUCTS, []);
 let sales = load(LS_SALES, []);
 let productTombstones = load(LS_PROD_TOMB, []);
@@ -387,33 +419,46 @@ let editingCode = null;
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 5;
+const DATA_VERSION = 6; // v6: Series removed, auto date-time code prefix, editable/reusable category codes
 
+/* ===== Product code categories — Series removed; each category now supports
+   edit-in-place and delete-with-code-reuse via a per-category freeCodes pool ===== */
 const defaultCats = {
-  series:{label:'Series', hasMnemonic:false, items:[
-    {desc:'Series 1', code:'01'},{desc:'Series 2', code:'02'},{desc:'Series 3', code:'03'}]},
   fabric:{label:'Fabric', hasMnemonic:true, items:[
     {desc:'Cotton', mnemonic:'CTN', code:'01'},{desc:'Rayon', mnemonic:'RYN', code:'02'},
     {desc:'Linen Blend', mnemonic:'LNB', code:'03'},{desc:'Chanderi', mnemonic:'CDN', code:'04'},
-    {desc:'Georgette', mnemonic:'GEO', code:'05'}]},
+    {desc:'Georgette', mnemonic:'GEO', code:'05'}], freeCodes:[]},
   work:{label:'Work', hasMnemonic:true, items:[
     {desc:'Cutdana', mnemonic:'CTD', code:'01'},{desc:'Gotapatti', mnemonic:'GTP', code:'02'},
-    {desc:'Sequence', mnemonic:'SQN', code:'03'},{desc:'Thread Work', mnemonic:'THD', code:'04'}]},
+    {desc:'Sequence', mnemonic:'SQN', code:'03'},{desc:'Thread Work', mnemonic:'THD', code:'04'}], freeCodes:[]},
   print:{label:'Print', hasMnemonic:true, items:[
-    {desc:'Plain', mnemonic:'PLN', code:'01'},{desc:'Floral', mnemonic:'FRL', code:'02'}]},
+    {desc:'Plain', mnemonic:'PLN', code:'01'},{desc:'Floral', mnemonic:'FRL', code:'02'}], freeCodes:[]},
   colour:{label:'Colour', hasMnemonic:true, items:[
     {desc:'Beige', mnemonic:'BEG', code:'01'},{desc:'Blue', mnemonic:'BLU', code:'02'},
-    {desc:'Pink', mnemonic:'PNK', code:'03'},{desc:'Red', mnemonic:'RED', code:'04'}]},
+    {desc:'Pink', mnemonic:'PNK', code:'03'},{desc:'Red', mnemonic:'RED', code:'04'}], freeCodes:[]},
   style:{label:'Style', hasMnemonic:true, items:[
     {desc:'Daily Wear', mnemonic:'DW', code:'01'},{desc:'Premium', mnemonic:'PRM', code:'02'},
-    {desc:'Festive', mnemonic:'FST', code:'03'}]}
+    {desc:'Festive', mnemonic:'FST', code:'03'}], freeCodes:[]}
 };
 let cats = load(LS_CATS, defaultCats);
-const CAT_KEYS = ['series','fabric','work','print','colour','style'];
+// Migration guard for anyone upgrading from a version that still had "series"
+if(cats.series) delete cats.series;
+Object.values(cats).forEach(c=>{ if(!c.freeCodes) c.freeCodes = []; });
+
+const CAT_KEYS = ['fabric','work','print','colour','style'];
 const DESC_KEYS = ['fabric','work','print','colour'];
 const selected = {};
 
-function nextCode(list){ const max = list.reduce((m,i)=>Math.max(m, parseInt(i.code,36)||0), 0); return String(max+1).padStart(2,'0'); }
+/* Reuses a freed code first (smallest one), otherwise allocates the next
+   sequential code. Deleting an entry never renumbers anything else. */
+function nextCode(cat){
+  if(cat.freeCodes && cat.freeCodes.length){
+    cat.freeCodes.sort((a,b)=> (parseInt(a,36)||0)-(parseInt(b,36)||0));
+    return cat.freeCodes.shift();
+  }
+  const max = cat.items.reduce((m,i)=>Math.max(m, parseInt(i.code,36)||0), 0);
+  return String(max+1).padStart(2,'0');
+}
 
 const builder = document.getElementById('codeBuilder');
 CAT_KEYS.forEach(key=>{
@@ -423,6 +468,10 @@ CAT_KEYS.forEach(key=>{
     <label>${cat.label}</label>
     <select id="sel_${key}"></select>
     <div class="sub-hint" id="hint_${key}"></div>
+    <div class="cat-actions">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="editCategoryItem('${key}')">Edit</button>
+      <button type="button" class="btn btn-danger btn-sm" onclick="deleteCategoryItem('${key}')">Delete</button>
+    </div>
     <div class="inline-add" id="add_${key}">
       <input type="text" id="newdesc_${key}" list="dl_${key}" placeholder="New ${cat.label.toLowerCase()} description">
       <datalist id="dl_${key}"></datalist>
@@ -467,7 +516,7 @@ function addCustom(key){
   if(!desc){ toast('Enter a description'); return; }
   const dupe = cat.items.find(it => it.desc.trim().toLowerCase() === desc.toLowerCase());
   if(dupe){ toast(`"${desc}" already exists as "${dupe.desc}"${dupe.mnemonic?' ('+dupe.mnemonic+')':''} — pick it from the dropdown instead`, true); return; }
-  const code = nextCode(cat.items);
+  const code = nextCode(cat);
   const item = cat.hasMnemonic ? {desc, mnemonic: mnemonic || desc.slice(0,3).toUpperCase(), code} : {desc, code};
   cat.items.push(item);
   save(LS_CATS, cats);
@@ -476,6 +525,48 @@ function addCustom(key){
   onSelectChange(key);
   document.getElementById(`newdesc_${key}`).value=''; if(mnemInput) mnemInput.value='';
   toast(`Added "${desc}" to ${cat.label}`);
+  pushChange();
+}
+function editCategoryItem(key){
+  const sel = document.getElementById(`sel_${key}`);
+  if(!sel.value || sel.value==='__custom__'){ toast('Select an existing entry to edit first'); return; }
+  const cat = cats[key];
+  const idx = parseInt(sel.value,10);
+  const item = cat.items[idx];
+  const newDesc = prompt(`Edit description for this ${cat.label} entry:`, item.desc);
+  if(newDesc===null) return;
+  const trimmed = newDesc.trim();
+  if(!trimmed){ toast('Description cannot be empty'); return; }
+  const dupe = cat.items.find((it,i)=> i!==idx && it.desc.trim().toLowerCase()===trimmed.toLowerCase());
+  if(dupe){ toast(`"${trimmed}" already exists as another entry`, true); return; }
+  item.desc = trimmed;
+  if(cat.hasMnemonic){
+    const newMnem = prompt(`Edit mnemonic (leave blank to keep "${item.mnemonic||''}"):`, item.mnemonic||'');
+    if(newMnem!==null && newMnem.trim()) item.mnemonic = newMnem.trim().toUpperCase();
+  }
+  save(LS_CATS, cats);
+  populateSelect(key);
+  sel.value = String(idx);
+  onSelectChange(key);
+  toast('Entry updated');
+  pushChange();
+}
+function deleteCategoryItem(key){
+  const sel = document.getElementById(`sel_${key}`);
+  if(!sel.value || sel.value==='__custom__'){ toast('Select an existing entry to delete first'); return; }
+  const cat = cats[key];
+  const idx = parseInt(sel.value,10);
+  const item = cat.items[idx];
+  if(!confirm(`Delete "${item.desc}" from ${cat.label}?\n\nIts code (${item.code}) will be reused for the next new entry — other codes in this list stay exactly where they are. Products already using this code keep their saved description.`)) return;
+  cat.items.splice(idx,1);
+  cat.freeCodes = cat.freeCodes || [];
+  if(!cat.freeCodes.includes(item.code)) cat.freeCodes.push(item.code);
+  save(LS_CATS, cats);
+  populateSelect(key);
+  selected[key] = null;
+  document.getElementById(`hint_${key}`).textContent = '';
+  updatePreview();
+  toast('Entry deleted — its code will be reused next time');
   pushChange();
 }
 
@@ -492,36 +583,40 @@ function assembledDescription(){
 function updatePreview(){
   const code = assembledCode();
   const preview = document.getElementById('codePreview'), decode = document.getElementById('codeDecode'), autoDesc = document.getElementById('autoDescPreview');
-  if(code){ preview.textContent = code; decode.textContent = CAT_KEYS.map(k=>selected[k]?.desc).filter(Boolean).join(' · '); }
-  else{ preview.textContent = '— — — — — —'; decode.textContent = 'Select each subsection above'; }
+  if(code){
+    preview.textContent = code.match(/.{1,2}/g).join(' ');
+    decode.textContent = CAT_KEYS.map(k=>selected[k]?.desc).filter(Boolean).join(' · ');
+  }else{ preview.textContent = '— — — — —'; decode.textContent = 'Select each subsection above'; }
   const desc = assembledDescription();
   autoDesc.innerHTML = `Description: <b>${desc ? esc(desc) : '—'}</b>`;
 }
 
-function findProduct(code){ code=(code||'').trim().toUpperCase(); return products.find(p=>p.code.toUpperCase()===code); }
+/* ===== Products CRUD ===== */
+function findProduct(code){ code=(code||'').replace(/[^0-9A-Za-z]/g,'').toUpperCase(); return products.find(p=>p.code.toUpperCase()===code); }
 function inStock(p){ return p && (p.stock||0) > 0; }
 
 document.getElementById('saveProductBtn').addEventListener('click', ()=>{
-  const code = assembledCode();
+  const comboCode = assembledCode();
   const stock = parseInt(document.getElementById('pStock').value,10);
   const cost = parseFloat(document.getElementById('pCost').value);
   const price = parseFloat(document.getElementById('pPrice').value);
-  if(!code){ toast('Complete every subsection to build the product code'); return; }
+  if(!comboCode){ toast('Complete every subsection to build the product code'); return; }
   if(isNaN(stock) || stock<0){ toast('Enter a valid quantity (0 or more)'); return; }
   if(isNaN(cost)||isNaN(price)||cost<0||price<0){ toast('Enter valid cost and MRP'); return; }
 
   if(editingCode){
     const idx = products.findIndex(p=>p.code===editingCode);
-    if(idx>-1) products[idx] = {...products[idx], code, cost, price, stock, updatedAt: Date.now()};
+    if(idx>-1) products[idx] = {...products[idx], cost, price, stock, updatedAt: Date.now()}; // code stays fixed
     editingCode=null;
     document.getElementById('productFormTitle').textContent='Add Product';
     document.getElementById('cancelEditBtn').style.display='none';
     toast('Product updated');
   }else{
     const desc = assembledDescription();
-    if(findProduct(code)){ toast('This exact code combination already exists'); return; }
-    products.push({id:uuid(), code, name:desc, cost, price, stock, updatedAt: Date.now()});
-    toast('Product added');
+    const fullCode = generateTimestampCode() + comboCode; // 10-digit stamp + 10-digit combo = 20 digits
+    if(findProduct(fullCode)){ toast('A product with this exact code already exists — try again in a moment'); return; }
+    products.push({id:uuid(), code:fullCode, name:desc, cost, price, stock, updatedAt: Date.now()});
+    toast(`Product added — code ${formatCode(fullCode)}`);
   }
   save(LS_PRODUCTS, products);
   document.getElementById('pStock').value=''; document.getElementById('pCost').value=''; document.getElementById('pPrice').value='';
@@ -550,17 +645,50 @@ function editProduct(code){
   document.getElementById('pCost').value = p.cost;
   document.getElementById('pPrice').value = p.price;
   editingCode = code;
-  document.getElementById('productFormTitle').textContent='Edit Product (code locked — delete and re-add to change the code)';
+  document.getElementById('productFormTitle').textContent=`Edit Product — code ${formatCode(code)} (locked; delete and re-add to change it)`;
   document.getElementById('cancelEditBtn').style.display='inline-flex';
 }
+
+/* ===== Catalog: stock filter + live partial search ===== */
+let stockFilter = 'all';
+let searchField = 'code';
+let searchQuery = '';
+document.getElementById('stockFilterSelect').addEventListener('change', e=>{ stockFilter=e.target.value; renderProducts(); });
+document.getElementById('searchFieldSelect').addEventListener('change', e=>{ searchField=e.target.value; updateCatalogSuggestions(); renderProducts(); });
+document.getElementById('catalogSearchInput').addEventListener('input', e=>{ searchQuery = e.target.value.trim().toLowerCase(); renderProducts(); });
+
+function updateCatalogSuggestions(){
+  const dl = document.getElementById('catalogSearchSuggestions');
+  let values;
+  if(searchField==='code') values = products.map(p=>formatCode(p.code));
+  else if(searchField==='desc') values = products.map(p=>p.name);
+  else values = products.map(p=>String(p.price));
+  dl.innerHTML = Array.from(new Set(values)).map(v=>`<option value="${esc(v)}">`).join('');
+}
+function productMatchesFilters(p){
+  if(stockFilter==='in' && !inStock(p)) return false;
+  if(stockFilter==='out' && inStock(p)) return false;
+  if(searchQuery){
+    if(searchField==='code'){
+      if(!formatCode(p.code).toLowerCase().includes(searchQuery) && !p.code.toLowerCase().includes(searchQuery)) return false;
+    }else if(searchField==='desc'){
+      if(!p.name.toLowerCase().includes(searchQuery)) return false;
+    }else if(searchField==='price'){
+      if(!String(p.price).includes(searchQuery)) return false;
+    }
+  }
+  return true;
+}
+
 function renderProducts(){
   const body = document.getElementById('productBody');
-  body.innerHTML = products.length===0
-    ? '<tr class="empty-row"><td colspan="7">No products yet</td></tr>'
-    : products.map(p=>{
+  const visible = products.filter(productMatchesFilters);
+  body.innerHTML = visible.length===0
+    ? `<tr class="empty-row"><td colspan="7">${products.length===0 ? 'No products yet' : 'No products match this filter/search'}</td></tr>`
+    : visible.map(p=>{
         const margin = p.price - p.cost, stock = p.stock||0;
         return `<tr>
-          <td class="mono">${esc(p.code)}</td><td>${esc(p.name)}</td>
+          <td class="mono">${esc(formatCode(p.code))}</td><td>${esc(p.name)}</td>
           <td class="num ${stock>0?'stock-ok':'stock-out'}">${stock>0?stock:'Out of stock'}</td>
           <td class="num">${money(p.cost)}</td><td class="num">${money(p.price)}</td>
           <td class="num" style="color:${margin>=0?'var(--green)':'var(--burgundy)'}">${money(margin)}</td>
@@ -568,8 +696,10 @@ function renderProducts(){
               <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.code}')">Delete</button></td>
         </tr>`;
       }).join('');
+  updateCatalogSuggestions();
 }
 
+/* ===== Billing ===== */
 const itemCode=document.getElementById('itemCode'), itemName=document.getElementById('itemName'), lookupHint=document.getElementById('lookupHint');
 const itemSellPrice = document.getElementById('itemSellPrice');
 const stockWarning = document.getElementById('stockWarning');
@@ -585,15 +715,20 @@ function doLookup(){
   itemName.value=p.name;
   if(itemSellPrice.dataset.autoFilledFor !== p.code){ itemSellPrice.value = p.price; itemSellPrice.dataset.autoFilledFor = p.code; }
   if(!inStock(p)){
-    lookupHint.style.color='var(--burgundy)'; lookupHint.textContent='This product is out of stock.';
-    showStockWarning(`⚠ "${p.name}" (${p.code}) is out of stock and cannot be added to a bill.`);
+    lookupHint.style.color='var(--burgundy)'; lookupHint.textContent=`Code ${formatCode(p.code)} · Out of stock.`;
+    showStockWarning(`⚠ "${p.name}" (${formatCode(p.code)}) is out of stock and cannot be added to a bill.`);
     return p;
   }
   lookupHint.style.color='var(--green)';
-  lookupHint.textContent = `${p.stock} unit(s) in stock`;
+  lookupHint.textContent = `Code ${formatCode(p.code)} · ${p.stock} unit(s) in stock`;
   return p;
 }
-itemCode.addEventListener('input', doLookup);
+// Product codes are numeric only now — strip anything else as the user types/pastes.
+itemCode.addEventListener('input', ()=>{
+  const cleaned = itemCode.value.replace(/[^0-9]/g,'');
+  if(cleaned !== itemCode.value) itemCode.value = cleaned;
+  doLookup();
+});
 itemCode.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('addToCartBtn').click(); }});
 document.getElementById('addToCartBtn').addEventListener('click', ()=>{
   const p=doLookup(); const qty=parseInt(document.getElementById('itemQty').value,10);
@@ -628,7 +763,7 @@ function renderCart(){
     body.innerHTML='<tr class="empty-row"><td colspan="6">No items added yet</td></tr>';
     rv.innerHTML='<tr class="empty-row"><td colspan="3">Cart is empty</td></tr>';
   }else{
-    body.innerHTML=cart.map((c,i)=>`<tr><td class="mono">${esc(c.code)}</td><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.price)}</td><td class="num">${money(c.qty*c.price)}</td><td><button class="btn btn-ghost btn-sm" onclick="removeCartItem(${i})">Remove</button></td></tr>`).join('');
+    body.innerHTML=cart.map((c,i)=>`<tr><td class="mono">${esc(formatCode(c.code))}</td><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.price)}</td><td class="num">${money(c.qty*c.price)}</td><td><button class="btn btn-ghost btn-sm" onclick="removeCartItem(${i})">Remove</button></td></tr>`).join('');
     rv.innerHTML=cart.map(c=>`<tr><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.qty*c.price)}</td></tr>`).join('');
   }
   document.getElementById('cartCount').textContent=cart.reduce((s,c)=>s+c.qty,0);
@@ -711,7 +846,7 @@ async function generateInvoicePDF(invoiceNo, date, name, number, items){
   doc.setTextColor(43,38,32); doc.setFontSize(10);
   doc.text(`Invoice No: ${invoiceNo}`, 400, 45); doc.text(`Date: ${date}`, 400, 60);
   doc.setFontSize(11); doc.text(`Bill To: ${name}`, 40, 100); doc.text(`Phone: ${number}`, 40, 116);
-  const rows = items.map(c=>[c.code, c.name, String(c.qty), c.price.toFixed(2), (c.qty*c.price).toFixed(2)]);
+  const rows = items.map(c=>[formatCode(c.code), c.name, String(c.qty), c.price.toFixed(2), (c.qty*c.price).toFixed(2)]);
   const total = items.reduce((s,c)=>s+c.qty*c.price,0);
   doc.autoTable({ startY:134, head:[['Code','Description','Qty','Price','Amount']], body:rows,
     styles:{fontSize:9, cellPadding:6}, headStyles:{fillColor:[18,56,50]},
@@ -762,6 +897,7 @@ function matchesFilter(sale){
   return true;
 }
 
+/* ===== History ===== */
 function renderHistory(){
   const visible = activeFilter ? sales.filter(matchesFilter) : sales;
   const body=document.getElementById('historyBody');
@@ -771,7 +907,7 @@ function renderHistory(){
       const mpct = s.marginPercent ?? (s.price>0 ? ((s.price-s.cost)/s.price)*100 : 0);
       return `<tr>
       <td class="mono">${esc(s.invoice)}</td><td>${esc(s.date)}</td><td>${esc(s.customer||'—')}</td><td class="mono">${esc(s.number||'—')}</td>
-      <td class="mono">${esc(s.code)}</td><td>${esc(s.product)}</td><td class="num">${s.qty}</td>
+      <td class="mono">${esc(formatCode(s.code))}</td><td>${esc(s.product)}</td><td class="num">${s.qty}</td>
       <td class="num">${money(s.cost)}</td><td class="num">${money(s.expectedPrice??s.price)}</td><td class="num">${money(s.price)}</td>
       <td class="num ${adjClass(mpp)}">${adjText(mpp)}</td>
       <td class="num ${adjClass(mpct)}">${pctText(mpct)}</td>
@@ -857,9 +993,9 @@ document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
     exportSet = wantFiltered ? sales.filter(matchesFilter) : sales;
   }
   if(exportSet.length===0){ toast('No records to export for that selection'); return; }
-  const rows = exportSet.map(s=>({'Invoice No':s.invoice,'Date':s.date,'Customer Name':s.customer||'','Customer Number':s.number||'','Product Code':s.code,'Description':s.product,'Qty':s.qty,'Cost Price':s.cost,'MRP':s.expectedPrice??s.price,'Selling Price':s.price,'Margin per Piece':s.marginPerPiece??(s.price-s.cost),'Margin %':(s.marginPercent??0).toFixed(1),'Revenue':s.revenue,'Profit':s.profit}));
+  const rows = exportSet.map(s=>({'Invoice No':s.invoice,'Date':s.date,'Customer Name':s.customer||'','Customer Number':s.number||'','Product Code':formatCode(s.code),'Description':s.product,'Qty':s.qty,'Cost Price':s.cost,'MRP':s.expectedPrice??s.price,'Selling Price':s.price,'Margin per Piece':s.marginPerPiece??(s.price-s.cost),'Margin %':(s.marginPercent??0).toFixed(1),'Revenue':s.revenue,'Profit':s.profit}));
   const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols']=[{wch:12},{wch:12},{wch:18},{wch:14},{wch:16},{wch:24},{wch:6},{wch:10},{wch:10},{wch:12},{wch:12},{wch:10},{wch:10},{wch:10}];
+  ws['!cols']=[{wch:12},{wch:12},{wch:18},{wch:14},{wch:24},{wch:24},{wch:6},{wch:10},{wch:10},{wch:12},{wch:12},{wch:10},{wch:10},{wch:10}];
   const bills=new Set(exportSet.map(s=>s.invoice)).size, revenue=exportSet.reduce((a,s)=>a+s.revenue,0), cost=exportSet.reduce((a,s)=>a+s.cost*s.qty,0), profit=exportSet.reduce((a,s)=>a+s.profit,0);
   const totalQty = exportSet.reduce((a,s)=>a+s.qty,0);
   const summary = XLSX.utils.aoa_to_sheet([['Nagmeena — Sales Summary'],[],['Bills Raised',bills],['Total Revenue',revenue],['Total Cost of Goods',cost],['Total Profit',profit],['Avg Margin/Pc', totalQty?profit/totalQty:0],['Avg Margin %', revenue?((profit/revenue)*100).toFixed(1)+'%':'0%']]);
@@ -870,6 +1006,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   toast('Excel file downloaded');
 });
 
+/* ===== Tabs / Settings ===== */
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -890,6 +1027,7 @@ document.getElementById('clientIdInput').addEventListener('change', e=>{
   if(e.target.value.trim()) initTokenClient(e.target.value.trim());
 });
 
+/* ===== Google Drive sync — row-level, tombstone-based merge ===== */
 const DRIVE_FILENAME = 'nagmeena_ledger_data.json';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const TOMBSTONE_RETENTION_MS = 90*24*60*60*1000;
@@ -1032,9 +1170,13 @@ function mergeRows(localRows, cloudRows, localTomb, cloudTomb){
 function mergeCats(localCats, cloudCats){
   const mergedCats = JSON.parse(JSON.stringify(cloudCats || localCats || defaultCats));
   Object.keys(localCats||{}).forEach(key=>{
+    if(key==='series') return; // no longer used
     if(!mergedCats[key]){ mergedCats[key] = localCats[key]; return; }
     const existingCodes = new Set(mergedCats[key].items.map(i=>i.code));
     (localCats[key].items||[]).forEach(it=>{ if(!existingCodes.has(it.code)){ mergedCats[key].items.push(it); existingCodes.add(it.code); } });
+    // Union freeCodes pools too, de-duplicated
+    const freeSet = new Set([...(mergedCats[key].freeCodes||[]), ...(localCats[key].freeCodes||[])]);
+    mergedCats[key].freeCodes = Array.from(freeSet);
   });
   return mergedCats;
 }
@@ -1050,6 +1192,8 @@ function applyRemoteData(data){
   products = data.products || []; sales = data.sales || [];
   productTombstones = data.productTombstones || []; saleTombstones = data.saleTombstones || [];
   cats = data.cats || defaultCats;
+  if(cats.series) delete cats.series;
+  Object.values(cats).forEach(c=>{ if(!c.freeCodes) c.freeCodes = []; });
   localStorage.setItem(LS_SEQ, String(data.seq || 0));
   save(LS_PRODUCTS, products); save(LS_SALES, sales);
   save(LS_PROD_TOMB, productTombstones); save(LS_SALE_TOMB, saleTombstones); save(LS_CATS, cats);
@@ -1129,6 +1273,7 @@ window.addEventListener('beforeunload', (e)=>{
 });
 if(localStorage.getItem(LS_SYNCED)) setStatus(isDriveConnected() ? 'success' : 'disconnected'); else setStatus('disconnected');
 
+/* ===== Utilities ===== */
 function money(n){ return '₹'+(Number(n)||0).toFixed(2); }
 function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function esc(str){ return String(str).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
