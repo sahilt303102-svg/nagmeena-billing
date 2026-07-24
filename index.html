@@ -101,6 +101,7 @@
   .btn-danger{ background:transparent; border:1px solid var(--burgundy); color:var(--burgundy); }
   .btn-danger:hover{ background:var(--burgundy-soft); transform:translateY(-1px); }
   .btn-sm{ padding:7px 14px; font-size:11.5px; border-radius:999px; } .btn[disabled]{ opacity:.4; cursor:not-allowed; transform:none !important; }
+  .btn-toggle.active{ background:var(--teal); color:var(--ivory); border-color:var(--teal); }
 
   .table-scroll{ overflow-x:auto; border-radius:var(--radius-sm); }
   table{ width:100%; border-collapse:separate; border-spacing:0; font-size:13px; }
@@ -115,6 +116,7 @@
   .adj-pos{ color:var(--green); font-weight:600; } .adj-neg{ color:var(--burgundy); font-weight:600; } .adj-zero{ color:var(--grey-soft); }
   .cell-input{ width:64px; padding:5px 6px; border-radius:6px; font-size:12.5px; font-family:'IBM Plex Mono',monospace; text-align:right; }
   .cell-input.price{ width:78px; }
+  .masked-text{ letter-spacing:2px; color:var(--grey-soft); user-select:none; }
 
   .totals{ margin-top:16px; padding-top:16px; border-top:1px dashed var(--gold-line); }
   .totals .line{ display:flex; justify-content:space-between; font-size:13.5px; padding:4px 0; color:var(--charcoal-muted); }
@@ -256,12 +258,12 @@
         </div>
         <div class="card">
           <h2>Add Item</h2>
-          <p class="sub">Type digits of a product code — matches are suggested live, same as the catalog search. Dashes are optional, added automatically.</p>
+          <p class="sub">Type digits of a product code — it's auto-formatted as 0000-0000-0000-0000 and matching suggestions appear live.</p>
           <div class="warn-banner" id="stockWarning"></div>
           <div class="row">
             <div class="field" style="flex:0.9;">
               <label for="itemCode">Product Code</label>
-              <input type="text" id="itemCode" class="mono" inputmode="numeric" list="itemCodeSuggestions" placeholder="Digits of the code">
+              <input type="text" id="itemCode" class="mono" inputmode="numeric" list="itemCodeSuggestions" placeholder="0000-0000-0000-0000-0000">
               <datalist id="itemCodeSuggestions"></datalist>
             </div>
             <div class="field" style="flex:1.4;"><label for="itemName">Description</label><input type="text" id="itemName" disabled placeholder="—"></div>
@@ -277,7 +279,7 @@
           <h2>Items in this Bill</h2>
           <div class="table-scroll">
           <table>
-            <thead><tr><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Amount</th><th></th></tr></thead>
+            <thead><tr><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th><th></th></tr></thead>
             <tbody id="cartBody"><tr class="empty-row"><td colspan="6">No items added yet</td></tr></tbody>
           </table>
           </div>
@@ -313,12 +315,12 @@
     <div class="grid-2">
       <div class="card">
         <h2 id="productFormTitle">Add Product</h2>
-        <p class="sub">Build the code from its subsections. A date-time stamp is added automatically on save — description is generated automatically too.</p>
+        <p class="sub">Build the code from its subsections. A date-time stamp is appended automatically on save — description is generated automatically too.</p>
         <div class="codebuilder" id="codeBuilder"></div>
         <div class="codepreview">
           <div class="code" id="codePreview">— — — — —</div>
           <div class="decode" id="codeDecode">Select each subsection above</div>
-          <div class="timestamp-note" id="timestampNote">A date-time stamp (10 digits) is prepended automatically when you save — final code is 20 digits, shown as 2307-2614-0901-0201-0203.</div>
+          <div class="timestamp-note" id="timestampNote">A date-time stamp (10 digits) is appended automatically when you save — final code is 20 digits, shown as 0102-0102-0304-2307-2614.</div>
           <div class="autodesc" id="autoDescPreview">Description: <b>—</b></div>
         </div>
         <div class="field"><label for="pStock">Quantity</label><input type="number" id="pStock" min="0" step="1" placeholder="e.g. 10"></div>
@@ -335,6 +337,7 @@
         <div class="toolbar">
           <div class="title">Catalog</div>
           <div class="actions">
+            <button class="btn btn-ghost btn-sm btn-toggle" id="catalogUnmaskBtn">Unmask Cost &amp; Margin</button>
             <button class="btn btn-danger btn-sm" id="deleteOutOfStockBtn">Delete All Out of Stock</button>
           </div>
         </div>
@@ -359,6 +362,12 @@
   </section>
 
   <section id="panel-history" class="panel">
+    <div class="toolbar" style="margin-bottom:8px;">
+      <div class="title" style="visibility:hidden;">.</div>
+      <div class="actions">
+        <button class="btn btn-ghost btn-sm btn-toggle" id="salesUnmaskBtn">Unmask Data</button>
+      </div>
+    </div>
     <div class="summary-cards">
       <div class="stat"><div class="label">Bills Raised</div><div class="value" id="statBills">0</div></div>
       <div class="stat"><div class="label">Revenue</div><div class="value" id="statRevenue">₹0.00</div></div>
@@ -375,7 +384,7 @@
           <button class="btn btn-danger btn-sm" id="clearHistoryBtn">Clear All Records</button>
         </div>
       </div>
-      <p class="sub" style="margin-top:-8px;">Qty and Selling Price are editable directly in the table below.</p>
+      <p class="sub" style="margin-top:-8px;">Click Edit on a row to change Qty or Selling Price in place.</p>
 
       <div class="filter-bar">
         <div class="filter-group">
@@ -452,18 +461,29 @@ function generateTimestampCode(){
   const mi = String(d.getMinutes()).padStart(2,'0');
   return dd+mm+yy+hh+mi;
 }
+/* Only a 20-digit numeric code (10-digit subsection combo + 10-digit date-time
+   stamp) is treated as a valid, generated Nagmeena product code. */
+function isValidProductCode(code){ return /^\d{20}$/.test(String(code||'')); }
+
+/* Masking helpers — used only for display; never touch the underlying data,
+   so search/filter/export logic always operates on real values. */
+let salesUnmasked = false;
+let catalogUnmasked = false;
+function maskText(v){ return v ? '••••••••' : '—'; }
+function maskMoney(v){ return '₹••••'; }
 
 let products = load(LS_PRODUCTS, []);
 let sales = load(LS_SALES, []);
 let productTombstones = load(LS_PROD_TOMB, []);
 let saleTombstones = load(LS_SALE_TOMB, []);
-let contactPhones = load(LS_PHONES, []);       // {id, value, updatedAt}
-let contactAddresses = load(LS_ADDRS, []);     // {id, value, updatedAt}
+let contactPhones = load(LS_PHONES, []);
+let contactAddresses = load(LS_ADDRS, []);
 let contactPhoneTombstones = load(LS_PHONE_TOMB, []);
 let contactAddressTombstones = load(LS_ADDR_TOMB, []);
 let contactMeta = load(LS_CONTACT_META, {primaryPhoneId:null, primaryAddressId:null, updatedAt:0});
 let cart = [];
 let editingProductId = null;
+let editingSaleIds = new Set(); // rows currently unlocked for inline edit in Sales Book
 
 (function migrate(){
   let touched = false;
@@ -482,7 +502,7 @@ let editingProductId = null;
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 8;
+const DATA_VERSION = 9; // v9: timestamp suffix (was prefix), masking, inline sale editing
 
 /* ===== Product code categories ===== */
 const defaultCats = {
@@ -650,10 +670,10 @@ function updatePreview(){
   autoDesc.innerHTML = `Description: <b>${desc ? esc(desc) : '—'}</b>`;
 }
 
-/* Decodes an existing full code's combo portion back into per-category dropdown
-   selections, so Edit Product can pre-populate them (item #4). */
+/* Combo (subsections) is now the FIRST 10 digits, date-time stamp the LAST 10
+   — reversed from the previous version, per this update. */
 function decodeCodeToSelections(fullCode){
-  const combo = String(fullCode).slice(10);
+  const combo = String(fullCode).slice(0,10);
   const chunks = combo.match(/.{1,2}/g) || [];
   const result = {};
   CAT_KEYS.forEach((key,i)=>{
@@ -680,8 +700,8 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
     const idx = products.findIndex(p=>p.id===editingProductId);
     if(idx<0){ toast('That product no longer exists'); return; }
     const existing = products[idx];
-    const timestampPart = existing.code.slice(0,10); // keep original creation timestamp
-    const newFullCode = timestampPart + comboCode;
+    const timestampPart = existing.code.slice(10); // date-time stamp is the LAST 10 digits — keep original
+    const newFullCode = comboCode + timestampPart;
     const clash = products.find(p=>p.id!==editingProductId && p.code===newFullCode);
     if(clash){ toast('Another product already uses this exact subsection combination'); return; }
     const desc = assembledDescription();
@@ -692,7 +712,8 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
     toast('Product updated');
   }else{
     const desc = assembledDescription();
-    const fullCode = generateTimestampCode() + comboCode;
+    const fullCode = comboCode + generateTimestampCode(); // combo FIRST, stamp LAST
+    if(!isValidProductCode(fullCode)){ toast('Could not build a valid 20-digit product code'); return; }
     if(findProduct(fullCode)){ toast('A product with this exact code already exists — try again in a moment'); return; }
     products.push({id:uuid(), code:fullCode, name:desc, cost, price, stock, updatedAt: Date.now()});
     toast(`Product added — code ${formatCode(fullCode)}`);
@@ -726,10 +747,9 @@ function editProduct(code){
   document.getElementById('pCost').value = p.cost;
   document.getElementById('pPrice').value = p.price;
   editingProductId = p.id;
-  document.getElementById('productFormTitle').textContent=`Edit Product — created ${formatCode(p.code).slice(0,9)}`;
+  document.getElementById('productFormTitle').textContent=`Edit Product — ${formatCode(p.code)}`;
   document.getElementById('cancelEditBtn').style.display='inline-flex';
 
-  // Pre-populate the 5 subsection dropdowns from the existing code (item #4)
   const map = decodeCodeToSelections(p.code);
   let allMatched = true;
   CAT_KEYS.forEach(key=>{
@@ -755,7 +775,13 @@ document.getElementById('deleteOutOfStockBtn').addEventListener('click', ()=>{
   pushChange();
 });
 
-/* ===== Catalog: stock filter + live partial search ===== */
+/* ===== Catalog: mask toggle, stock filter, live partial search ===== */
+document.getElementById('catalogUnmaskBtn').addEventListener('click', (e)=>{
+  catalogUnmasked = !catalogUnmasked;
+  e.currentTarget.textContent = catalogUnmasked ? 'Mask Cost & Margin' : 'Unmask Cost & Margin';
+  e.currentTarget.classList.toggle('active', catalogUnmasked);
+  renderProducts();
+});
 let stockFilter = 'all';
 let searchField = 'code';
 let searchQuery = '';
@@ -771,14 +797,14 @@ function updateCatalogSuggestions(){
   else values = products.map(p=>String(p.price));
   dl.innerHTML = Array.from(new Set(values)).map(v=>`<option value="${esc(v)}">`).join('');
 }
-/* Live partial suggestions for the billing Product Code field — mirrors the
-   catalog's substring search exactly (item #1), filtered fresh each keystroke. */
 function updateItemCodeSuggestions(query){
   const dl = document.getElementById('itemCodeSuggestions');
   const q = (query||'').replace(/[^0-9]/g,'');
   const matches = q ? products.filter(p=>p.code.includes(q)) : products;
   dl.innerHTML = matches.map(p=>`<option value="${esc(formatCode(p.code))}">${esc(p.name)} — ${money(p.price)}</option>`).join('');
 }
+/* Filtering always runs against the real, unmasked data regardless of mask
+   toggle state — masking is purely a rendering concern. */
 function productMatchesFilters(p){
   if(stockFilter==='in' && !inStock(p)) return false;
   if(stockFilter==='out' && inStock(p)) return false;
@@ -801,11 +827,13 @@ function renderProducts(){
     ? `<tr class="empty-row"><td colspan="7">${products.length===0 ? 'No products yet' : 'No products match this filter/search'}</td></tr>`
     : visible.map(p=>{
         const margin = p.price - p.cost, stock = p.stock||0;
+        const costDisplay = catalogUnmasked ? money(p.cost) : maskMoney();
+        const marginDisplay = catalogUnmasked ? money(margin) : maskMoney();
         return `<tr>
           <td class="mono">${esc(formatCode(p.code))}</td><td>${esc(p.name)}</td>
           <td class="num ${stock>0?'stock-ok':'stock-out'}">${stock>0?stock:'Out of stock'}</td>
-          <td class="num">${money(p.cost)}</td><td class="num">${money(p.price)}</td>
-          <td class="num" style="color:${margin>=0?'var(--green)':'var(--burgundy)'}">${money(margin)}</td>
+          <td class="num">${costDisplay}</td><td class="num">${money(p.price)}</td>
+          <td class="num" style="color:${catalogUnmasked ? (margin>=0?'var(--green)':'var(--burgundy)') : 'var(--grey-soft)'}">${marginDisplay}</td>
           <td><button class="btn btn-ghost btn-sm" onclick="editProduct('${p.code}')">Edit</button>
               <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.code}')">Delete</button></td>
         </tr>`;
@@ -821,17 +849,15 @@ const stockWarning = document.getElementById('stockWarning');
 function showStockWarning(msg){ stockWarning.textContent = msg; stockWarning.classList.add('show'); }
 function hideStockWarning(){ stockWarning.classList.remove('show'); stockWarning.textContent=''; }
 
-function doLookup(){
-  const code=itemCode.value.trim();
+function doLookup(digitsOnly){
   hideStockWarning();
-  if(!code){ itemName.value=''; lookupHint.textContent=''; return null; }
-  const p=findProduct(code);
+  if(!digitsOnly){ itemName.value=''; lookupHint.textContent=''; return null; }
+  const p=findProduct(digitsOnly);
   if(!p){
     itemName.value=''; itemSellPrice.value='';
-    const matchCount = products.filter(pr=>pr.code.includes(code)).length;
-    lookupHint.style.color='var(--muted-teal)';
+    const matchCount = products.filter(pr=>pr.code.includes(digitsOnly)).length;
+    lookupHint.style.color = matchCount>0 ? 'var(--muted-teal)' : 'var(--burgundy)';
     lookupHint.textContent = matchCount>0 ? `${matchCount} matching code(s) — keep typing or pick a suggestion` : 'Unknown code — add it in the Product Catalog tab first.';
-    if(matchCount===0) lookupHint.style.color='var(--burgundy)';
     return null;
   }
   itemName.value=p.name;
@@ -845,15 +871,21 @@ function doLookup(){
   lookupHint.textContent = `Code ${formatCode(p.code)} · ${p.stock} unit(s) in stock`;
   return p;
 }
+/* Live auto-hyphenation as the user types: digits are kept as the source of
+   truth, but the visible input is reformatted to 0000-0000-0000-0000-0000 on
+   every keystroke — matching the catalog's display format exactly. Cursor is
+   kept at the end for simplicity (typing/pasting still works smoothly). */
 itemCode.addEventListener('input', ()=>{
-  const cleaned = itemCode.value.replace(/[^0-9]/g,''); // accepts plain digits, dashes stripped automatically
-  if(cleaned !== itemCode.value) itemCode.value = cleaned;
-  updateItemCodeSuggestions(cleaned);
-  doLookup();
+  const digitsOnly = itemCode.value.replace(/[^0-9]/g,'').slice(0,20);
+  const formatted = formatCode(digitsOnly);
+  if(itemCode.value !== formatted) itemCode.value = formatted;
+  updateItemCodeSuggestions(digitsOnly);
+  doLookup(digitsOnly);
 });
 itemCode.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('addToCartBtn').click(); }});
 document.getElementById('addToCartBtn').addEventListener('click', ()=>{
-  const p=doLookup(); const qty=parseInt(document.getElementById('itemQty').value,10);
+  const digitsOnly = itemCode.value.replace(/[^0-9]/g,'');
+  const p=doLookup(digitsOnly); const qty=parseInt(document.getElementById('itemQty').value,10);
   const sellPrice = parseFloat(itemSellPrice.value);
   if(!p){ toast('Enter a valid, known product code'); return; }
   if(!qty||qty<1){ toast('Quantity must be at least 1'); return; }
@@ -985,7 +1017,6 @@ function wrapPlain(text, maxChars){
 }
 function moneyPdf(n){ return 'Rs. '+(Number(n)||0).toFixed(2); }
 
-/* Contact helpers — primary phone, "2nd in line" phone, primary address (item #3) */
 function getPrimaryPhone(){ return contactPhones.find(p=>p.id===contactMeta.primaryPhoneId) || null; }
 function getSecondaryPhone(){
   const primary = getPrimaryPhone();
@@ -998,7 +1029,6 @@ async function generateInvoicePDF(invoiceNo, date, name, number, items){
   const { jsPDF } = window.jspdf;
   const PAGE_W = 88;
   const MARGIN = 3;
-  const USABLE = PAGE_W - MARGIN*2;
   const LINE = 3.6;
 
   const bwLogoUrl = await loadImageDataUrl('nagmeena-bwlogo.png');
@@ -1007,13 +1037,17 @@ async function generateInvoicePDF(invoiceNo, date, name, number, items){
   const primaryPhone = getPrimaryPhone();
   const secondaryPhone = getSecondaryPhone();
   const primaryAddress = getPrimaryAddress();
+  const contactLine = [primaryPhone?.value, secondaryPhone?.value].filter(Boolean).join(' / ');
 
   const nameColChars = 16;
-  const wrappedItems = items.map(it=>({ ...it, lines: wrapPlain(it.name, nameColChars) }));
-  const addressLines = primaryAddress ? wrapPlain(primaryAddress.value, 30) : [];
+  // "Suit" appended to every item description on the printed invoice.
+  const wrappedItems = items.map(it=>({ ...it, lines: wrapPlain(it.name.replace(/\s*Unstiched Suit\s*$/i,'').trim()+' Suit', nameColChars) }));
+  const addressLines = primaryAddress ? wrapPlain('Location : '+primaryAddress.value, 30) : [];
+
+  const LOGO_SIZE = 27; // was 18mm — increased 50%
 
   let heightMM = MARGIN;
-  heightMM += (bwLogoUrl ? 22 : 0);
+  heightMM += (bwLogoUrl ? LOGO_SIZE+4 : 0);
   heightMM += 6;
   heightMM += 4;
   heightMM += 3;
@@ -1029,7 +1063,7 @@ async function generateInvoicePDF(invoiceNo, date, name, number, items){
   heightMM += 4*2;
   heightMM += (qrDataUrl ? 34+4 : 6);
   heightMM += 4;
-  heightMM += 4*(primaryPhone?1:0) + 4*(secondaryPhone?1:0) + addressLines.length*3.4;
+  heightMM += 4*(contactLine?1:0) + addressLines.length*3.4;
   heightMM += MARGIN + 4;
 
   const doc = new jsPDF({ unit:'mm', format:[PAGE_W, Math.max(heightMM, 90)] });
@@ -1038,9 +1072,8 @@ async function generateInvoicePDF(invoiceNo, date, name, number, items){
   const cx = PAGE_W/2;
 
   if(bwLogoUrl){
-    const logoSize = 18;
-    doc.addImage(bwLogoUrl, 'PNG', cx-logoSize/2, y, logoSize, logoSize);
-    y += logoSize + 3;
+    doc.addImage(bwLogoUrl, 'PNG', cx-LOGO_SIZE/2, y, LOGO_SIZE, LOGO_SIZE);
+    y += LOGO_SIZE + 3;
   }
 
   doc.setFont('courier','bold'); doc.setFontSize(12);
@@ -1101,7 +1134,7 @@ async function generateInvoicePDF(invoiceNo, date, name, number, items){
   if(qrDataUrl){
     const qrSize = 26;
     doc.addImage(qrDataUrl, 'PNG', cx-qrSize/2, y, qrSize, qrSize);
-    y += qrSize + 4; // extra breathing room before the follow line
+    y += qrSize + 4;
     doc.setFont('courier','normal'); doc.setFontSize(7);
     doc.text('Follow us on Instagram & DM to order.', cx, y, {align:'center'}); y += 3.4;
     doc.setFont('courier','bold');
@@ -1111,15 +1144,12 @@ async function generateInvoicePDF(invoiceNo, date, name, number, items){
     doc.text('Follow us: @thenagmeena — Follow us on Instagram & DM to order.', cx, y, {align:'center'}); y += 5;
   }
 
-  if(primaryPhone || secondaryPhone || primaryAddress){
+  if(contactLine || primaryAddress){
     doc.setLineDashPattern([0.6,0.6],0);
     doc.line(MARGIN, y, PAGE_W-MARGIN, y); y += 3.5;
     doc.setFont('courier','normal'); doc.setFontSize(7);
-    if(primaryPhone){ doc.text(`Call: ${primaryPhone.value}`, cx, y, {align:'center'}); y += 3.4; }
-    if(secondaryPhone){ doc.text(`Alt: ${secondaryPhone.value}`, cx, y, {align:'center'}); y += 3.4; }
-    if(primaryAddress){
-      addressLines.forEach(line=>{ doc.text(line, cx, y, {align:'center'}); y += 3.4; });
-    }
+    if(contactLine){ doc.text(`Call / WhatsApp : ${contactLine}`, cx, y, {align:'center'}); y += 3.4; }
+    if(primaryAddress){ addressLines.forEach(line=>{ doc.text(line, cx, y, {align:'center'}); y += 3.4; }); }
   }
 
   doc.save(`${invoiceNo}.pdf`);
@@ -1163,25 +1193,46 @@ function matchesFilter(sale){
   return true;
 }
 
-/* ===== History — Qty and Selling Price editable inline (item #7) ===== */
+/* ===== Sales Book: mask toggle + inline row editing ===== */
+document.getElementById('salesUnmaskBtn').addEventListener('click', (e)=>{
+  salesUnmasked = !salesUnmasked;
+  e.currentTarget.textContent = salesUnmasked ? 'Mask Data' : 'Unmask Data';
+  e.currentTarget.classList.toggle('active', salesUnmasked);
+  renderHistory();
+});
+function toggleSaleEdit(id){
+  if(editingSaleIds.has(id)) editingSaleIds.delete(id); else editingSaleIds.add(id);
+  renderHistory();
+}
 function renderHistory(){
-  const visible = activeFilter ? sales.filter(matchesFilter) : sales;
+  const visible = activeFilter ? sales.filter(matchesFilter) : sales; // masking never affects what's included here
   const body=document.getElementById('historyBody');
   body.innerHTML = visible.length===0 ? '<tr class="empty-row"><td colspan="15">No sales recorded yet</td></tr>' :
     visible.map((s)=>{
       const mpp = s.marginPerPiece ?? (s.price-s.cost);
       const mpct = s.marginPercent ?? (s.price>0 ? ((s.price-s.cost)/s.price)*100 : 0);
+      const editing = editingSaleIds.has(s.id);
+      const qtyCell = editing
+        ? `<input type="number" class="cell-input" min="1" value="${s.qty}" onchange="updateSaleQty('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
+        : (salesUnmasked ? s.qty : '••');
+      const priceCell = editing
+        ? `<input type="number" class="cell-input price" min="0" step="0.01" value="${s.price}" onchange="updateSalePrice('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
+        : (salesUnmasked ? money(s.price) : maskMoney());
       return `<tr>
-      <td class="mono">${esc(s.invoice)}</td><td>${esc(s.date)}</td><td>${esc(s.customer||'—')}</td><td class="mono">${esc(s.number||'—')}</td>
+      <td class="mono">${esc(s.invoice)}</td><td>${esc(s.date)}</td>
+      <td>${salesUnmasked ? esc(s.customer||'—') : maskText(s.customer)}</td>
+      <td class="mono">${salesUnmasked ? esc(s.number||'—') : maskText(s.number)}</td>
       <td class="mono">${esc(formatCode(s.code))}</td><td>${esc(s.product)}</td>
-      <td class="num"><input type="number" class="cell-input" min="1" value="${s.qty}" onchange="updateSaleQty('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();"></td>
-      <td class="num">${money(s.cost)}</td><td class="num">${money(s.expectedPrice??s.price)}</td>
-      <td class="num"><input type="number" class="cell-input price" min="0" step="0.01" value="${s.price}" onchange="updateSalePrice('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();"></td>
-      <td class="num ${adjClass(mpp)}">${adjText(mpp)}</td>
-      <td class="num ${adjClass(mpct)}">${pctText(mpct)}</td>
-      <td class="num">${money(s.revenue)}</td>
-      <td class="num" style="color:${s.profit>=0?'var(--green)':'var(--burgundy)'}">${money(s.profit)}</td>
+      <td class="num">${qtyCell}</td>
+      <td class="num">${salesUnmasked ? money(s.cost) : maskMoney()}</td>
+      <td class="num">${salesUnmasked ? money(s.expectedPrice??s.price) : maskMoney()}</td>
+      <td class="num">${priceCell}</td>
+      <td class="num ${salesUnmasked ? adjClass(mpp) : ''}">${salesUnmasked ? adjText(mpp) : maskMoney()}</td>
+      <td class="num ${salesUnmasked ? adjClass(mpct) : ''}">${salesUnmasked ? pctText(mpct) : '••%'}</td>
+      <td class="num">${salesUnmasked ? money(s.revenue) : maskMoney()}</td>
+      <td class="num" style="color:${salesUnmasked ? (s.profit>=0?'var(--green)':'var(--burgundy)') : 'var(--grey-soft)'}">${salesUnmasked ? money(s.profit) : maskMoney()}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="printInvoiceFromSales('${esc(s.invoice)}')">Print</button>
+          <button class="btn ${editing?'btn-primary':'btn-ghost'} btn-sm" onclick="toggleSaleEdit('${s.id}')">${editing?'Done':'Edit'}</button>
           <button class="btn btn-danger btn-sm" onclick="deleteSaleRow('${s.id}')">Delete</button></td></tr>`;
     }).join('');
 
@@ -1191,11 +1242,11 @@ function renderHistory(){
   const avgMarginValue = totalQty ? profit/totalQty : 0;
   const avgMarginPercent = revenue ? (profit/revenue)*100 : 0;
   document.getElementById('statBills').textContent=bills;
-  document.getElementById('statRevenue').textContent=money(revenue);
-  document.getElementById('statCost').textContent=money(cost);
-  document.getElementById('statProfit').textContent=money(profit);
-  document.getElementById('statAvgMargin').textContent=money(avgMarginValue);
-  document.getElementById('statAvgMarginPct').textContent=avgMarginPercent.toFixed(1)+'%';
+  document.getElementById('statRevenue').textContent= salesUnmasked ? money(revenue) : maskMoney();
+  document.getElementById('statCost').textContent= salesUnmasked ? money(cost) : maskMoney();
+  document.getElementById('statProfit').textContent= salesUnmasked ? money(profit) : maskMoney();
+  document.getElementById('statAvgMargin').textContent= salesUnmasked ? money(avgMarginValue) : maskMoney();
+  document.getElementById('statAvgMarginPct').textContent= salesUnmasked ? avgMarginPercent.toFixed(1)+'%' : '••%';
 
   const fs = document.getElementById('filterStatus');
   fs.textContent = activeFilter ? `Showing ${visible.length} of ${sales.length} record(s) within the selected date range.` : '';
@@ -1238,6 +1289,7 @@ function deleteSaleRow(id){
   if(p){ p.stock = (p.stock||0) + s.qty; p.updatedAt = Date.now(); }
   saleTombstones.push({id:s.id, deletedAt: Date.now()});
   sales.splice(idx,1);
+  editingSaleIds.delete(id);
   save(LS_SALES,sales); save(LS_PRODUCTS, products); save(LS_SALE_TOMB, saleTombstones);
   renderHistory(); renderProducts();
   pushChange();
@@ -1247,12 +1299,13 @@ document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{
   if(!confirm('Clear ALL sales records? Export a backup first if needed. Stock quantities will not be restored.')) return;
   const now = Date.now();
   sales.forEach(s=> saleTombstones.push({id:s.id, deletedAt: now}));
-  sales=[];
+  sales=[]; editingSaleIds.clear();
   save(LS_SALES,sales); save(LS_SALE_TOMB, saleTombstones);
   renderHistory(); toast('Sales Book cleared');
   pushChange();
 });
 document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
+  // Export always uses real, unmasked data regardless of on-screen mask state.
   if(sales.length===0){ toast('No sales to export yet'); return; }
   let exportSet = sales;
   if(activeFilter){
@@ -1273,7 +1326,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   toast('Excel file downloaded');
 });
 
-/* ===== Contact Us (item #2) ===== */
+/* ===== Contact Us ===== */
 function renderContacts(){
   const phoneList = document.getElementById('phoneList');
   phoneList.innerHTML = contactPhones.length===0 ? '<p class="sub">No numbers added yet.</p>' :
@@ -1373,7 +1426,7 @@ document.getElementById('clientIdInput').addEventListener('change', e=>{
   if(e.target.value.trim()) initTokenClient(e.target.value.trim());
 });
 
-/* ===== Backup & Restore — additive-only restore (item #5) ===== */
+/* ===== Backup & Restore — additive-only ===== */
 document.getElementById('backupBtn').addEventListener('click', (e)=>{
   e.stopPropagation();
   document.getElementById('backupChoice').classList.toggle('show');
@@ -1448,7 +1501,7 @@ async function restoreFromCloud(){
   if(!localStorage.getItem(LS_CLIENTID)){ toast('Add a Google Client ID and connect Drive first', true); return; }
   try{
     await ensureValidToken(true);
-    const res = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files?q=name contains 'nagmeena_backup_' and trashed=false&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&spaces=drive`, { headers:{ Authorization:'Bearer '+accessToken }, cache:'no-store' });
+    const res = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files?q=name contains 'nagmeena_backup_' and trashed=false&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&spaces=drive`, { headers:{ Authorization:'Bearer '+accessToken } });
     const data = await res.json();
     const latest = data.files && data.files[0];
     if(!latest){ toast('No cloud backups found yet'); return; }
@@ -1457,9 +1510,6 @@ async function restoreFromCloud(){
     toast(`Restored from cloud backup (${new Date(latest.modifiedTime).toLocaleString()}) — added ${added} new record(s)`);
   }catch(err){ toast('Cloud restore failed: '+mapError(err), true); }
 }
-/* Additive-only merge: adds any row/entry present in the backup but missing
-   locally (matched by id). Never deletes or overwrites anything already present
-   in the app — this is the fix for item #5. */
 function unionRowsAdditive(localRows, incomingRows){
   const existingIds = new Set(localRows.map(r=>r.id));
   const toAdd = (incomingRows||[]).filter(r=>r.id && !existingIds.has(r.id));
@@ -1467,13 +1517,11 @@ function unionRowsAdditive(localRows, incomingRows){
 }
 function applyBackupDataAdditive(data){
   let addedCount = 0;
-
   const pRes = unionRowsAdditive(products, data.products||[]); products = pRes.merged; addedCount += pRes.addedCount;
   const sRes = unionRowsAdditive(sales, data.sales||[]); sales = sRes.merged; addedCount += sRes.addedCount;
   const phRes = unionRowsAdditive(contactPhones, data.contactPhones||[]); contactPhones = phRes.merged; addedCount += phRes.addedCount;
   const adRes = unionRowsAdditive(contactAddresses, data.contactAddresses||[]); contactAddresses = adRes.merged; addedCount += adRes.addedCount;
 
-  // Categories: add any subsection entries (matched by code) not already present.
   Object.keys(data.cats||{}).forEach(key=>{
     if(key==='series' || !cats[key]) return;
     const existingCodes = new Set(cats[key].items.map(i=>i.code));
@@ -1482,7 +1530,6 @@ function applyBackupDataAdditive(data){
     });
   });
 
-  // Invoice sequence: raise to the higher of the two, never lower (prevents duplicate invoice numbers).
   const incomingSeq = data.seq||0;
   const currentSeq = parseInt(localStorage.getItem(LS_SEQ)||'0',10);
   if(incomingSeq > currentSeq) localStorage.setItem(LS_SEQ, String(incomingSeq));
@@ -1496,23 +1543,7 @@ function applyBackupDataAdditive(data){
   return addedCount;
 }
 
-/* =========================================================================
-   GOOGLE DRIVE SYNC — rewritten (item #6)
-
-   The previous version compared the freshly-merged local state against a
-   "last synced hash" variable that had JUST been set to that same merged
-   state one line earlier — so the comparison always matched, the upload
-   step was silently skipped, and "Sync successful" was shown even though
-   nothing reached Drive. That's what let two devices silently diverge.
-
-   Fix: every sync now (a) always downloads and merges with whatever is
-   currently on Drive — no timestamp-based skip, (b) compares the merged
-   result against the ACTUAL freshly-downloaded cloud content (not a
-   locally-cached hash) to decide whether an upload is needed, and
-   (c) fetches with cache:'no-store' so the browser can't quietly serve a
-   stale cached copy of the same Drive file URL.
-   ========================================================================= */
-
+/* ===== Google Drive sync — row-level, tombstone-based merge ===== */
 const DRIVE_FILENAME = 'nagmeena_ledger_data.json';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const TOMBSTONE_RETENTION_MS = 90*24*60*60*1000;
@@ -1593,7 +1624,7 @@ async function ensureValidToken(interactive){
 }
 async function fetchWithRetry(url, options={}, attempt=1){
   const MAX_ATTEMPTS = 3; let res;
-  const opts = { ...options, cache:'no-store' }; // defeat any browser caching of Drive API responses
+  const opts = { ...options, cache:'no-store' };
   try{ res = await fetch(url, opts); }
   catch(networkErr){ if(attempt<MAX_ATTEMPTS){ await sleep(attempt*800); return fetchWithRetry(url, options, attempt+1); } throw {code:'network_error'}; }
   if(res.status === 401) throw {code:'token_expired', status:401};
@@ -1637,9 +1668,6 @@ function isFreshLocalState(d){
          (d.productTombstones||[]).length===0 && (d.saleTombstones||[]).length===0 &&
          (d.contactPhones||[]).length===0 && (d.contactAddresses||[]).length===0;
 }
-/* Hash covers everything meaningful except the wall-clock `timestamp` field
-   itself, so two payloads with identical content always hash identically —
-   this is what lets us correctly detect "nothing new to upload". */
 function hashPayload(data){
   const str = JSON.stringify({
     products:data.products, productTombstones:data.productTombstones,
@@ -1738,24 +1766,18 @@ async function performSync(trigger){
 
     if(cloudData){
       if(isFreshLocalState(localData) && !isFreshLocalState(cloudData)){
-        // This device has never had any local data (or was just wiped) — pull everything from cloud.
         applyRemoteData(cloudData);
         localStorage.setItem(LS_CONNECTED,'1');
         setStatus('success', 'Restored from cloud backup');
         markSynced();
         return;
       }
-      // Always merge with whatever is currently on Drive — never skip this step.
-      // Skipping it (based on stale local timestamps) is exactly what caused
-      // devices to silently diverge before.
       finalData = mergeData(localData, cloudData);
       applyRemoteData(finalData);
     }else{
       finalData = localData;
     }
 
-    // Decide whether an upload is needed by comparing against the REAL, just-downloaded
-    // cloud content — not a locally-remembered hash that could be stale or self-referential.
     const cloudHash = cloudData ? hashPayload(cloudData) : null;
     const finalHash = hashPayload(finalData);
 
@@ -1768,8 +1790,6 @@ async function performSync(trigger){
 
     setStatus('uploading');
     const savedId = await driveSaveFile(driveFileId, finalData);
-    // Verify by re-downloading and comparing hashes, not by matching our own local timestamp/deviceId
-    // (multiple quick syncs could otherwise all "pass" against a value we set ourselves).
     const verifyData = await driveDownloadFile(savedId);
     if(hashPayload(verifyData) !== finalHash) throw {code:'verify_failed'};
 
@@ -1808,10 +1828,7 @@ document.getElementById('syncNowBtn').addEventListener('click', (e)=>{ e.stopPro
 window.addEventListener('online', ()=>{ if(isDriveConnected()) performSync('auto'); });
 window.addEventListener('offline', ()=>setStatus('offline'));
 window.addEventListener('beforeunload', (e)=>{
-  if(!isDriveConnected()) return;
-  // We can't cheaply know "unsynced" without a network round trip here, so this
-  // only warns if a sync is actively mid-flight when the tab is closing.
-  if(syncInProgress){ e.preventDefault(); e.returnValue = ''; }
+  if(isDriveConnected() && syncInProgress){ e.preventDefault(); e.returnValue = ''; }
 });
 setStatus(isDriveConnected() ? 'connecting' : 'disconnected');
 
