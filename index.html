@@ -1718,4 +1718,110 @@ function applyRemoteData(data){
   save(LS_CONTACT_META, contactMeta);
   CAT_KEYS.forEach(populateSelect); renderProducts(); renderHistory(); renderContacts();
 }
-function markSynced(){ localStorage.setItem(LS_SYNCED, new Date().toLocaleString
+function markSynced(){ localStorage.setItem(LS_SYNCED, new Date().toLocaleString()); }
+
+async function performSync(trigger){
+  if(!navigator.onLine){ setStatus('offline'); return; }
+  if(!isDriveConnected() && trigger!=='connect'){ if(trigger==='manual') setStatus('failed', mapError({code:'no_client'})); return; }
+  if(syncInProgress){ syncQueued = true; return; }
+  syncInProgress = true; setButtonsBusy(true);
+  try{
+    setStatus('connecting');
+    await ensureValidToken(trigger==='manual' || trigger==='connect');
+
+    setStatus('downloading');
+    if(!driveFileId) driveFileId = await driveFindFile();
+    const cloudData = driveFileId ? await driveDownloadFile(driveFileId) : null;
+
+    const localData = buildLocalPayload();
+    let finalData;
+
+    if(cloudData){
+      if(isFreshLocalState(localData) && !isFreshLocalState(cloudData)){
+        // This device has never had any local data (or was just wiped) — pull everything from cloud.
+        applyRemoteData(cloudData);
+        localStorage.setItem(LS_CONNECTED,'1');
+        setStatus('success', 'Restored from cloud backup');
+        markSynced();
+        return;
+      }
+      // Always merge with whatever is currently on Drive — never skip this step.
+      // Skipping it (based on stale local timestamps) is exactly what caused
+      // devices to silently diverge before.
+      finalData = mergeData(localData, cloudData);
+      applyRemoteData(finalData);
+    }else{
+      finalData = localData;
+    }
+
+    // Decide whether an upload is needed by comparing against the REAL, just-downloaded
+    // cloud content — not a locally-remembered hash that could be stale or self-referential.
+    const cloudHash = cloudData ? hashPayload(cloudData) : null;
+    const finalHash = hashPayload(finalData);
+
+    if(driveFileId && finalHash === cloudHash){
+      localStorage.setItem(LS_CONNECTED,'1');
+      setStatus('success', trigger==='manual' ? 'Already up to date' : 'Sync successful');
+      markSynced();
+      return;
+    }
+
+    setStatus('uploading');
+    const savedId = await driveSaveFile(driveFileId, finalData);
+    // Verify by re-downloading and comparing hashes, not by matching our own local timestamp/deviceId
+    // (multiple quick syncs could otherwise all "pass" against a value we set ourselves).
+    const verifyData = await driveDownloadFile(savedId);
+    if(hashPayload(verifyData) !== finalHash) throw {code:'verify_failed'};
+
+    driveFileId = savedId;
+    localStorage.setItem(LS_CONNECTED,'1');
+    setStatus('success', 'Sync successful');
+    markSynced();
+
+  }catch(err){
+    console.error('Drive sync error:', err);
+    if(trigger==='startup') setStatus('disconnected', 'Working offline — reconnect Drive to sync');
+    else{ setStatus('failed', mapError(err)); toast(mapError(err), true); }
+  }finally{
+    syncInProgress = false; setButtonsBusy(false);
+    if(syncQueued){ syncQueued = false; performSync('auto'); }
+  }
+}
+function pushChange(){ if(!isDriveConnected()) return; performSync('auto'); }
+
+document.getElementById('connectDriveBtn').addEventListener('click', async (e)=>{
+  e.stopPropagation();
+  const clientId = localStorage.getItem(LS_CLIENTID);
+  if(!clientId){ toast('Paste your Google OAuth Client ID first'); return; }
+  if(!gisReady || typeof google==='undefined'){ toast('Google sign-in is still loading — try again in a moment'); return; }
+  if(!tokenClient) initTokenClient(clientId);
+  localStorage.setItem(LS_CONNECTED,'1');
+  await performSync('connect');
+});
+document.getElementById('disconnectDriveBtn').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  accessToken = null; driveFileId = null;
+  localStorage.removeItem(LS_CONNECTED); localStorage.removeItem(LS_TOKEN_EXP);
+  setStatus('disconnected'); toast('Disconnected from Google Drive');
+});
+document.getElementById('syncNowBtn').addEventListener('click', (e)=>{ e.stopPropagation(); performSync('manual'); });
+window.addEventListener('online', ()=>{ if(isDriveConnected()) performSync('auto'); });
+window.addEventListener('offline', ()=>setStatus('offline'));
+window.addEventListener('beforeunload', (e)=>{
+  if(!isDriveConnected()) return;
+  // We can't cheaply know "unsynced" without a network round trip here, so this
+  // only warns if a sync is actively mid-flight when the tab is closing.
+  if(syncInProgress){ e.preventDefault(); e.returnValue = ''; }
+});
+setStatus(isDriveConnected() ? 'connecting' : 'disconnected');
+
+/* ===== Utilities ===== */
+function money(n){ return '₹'+(Number(n)||0).toFixed(2); }
+function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function esc(str){ return String(str).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function toast(msg, isErr){ const t=document.getElementById('toast'); t.textContent=msg; t.className='toast show'+(isErr?' err':''); clearTimeout(toast._h); toast._h=setTimeout(()=>t.classList.remove('show'),2600); }
+
+renderCart(); renderProducts(); renderHistory(); renderContacts();
+</script>
+</body>
+</html>
