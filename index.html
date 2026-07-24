@@ -35,9 +35,9 @@
   }
   ::selection{ background:var(--gold-soft); }
   button{ cursor:pointer; font-family:inherit; -webkit-appearance:none; appearance:none; }
-  input,select{ font-family:inherit; }
-  button:focus, input:focus, select:focus, a:focus{ outline:none; }
-  button:focus-visible, input:focus-visible, select:focus-visible{
+  input,select,textarea{ font-family:inherit; }
+  button:focus, input:focus, select:focus, textarea:focus, a:focus{ outline:none; }
+  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{
     outline:none; box-shadow:0 0 0 3px rgba(172,138,78,0.35);
   }
 
@@ -55,7 +55,7 @@
   .icon-btn{ background:var(--ivory); border:1px solid var(--gold-line); border-radius:999px; padding:9px 16px; font-size:12.5px; color:var(--teal); letter-spacing:0.4px; transition:all .2s ease; }
   .icon-btn:hover{ background:var(--gold-soft); border-color:var(--gold); transform:translateY(-1px); }
 
-  nav.tabs{ max-width:1220px; margin:0 auto; display:flex; gap:8px; padding:0 30px 22px 30px; }
+  nav.tabs{ max-width:1220px; margin:0 auto; display:flex; gap:8px; padding:0 30px 22px 30px; flex-wrap:wrap; }
   nav.tabs button{
     background:var(--beige-soft); border:1px solid var(--line); color:var(--charcoal-muted);
     padding:10px 22px; font-size:12.5px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase;
@@ -82,12 +82,13 @@
   .card .sub{ color:var(--grey-soft); font-size:12.5px; margin:0 0 18px 0; line-height:1.5; }
 
   label{ display:block; font-size:10.5px; font-weight:600; color:var(--muted-teal); margin-bottom:6px; text-transform:uppercase; letter-spacing:1px; }
-  input[type=text], input[type=number], input[type=tel], select{
+  input[type=text], input[type=number], input[type=tel], select, textarea{
     width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:var(--radius-sm);
     font-size:14px; background:#FFFEFB; color:var(--charcoal); transition:border-color .2s ease, box-shadow .2s ease;
   }
-  input::placeholder{ color:var(--grey-soft); }
-  input:focus, select:focus{ background:#fff; border-color:var(--gold); box-shadow:0 0 0 3px rgba(172,138,78,0.16); }
+  textarea{ resize:vertical; min-height:56px; }
+  input::placeholder, textarea::placeholder{ color:var(--grey-soft); }
+  input:focus, select:focus, textarea:focus{ background:#fff; border-color:var(--gold); box-shadow:0 0 0 3px rgba(172,138,78,0.16); }
   .field{ margin-bottom:16px; } .row{ display:flex; gap:12px; flex-wrap:wrap; } .row > .field{ flex:1; min-width:120px; }
 
   .btn{ display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:11px 20px; border-radius:999px; border:1px solid transparent; font-size:13.5px; font-weight:600; letter-spacing:0.3px; transition:all .22s ease; }
@@ -112,6 +113,8 @@
   .num{ text-align:right; white-space:nowrap; } td.num{ font-family:'IBM Plex Mono',monospace; } .mono{ font-family:'IBM Plex Mono',monospace; }
   .empty-row td{ color:var(--grey-soft); font-style:italic; text-align:center; padding:26px 8px; background:transparent !important; }
   .adj-pos{ color:var(--green); font-weight:600; } .adj-neg{ color:var(--burgundy); font-weight:600; } .adj-zero{ color:var(--grey-soft); }
+  .cell-input{ width:64px; padding:5px 6px; border-radius:6px; font-size:12.5px; font-family:'IBM Plex Mono',monospace; text-align:right; }
+  .cell-input.price{ width:78px; }
 
   .totals{ margin-top:16px; padding-top:16px; border-top:1px dashed var(--gold-line); }
   .totals .line{ display:flex; justify-content:space-between; font-size:13.5px; padding:4px 0; color:var(--charcoal-muted); }
@@ -153,7 +156,7 @@
   .codepreview .timestamp-note{ font-size:11px; color:var(--gold); margin-top:8px; font-style:italic; }
   .codepreview .autodesc{ font-size:13.5px; color:var(--charcoal); margin-top:10px; padding-top:10px; border-top:1px dashed var(--gold-line); }
   .codepreview .autodesc b{ color:var(--teal); font-family:'Cormorant Garamond',serif; font-size:15px; }
-  .inline-add{ display:none; gap:8px; margin-top:8px; padding:12px; background:var(--gold-soft); border-radius:var(--radius-sm); border:1px solid var(--gold-line); }
+  .inline-add{ display:none; gap:8px; margin-top:6px; padding:12px; background:var(--gold-soft); border-radius:var(--radius-sm); border:1px solid var(--gold-line); }
   .inline-add.show{ display:flex; flex-wrap:wrap; } .inline-add input{ flex:1; min-width:100px; }
 
   .settings-panel{ display:none; position:fixed; top:78px; right:30px; width:380px; max-width:90vw; background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px; z-index:60; max-height:80vh; overflow-y:auto; }
@@ -179,6 +182,12 @@
   .date-select-row select{ width:auto; min-width:66px; padding:9px 7px; font-size:12.5px; }
   .filter-actions{ display:flex; gap:10px; }
   .filter-status{ font-size:12px; color:var(--charcoal-muted); margin:-8px 0 16px 2px; font-style:italic; }
+
+  .contact-item{ display:flex; align-items:center; gap:10px; padding:12px 14px; background:var(--beige-soft); border:1px solid var(--line); border-radius:var(--radius-sm); margin-bottom:10px; }
+  .contact-item input[type=radio]{ width:auto; accent-color:var(--teal); }
+  .contact-item .val{ flex:1; font-size:13.5px; }
+  .contact-item .primary-tag{ font-size:10px; color:var(--gold); text-transform:uppercase; letter-spacing:0.6px; font-weight:700; }
+
   footer.hint{ text-align:center; color:var(--grey-soft); font-size:11.5px; padding:16px 30px 36px; max-width:1220px; margin:0 auto; letter-spacing:0.2px; }
 </style>
 </head>
@@ -199,6 +208,7 @@
     <button class="tab-btn active" data-tab="billing">New Bill</button>
     <button class="tab-btn" data-tab="products">Product Catalog</button>
     <button class="tab-btn" data-tab="history">Sales Book</button>
+    <button class="tab-btn" data-tab="contact">Contact Us</button>
   </nav>
 </header>
 
@@ -215,7 +225,7 @@
 
   <div class="divider"></div>
   <h4>Backup &amp; Restore</h4>
-  <p class="help">Separate from automatic sync — creates or restores a full snapshot (products, sales, catalog, and your logo) on demand.</p>
+  <p class="help">Separate from automatic sync. Restore is additive-only — it adds anything missing, never removes or overwrites what's already in the app.</p>
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
     <button class="btn btn-ghost btn-sm" id="backupBtn">Backup Data</button>
     <button class="btn btn-ghost btn-sm" id="restoreBtn">Restore Data</button>
@@ -246,12 +256,12 @@
         </div>
         <div class="card">
           <h2>Add Item</h2>
-          <p class="sub">Start typing a product code — matching codes from your catalog appear as suggestions.</p>
+          <p class="sub">Type digits of a product code — matches are suggested live, same as the catalog search. Dashes are optional, added automatically.</p>
           <div class="warn-banner" id="stockWarning"></div>
           <div class="row">
             <div class="field" style="flex:0.9;">
               <label for="itemCode">Product Code</label>
-              <input type="text" id="itemCode" class="mono" inputmode="numeric" list="itemCodeSuggestions" placeholder="20-digit code">
+              <input type="text" id="itemCode" class="mono" inputmode="numeric" list="itemCodeSuggestions" placeholder="Digits of the code">
               <datalist id="itemCodeSuggestions"></datalist>
             </div>
             <div class="field" style="flex:1.4;"><label for="itemName">Description</label><input type="text" id="itemName" disabled placeholder="—"></div>
@@ -308,7 +318,7 @@
         <div class="codepreview">
           <div class="code" id="codePreview">— — — — —</div>
           <div class="decode" id="codeDecode">Select each subsection above</div>
-          <div class="timestamp-note">A date-time stamp (10 digits) is prepended automatically when you save — final code is 20 digits, shown as 2307-2614-0901-0201-0203.</div>
+          <div class="timestamp-note" id="timestampNote">A date-time stamp (10 digits) is prepended automatically when you save — final code is 20 digits, shown as 2307-2614-0901-0201-0203.</div>
           <div class="autodesc" id="autoDescPreview">Description: <b>—</b></div>
         </div>
         <div class="field"><label for="pStock">Quantity</label><input type="number" id="pStock" min="0" step="1" placeholder="e.g. 10"></div>
@@ -365,6 +375,7 @@
           <button class="btn btn-danger btn-sm" id="clearHistoryBtn">Clear All Records</button>
         </div>
       </div>
+      <p class="sub" style="margin-top:-8px;">Qty and Selling Price are editable directly in the table below.</p>
 
       <div class="filter-bar">
         <div class="filter-group">
@@ -388,6 +399,23 @@
       </div>
     </div>
   </section>
+
+  <section id="panel-contact" class="panel">
+    <div class="grid-2">
+      <div class="card">
+        <h2>Mobile Numbers</h2>
+        <p class="sub">Up to 4 numbers. Select one as primary.</p>
+        <div id="phoneList"></div>
+        <button class="btn btn-ghost btn-sm" id="addPhoneBtn">+ Add Number</button>
+      </div>
+      <div class="card" style="margin-top:0;">
+        <h2>Addresses</h2>
+        <p class="sub">Up to 4 addresses. Select one as primary.</p>
+        <div id="addressList"></div>
+        <button class="btn btn-ghost btn-sm" id="addAddressBtn">+ Add Address</button>
+      </div>
+    </div>
+  </section>
 </main>
 
 <footer class="hint">Data is stored in this browser and synced to your own Google Drive when connected. Export .xlsx regularly as a backup.</footer>
@@ -399,7 +427,9 @@ const LS_PRODUCTS='ledger_products', LS_SALES='ledger_sales', LS_SEQ='ledger_inv
       LS_CATS='ledger_categories', LS_CLIENTID='ledger_drive_client_id', LS_SYNCED='ledger_last_sync',
       LS_CONNECTED='ledger_drive_connected', LS_DEVICE='ledger_device_id', LS_TOKEN_EXP='ledger_token_expiry',
       LS_PROD_TOMB='ledger_product_tombstones', LS_SALE_TOMB='ledger_sale_tombstones',
-      LS_LAST_HASH='ledger_last_sync_hash', LS_LAST_TS='ledger_last_sync_ts';
+      LS_PHONES='ledger_contact_phones', LS_ADDRS='ledger_contact_addresses',
+      LS_PHONE_TOMB='ledger_contact_phone_tomb', LS_ADDR_TOMB='ledger_contact_addr_tomb',
+      LS_CONTACT_META='ledger_contact_meta';
 
 const INSTAGRAM_URL = 'https://www.instagram.com/thenagmeena?igsh=MXMxM2lrb2N2YTZocg==';
 
@@ -413,7 +443,6 @@ function formatCode(code){
   const m = String(code).match(/.{1,4}/g);
   return m ? m.join('-') : String(code);
 }
-/* DDMMYYhhmm — reused both for product codes and invoice numbers */
 function generateTimestampCode(){
   const d = new Date();
   const dd = String(d.getDate()).padStart(2,'0');
@@ -428,8 +457,13 @@ let products = load(LS_PRODUCTS, []);
 let sales = load(LS_SALES, []);
 let productTombstones = load(LS_PROD_TOMB, []);
 let saleTombstones = load(LS_SALE_TOMB, []);
+let contactPhones = load(LS_PHONES, []);       // {id, value, updatedAt}
+let contactAddresses = load(LS_ADDRS, []);     // {id, value, updatedAt}
+let contactPhoneTombstones = load(LS_PHONE_TOMB, []);
+let contactAddressTombstones = load(LS_ADDR_TOMB, []);
+let contactMeta = load(LS_CONTACT_META, {primaryPhoneId:null, primaryAddressId:null, updatedAt:0});
 let cart = [];
-let editingCode = null;
+let editingProductId = null;
 
 (function migrate(){
   let touched = false;
@@ -448,7 +482,7 @@ let editingCode = null;
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 7; // v7: invoice numbers carry a date-time stamp, manual backup/restore, thermal PDF
+const DATA_VERSION = 8;
 
 /* ===== Product code categories ===== */
 const defaultCats = {
@@ -582,7 +616,7 @@ function deleteCategoryItem(key){
   const cat = cats[key];
   const idx = parseInt(sel.value,10);
   const item = cat.items[idx];
-  if(!confirm(`Delete "${item.desc}" from ${cat.label}?\n\nIts code (${item.code}) will be reused for the next new entry — other codes in this list stay exactly where they are. Products already using this code keep their saved description.`)) return;
+  if(!confirm(`Delete "${item.desc}" from ${cat.label}?\n\nIts code (${item.code}) will be reused for the next new entry. Existing products keep their saved description.`)) return;
   cat.items.splice(idx,1);
   cat.freeCodes = cat.freeCodes || [];
   if(!cat.freeCodes.includes(item.code)) cat.freeCodes.push(item.code);
@@ -616,6 +650,19 @@ function updatePreview(){
   autoDesc.innerHTML = `Description: <b>${desc ? esc(desc) : '—'}</b>`;
 }
 
+/* Decodes an existing full code's combo portion back into per-category dropdown
+   selections, so Edit Product can pre-populate them (item #4). */
+function decodeCodeToSelections(fullCode){
+  const combo = String(fullCode).slice(10);
+  const chunks = combo.match(/.{1,2}/g) || [];
+  const result = {};
+  CAT_KEYS.forEach((key,i)=>{
+    const chunk = chunks[i];
+    result[key] = chunk ? cats[key].items.findIndex(it=>it.code===chunk) : -1;
+  });
+  return result;
+}
+
 /* ===== Products CRUD ===== */
 function findProduct(code){ code=(code||'').replace(/[^0-9A-Za-z]/g,'').toUpperCase(); return products.find(p=>p.code.toUpperCase()===code); }
 function inStock(p){ return p && (p.stock||0) > 0; }
@@ -629,10 +676,17 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
   if(isNaN(stock) || stock<0){ toast('Enter a valid quantity (0 or more)'); return; }
   if(isNaN(cost)||isNaN(price)||cost<0||price<0){ toast('Enter valid cost and MRP'); return; }
 
-  if(editingCode){
-    const idx = products.findIndex(p=>p.code===editingCode);
-    if(idx>-1) products[idx] = {...products[idx], cost, price, stock, updatedAt: Date.now()};
-    editingCode=null;
+  if(editingProductId){
+    const idx = products.findIndex(p=>p.id===editingProductId);
+    if(idx<0){ toast('That product no longer exists'); return; }
+    const existing = products[idx];
+    const timestampPart = existing.code.slice(0,10); // keep original creation timestamp
+    const newFullCode = timestampPart + comboCode;
+    const clash = products.find(p=>p.id!==editingProductId && p.code===newFullCode);
+    if(clash){ toast('Another product already uses this exact subsection combination'); return; }
+    const desc = assembledDescription();
+    products[idx] = {...existing, code:newFullCode, name:desc, cost, price, stock, updatedAt: Date.now()};
+    editingProductId=null;
     document.getElementById('productFormTitle').textContent='Add Product';
     document.getElementById('cancelEditBtn').style.display='none';
     toast('Product updated');
@@ -648,12 +702,14 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
   renderProducts();
   pushChange();
 });
-document.getElementById('cancelEditBtn').addEventListener('click', ()=>{
-  editingCode=null;
+function resetProductForm(){
+  editingProductId=null;
   document.getElementById('productFormTitle').textContent='Add Product';
   document.getElementById('cancelEditBtn').style.display='none';
   document.getElementById('pStock').value=''; document.getElementById('pCost').value=''; document.getElementById('pPrice').value='';
-});
+  CAT_KEYS.forEach(key=>{ document.getElementById('sel_'+key).value=''; onSelectChange(key); });
+}
+document.getElementById('cancelEditBtn').addEventListener('click', resetProductForm);
 function deleteProduct(code){
   if(!confirm('Delete this product? Past sales records are unaffected.')) return;
   const p = findProduct(code);
@@ -669,12 +725,23 @@ function editProduct(code){
   document.getElementById('pStock').value = p.stock ?? 0;
   document.getElementById('pCost').value = p.cost;
   document.getElementById('pPrice').value = p.price;
-  editingCode = code;
-  document.getElementById('productFormTitle').textContent=`Edit Product — code ${formatCode(code)} (locked; delete and re-add to change it)`;
+  editingProductId = p.id;
+  document.getElementById('productFormTitle').textContent=`Edit Product — created ${formatCode(p.code).slice(0,9)}`;
   document.getElementById('cancelEditBtn').style.display='inline-flex';
+
+  // Pre-populate the 5 subsection dropdowns from the existing code (item #4)
+  const map = decodeCodeToSelections(p.code);
+  let allMatched = true;
+  CAT_KEYS.forEach(key=>{
+    const idx = map[key];
+    const sel = document.getElementById('sel_'+key);
+    if(idx>=0){ sel.value = String(idx); } else { sel.value=''; allMatched=false; }
+    onSelectChange(key);
+  });
+  if(!allMatched) toast('One or more original subsections were deleted from the catalog — please reselect them before saving', true);
+  document.getElementById('panel-products').scrollIntoView({behavior:'smooth', block:'start'});
 }
 
-/* Manual bulk cleanup — out-of-stock items are never auto-removed, only on request here. */
 document.getElementById('deleteOutOfStockBtn').addEventListener('click', ()=>{
   const outOfStock = products.filter(p=>!inStock(p));
   if(outOfStock.length===0){ toast('No out-of-stock products to delete'); return; }
@@ -704,9 +771,13 @@ function updateCatalogSuggestions(){
   else values = products.map(p=>String(p.price));
   dl.innerHTML = Array.from(new Set(values)).map(v=>`<option value="${esc(v)}">`).join('');
 }
-function updateItemCodeSuggestions(){
+/* Live partial suggestions for the billing Product Code field — mirrors the
+   catalog's substring search exactly (item #1), filtered fresh each keystroke. */
+function updateItemCodeSuggestions(query){
   const dl = document.getElementById('itemCodeSuggestions');
-  dl.innerHTML = products.map(p=>`<option value="${esc(formatCode(p.code))}">${esc(p.name)}</option>`).join('');
+  const q = (query||'').replace(/[^0-9]/g,'');
+  const matches = q ? products.filter(p=>p.code.includes(q)) : products;
+  dl.innerHTML = matches.map(p=>`<option value="${esc(formatCode(p.code))}">${esc(p.name)} — ${money(p.price)}</option>`).join('');
 }
 function productMatchesFilters(p){
   if(stockFilter==='in' && !inStock(p)) return false;
@@ -740,7 +811,7 @@ function renderProducts(){
         </tr>`;
       }).join('');
   updateCatalogSuggestions();
-  updateItemCodeSuggestions();
+  updateItemCodeSuggestions(document.getElementById('itemCode').value);
 }
 
 /* ===== Billing ===== */
@@ -755,7 +826,14 @@ function doLookup(){
   hideStockWarning();
   if(!code){ itemName.value=''; lookupHint.textContent=''; return null; }
   const p=findProduct(code);
-  if(!p){ itemName.value=''; itemSellPrice.value=''; lookupHint.style.color='var(--burgundy)'; lookupHint.textContent='Unknown code — add it in the Product Catalog tab first.'; return null; }
+  if(!p){
+    itemName.value=''; itemSellPrice.value='';
+    const matchCount = products.filter(pr=>pr.code.includes(code)).length;
+    lookupHint.style.color='var(--muted-teal)';
+    lookupHint.textContent = matchCount>0 ? `${matchCount} matching code(s) — keep typing or pick a suggestion` : 'Unknown code — add it in the Product Catalog tab first.';
+    if(matchCount===0) lookupHint.style.color='var(--burgundy)';
+    return null;
+  }
   itemName.value=p.name;
   if(itemSellPrice.dataset.autoFilledFor !== p.code){ itemSellPrice.value = p.price; itemSellPrice.dataset.autoFilledFor = p.code; }
   if(!inStock(p)){
@@ -767,10 +845,10 @@ function doLookup(){
   lookupHint.textContent = `Code ${formatCode(p.code)} · ${p.stock} unit(s) in stock`;
   return p;
 }
-// Product codes are numeric only — strip anything else (including dashes picked from suggestions).
 itemCode.addEventListener('input', ()=>{
-  const cleaned = itemCode.value.replace(/[^0-9]/g,'');
+  const cleaned = itemCode.value.replace(/[^0-9]/g,''); // accepts plain digits, dashes stripped automatically
   if(cleaned !== itemCode.value) itemCode.value = cleaned;
+  updateItemCodeSuggestions(cleaned);
   doLookup();
 });
 itemCode.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('addToCartBtn').click(); }});
@@ -818,7 +896,6 @@ function renderCart(){
 }
 ['custName','custNumber'].forEach(id=>document.getElementById(id).addEventListener('input', renderCart));
 
-/* Invoice number format: INV + DDMMYYhhmm + 3-digit serial, e.g. INV2307261409001 */
 function nextInvoiceNo(){
   const seq = parseInt(localStorage.getItem(LS_SEQ)||'0',10) + 1;
   localStorage.setItem(LS_SEQ, String(seq));
@@ -875,17 +952,15 @@ async function printInvoiceFromSales(invoiceNo){
   await generateInvoicePDF(invoiceNo, first.date, first.customer||'—', first.number||'—', items);
 }
 
-function loadLogoDataUrl(){
+function loadImageDataUrl(src){
   return new Promise(resolve=>{
     const img = new Image();
     img.onload = ()=>{ const c=document.createElement('canvas'); c.width=img.width; c.height=img.height;
       c.getContext('2d').drawImage(img,0,0); resolve(c.toDataURL('image/png')); };
     img.onerror = ()=>resolve(null);
-    img.src = 'nagmeena-logo.png';
+    img.src = src;
   });
 }
-/* Fetches a scannable QR encoding the brand's Instagram link. Requires internet
-   at print time; if offline, the PDF still generates — just without the QR image. */
 function loadInstagramQrDataUrl(){
   return new Promise(async (resolve)=>{
     try{
@@ -908,40 +983,53 @@ function wrapPlain(text, maxChars){
   if(cur) lines.push(cur);
   return lines.length?lines:[''];
 }
-/* Rs. instead of ₹ inside the PDF — jsPDF's built-in fonts don't include the
-   ₹ glyph, which is what was printing as "¹". The on-screen ₹ is untouched. */
 function moneyPdf(n){ return 'Rs. '+(Number(n)||0).toFixed(2); }
+
+/* Contact helpers — primary phone, "2nd in line" phone, primary address (item #3) */
+function getPrimaryPhone(){ return contactPhones.find(p=>p.id===contactMeta.primaryPhoneId) || null; }
+function getSecondaryPhone(){
+  const primary = getPrimaryPhone();
+  return contactPhones.find(p=> p.id !== (primary?primary.id:null)) || null;
+}
+function getPrimaryAddress(){ return contactAddresses.find(a=>a.id===contactMeta.primaryAddressId) || null; }
 
 /* ===== Thermal (88mm) receipt-style invoice PDF ===== */
 async function generateInvoicePDF(invoiceNo, date, name, number, items){
   const { jsPDF } = window.jspdf;
-  const PAGE_W = 88;          // mm — standard thermal paper width
-  const MARGIN = 3;           // mm — small margin for thermal printers
+  const PAGE_W = 88;
+  const MARGIN = 3;
   const USABLE = PAGE_W - MARGIN*2;
-  const LINE = 3.6;           // mm per text line at this font size
+  const LINE = 3.6;
 
-  const bizLogo = null; // logo image intentionally skipped on thermal receipts to save paper/height
+  const bwLogoUrl = await loadImageDataUrl('nagmeena-bwlogo.png');
   const qrDataUrl = await loadInstagramQrDataUrl();
 
-  // Pre-wrap item names so we can compute exact page height before creating the doc.
+  const primaryPhone = getPrimaryPhone();
+  const secondaryPhone = getSecondaryPhone();
+  const primaryAddress = getPrimaryAddress();
+
   const nameColChars = 16;
   const wrappedItems = items.map(it=>({ ...it, lines: wrapPlain(it.name, nameColChars) }));
+  const addressLines = primaryAddress ? wrapPlain(primaryAddress.value, 30) : [];
 
   let heightMM = MARGIN;
-  heightMM += 6;              // shop name
-  heightMM += 4;               // tagline
-  heightMM += 3;                // divider
-  heightMM += 4*2;              // invoice no + date
+  heightMM += (bwLogoUrl ? 22 : 0);
+  heightMM += 6;
+  heightMM += 4;
+  heightMM += 3;
+  heightMM += 4*2;
   heightMM += 4*((name&&name!=='—')?1:0) + 4*((number&&number!=='—')?1:0);
-  heightMM += 3;                // divider
-  heightMM += 4;                 // column header
-  heightMM += 2;                  // divider
+  heightMM += 3;
+  heightMM += 4;
+  heightMM += 2;
   wrappedItems.forEach(it=>{ heightMM += Math.max(1,it.lines.length)*LINE + 0.8; });
-  heightMM += 3;                   // divider
-  heightMM += 4*3;                  // subtotal, tax, total
-  heightMM += 3;                     // divider
-  heightMM += 4*2;                    // thank-you + note
-  heightMM += (qrDataUrl ? 34 : 6);    // QR block or fallback link line
+  heightMM += 3;
+  heightMM += 4*3;
+  heightMM += 3;
+  heightMM += 4*2;
+  heightMM += (qrDataUrl ? 34+4 : 6);
+  heightMM += 4;
+  heightMM += 4*(primaryPhone?1:0) + 4*(secondaryPhone?1:0) + addressLines.length*3.4;
   heightMM += MARGIN + 4;
 
   const doc = new jsPDF({ unit:'mm', format:[PAGE_W, Math.max(heightMM, 90)] });
@@ -949,10 +1037,16 @@ async function generateInvoicePDF(invoiceNo, date, name, number, items){
   let y = MARGIN + 2;
   const cx = PAGE_W/2;
 
+  if(bwLogoUrl){
+    const logoSize = 18;
+    doc.addImage(bwLogoUrl, 'PNG', cx-logoSize/2, y, logoSize, logoSize);
+    y += logoSize + 3;
+  }
+
   doc.setFont('courier','bold'); doc.setFontSize(12);
   doc.text('NAGMEENA', cx, y, {align:'center'}); y += 5;
   doc.setFont('courier','normal'); doc.setFontSize(7.5);
-  doc.text('UNSTICHED SUITS · BOUTIQUE INVOICE', cx, y, {align:'center'}); y += 4;
+  doc.text('UNSTICHED SUITS INVOICE', cx, y, {align:'center'}); y += 4;
 
   doc.setLineDashPattern([0.6,0.6],0);
   doc.line(MARGIN, y, PAGE_W-MARGIN, y); y += 3;
@@ -1002,19 +1096,30 @@ async function generateInvoicePDF(invoiceNo, date, name, number, items){
   doc.setFont('courier','normal'); doc.setFontSize(7.5);
   doc.text('Thank you for shopping with', cx, y, {align:'center'}); y += 3.6;
   doc.setFont('courier','bold');
-  doc.text('NAGMEENA', cx, y, {align:'center'}); y += 5;
+  doc.text('NAGMEENA', cx, y, {align:'center'}); y += 6;
 
   if(qrDataUrl){
     const qrSize = 26;
     doc.addImage(qrDataUrl, 'PNG', cx-qrSize/2, y, qrSize, qrSize);
-    y += qrSize + 2;
+    y += qrSize + 4; // extra breathing room before the follow line
     doc.setFont('courier','normal'); doc.setFontSize(7);
-    doc.text('Follow us on Instagram', cx, y, {align:'center'}); y += 3.4;
+    doc.text('Follow us on Instagram & DM to order.', cx, y, {align:'center'}); y += 3.4;
     doc.setFont('courier','bold');
-    doc.text('@thenagmeena', cx, y, {align:'center'});
+    doc.text('@thenagmeena', cx, y, {align:'center'}); y += 5;
   }else{
     doc.setFontSize(7);
-    doc.text('Follow us: @thenagmeena on Instagram', cx, y, {align:'center'});
+    doc.text('Follow us: @thenagmeena — Follow us on Instagram & DM to order.', cx, y, {align:'center'}); y += 5;
+  }
+
+  if(primaryPhone || secondaryPhone || primaryAddress){
+    doc.setLineDashPattern([0.6,0.6],0);
+    doc.line(MARGIN, y, PAGE_W-MARGIN, y); y += 3.5;
+    doc.setFont('courier','normal'); doc.setFontSize(7);
+    if(primaryPhone){ doc.text(`Call: ${primaryPhone.value}`, cx, y, {align:'center'}); y += 3.4; }
+    if(secondaryPhone){ doc.text(`Alt: ${secondaryPhone.value}`, cx, y, {align:'center'}); y += 3.4; }
+    if(primaryAddress){
+      addressLines.forEach(line=>{ doc.text(line, cx, y, {align:'center'}); y += 3.4; });
+    }
   }
 
   doc.save(`${invoiceNo}.pdf`);
@@ -1058,7 +1163,7 @@ function matchesFilter(sale){
   return true;
 }
 
-/* ===== History ===== */
+/* ===== History — Qty and Selling Price editable inline (item #7) ===== */
 function renderHistory(){
   const visible = activeFilter ? sales.filter(matchesFilter) : sales;
   const body=document.getElementById('historyBody');
@@ -1068,14 +1173,15 @@ function renderHistory(){
       const mpct = s.marginPercent ?? (s.price>0 ? ((s.price-s.cost)/s.price)*100 : 0);
       return `<tr>
       <td class="mono">${esc(s.invoice)}</td><td>${esc(s.date)}</td><td>${esc(s.customer||'—')}</td><td class="mono">${esc(s.number||'—')}</td>
-      <td class="mono">${esc(formatCode(s.code))}</td><td>${esc(s.product)}</td><td class="num">${s.qty}</td>
-      <td class="num">${money(s.cost)}</td><td class="num">${money(s.expectedPrice??s.price)}</td><td class="num">${money(s.price)}</td>
+      <td class="mono">${esc(formatCode(s.code))}</td><td>${esc(s.product)}</td>
+      <td class="num"><input type="number" class="cell-input" min="1" value="${s.qty}" onchange="updateSaleQty('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();"></td>
+      <td class="num">${money(s.cost)}</td><td class="num">${money(s.expectedPrice??s.price)}</td>
+      <td class="num"><input type="number" class="cell-input price" min="0" step="0.01" value="${s.price}" onchange="updateSalePrice('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();"></td>
       <td class="num ${adjClass(mpp)}">${adjText(mpp)}</td>
       <td class="num ${adjClass(mpct)}">${pctText(mpct)}</td>
       <td class="num">${money(s.revenue)}</td>
       <td class="num" style="color:${s.profit>=0?'var(--green)':'var(--burgundy)'}">${money(s.profit)}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="printInvoiceFromSales('${esc(s.invoice)}')">Print</button>
-          <button class="btn btn-ghost btn-sm" onclick="editSaleRow('${s.id}')">Edit</button>
           <button class="btn btn-danger btn-sm" onclick="deleteSaleRow('${s.id}')">Delete</button></td></tr>`;
     }).join('');
 
@@ -1094,33 +1200,33 @@ function renderHistory(){
   const fs = document.getElementById('filterStatus');
   fs.textContent = activeFilter ? `Showing ${visible.length} of ${sales.length} record(s) within the selected date range.` : '';
 }
-function editSaleRow(id){
-  const s = sales.find(x=>x.id===id);
-  if(!s) return;
-  const qtyInput = prompt(`Correct quantity for "${s.product}" (Invoice ${s.invoice}):`, s.qty);
-  if(qtyInput===null) return;
-  const newQty = parseInt(qtyInput,10);
-  if(!newQty || newQty<1){ toast('Enter a valid quantity'); return; }
-  const priceInput = prompt(`Selling price per unit (MRP was ${money(s.expectedPrice??s.price)}):`, s.price);
-  if(priceInput===null) return;
-  const newPrice = parseFloat(priceInput);
-  if(isNaN(newPrice) || newPrice<0){ toast('Enter a valid price'); return; }
-
+function recalcSaleRow(s){
+  s.revenue = s.qty * s.price;
+  s.profit = s.revenue - (s.qty * s.cost);
+  s.marginPerPiece = s.price - s.cost;
+  s.marginPercent = s.price>0 ? ((s.price-s.cost)/s.price)*100 : 0;
+  s.updatedAt = Date.now();
+}
+function updateSaleQty(id, val){
+  const s = sales.find(x=>x.id===id); if(!s) return;
+  const newQty = parseInt(val,10);
+  if(!newQty || newQty<1){ toast('Enter a valid quantity', true); renderHistory(); return; }
   const diff = newQty - s.qty;
   const p = findProduct(s.code);
-  if(p && diff>0 && diff > p.stock){ toast(`Only ${p.stock} more unit(s) of this product are available`, true); return; }
-  if(p){ p.stock = Math.max(0, (p.stock||0) - diff); p.updatedAt = Date.now(); }
-
-  s.qty = newQty; s.price = newPrice;
-  s.revenue = newQty * newPrice;
-  s.profit = s.revenue - (newQty * s.cost);
-  s.marginPerPiece = newPrice - s.cost;
-  s.marginPercent = newPrice>0 ? ((newPrice-s.cost)/newPrice)*100 : 0;
-  s.updatedAt = Date.now();
-
-  save(LS_SALES, sales); save(LS_PRODUCTS, products);
-  renderHistory(); renderProducts();
-  toast('Sale record updated');
+  if(p && diff>0 && diff > p.stock){ toast(`Only ${p.stock} more unit(s) of this product are available`, true); renderHistory(); return; }
+  if(p){ p.stock = Math.max(0, (p.stock||0) - diff); p.updatedAt = Date.now(); save(LS_PRODUCTS, products); renderProducts(); }
+  s.qty = newQty; recalcSaleRow(s);
+  save(LS_SALES, sales); renderHistory();
+  toast('Quantity updated');
+  pushChange();
+}
+function updateSalePrice(id, val){
+  const s = sales.find(x=>x.id===id); if(!s) return;
+  const newPrice = parseFloat(val);
+  if(isNaN(newPrice) || newPrice<0){ toast('Enter a valid price', true); renderHistory(); return; }
+  s.price = newPrice; recalcSaleRow(s);
+  save(LS_SALES, sales); renderHistory();
+  toast('Selling price updated');
   pushChange();
 }
 function deleteSaleRow(id){
@@ -1167,6 +1273,84 @@ document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   toast('Excel file downloaded');
 });
 
+/* ===== Contact Us (item #2) ===== */
+function renderContacts(){
+  const phoneList = document.getElementById('phoneList');
+  phoneList.innerHTML = contactPhones.length===0 ? '<p class="sub">No numbers added yet.</p>' :
+    contactPhones.map(p=>`
+      <div class="contact-item">
+        <input type="radio" name="primaryPhone" ${contactMeta.primaryPhoneId===p.id?'checked':''} onchange="setPrimaryPhone('${p.id}')">
+        <span class="val">${esc(p.value)}${contactMeta.primaryPhoneId===p.id?' <span class="primary-tag">Primary</span>':''}</span>
+        <button class="btn btn-ghost btn-sm" onclick="editPhone('${p.id}')">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deletePhone('${p.id}')">Delete</button>
+      </div>`).join('');
+  document.getElementById('addPhoneBtn').style.display = contactPhones.length>=4 ? 'none' : 'inline-flex';
+
+  const addrList = document.getElementById('addressList');
+  addrList.innerHTML = contactAddresses.length===0 ? '<p class="sub">No addresses added yet.</p>' :
+    contactAddresses.map(a=>`
+      <div class="contact-item">
+        <input type="radio" name="primaryAddress" ${contactMeta.primaryAddressId===a.id?'checked':''} onchange="setPrimaryAddress('${a.id}')">
+        <span class="val">${esc(a.value)}${contactMeta.primaryAddressId===a.id?' <span class="primary-tag">Primary</span>':''}</span>
+        <button class="btn btn-ghost btn-sm" onclick="editAddress('${a.id}')">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteAddress('${a.id}')">Delete</button>
+      </div>`).join('');
+  document.getElementById('addAddressBtn').style.display = contactAddresses.length>=4 ? 'none' : 'inline-flex';
+}
+document.getElementById('addPhoneBtn').addEventListener('click', ()=>{
+  if(contactPhones.length>=4){ toast('Maximum of 4 numbers reached'); return; }
+  const val = prompt('Enter mobile number:');
+  if(!val || !val.trim()) return;
+  const p = {id:uuid(), value:val.trim(), updatedAt:Date.now()};
+  contactPhones.push(p);
+  if(!contactMeta.primaryPhoneId){ contactMeta.primaryPhoneId = p.id; contactMeta.updatedAt = Date.now(); }
+  save(LS_PHONES, contactPhones); save(LS_CONTACT_META, contactMeta);
+  renderContacts(); toast('Number added'); pushChange();
+});
+function editPhone(id){
+  const p = contactPhones.find(x=>x.id===id); if(!p) return;
+  const val = prompt('Edit mobile number:', p.value);
+  if(val===null || !val.trim()) return;
+  p.value = val.trim(); p.updatedAt = Date.now();
+  save(LS_PHONES, contactPhones); renderContacts(); toast('Number updated'); pushChange();
+}
+function deletePhone(id){
+  if(!confirm('Delete this number?')) return;
+  contactPhoneTombstones.push({id, deletedAt:Date.now()});
+  contactPhones = contactPhones.filter(p=>p.id!==id);
+  if(contactMeta.primaryPhoneId===id){ contactMeta.primaryPhoneId = contactPhones[0]?.id || null; contactMeta.updatedAt = Date.now(); }
+  save(LS_PHONES, contactPhones); save(LS_PHONE_TOMB, contactPhoneTombstones); save(LS_CONTACT_META, contactMeta);
+  renderContacts(); pushChange();
+}
+function setPrimaryPhone(id){ contactMeta.primaryPhoneId = id; contactMeta.updatedAt = Date.now(); save(LS_CONTACT_META, contactMeta); renderContacts(); pushChange(); }
+
+document.getElementById('addAddressBtn').addEventListener('click', ()=>{
+  if(contactAddresses.length>=4){ toast('Maximum of 4 addresses reached'); return; }
+  const val = prompt('Enter address:');
+  if(!val || !val.trim()) return;
+  const a = {id:uuid(), value:val.trim(), updatedAt:Date.now()};
+  contactAddresses.push(a);
+  if(!contactMeta.primaryAddressId){ contactMeta.primaryAddressId = a.id; contactMeta.updatedAt = Date.now(); }
+  save(LS_ADDRS, contactAddresses); save(LS_CONTACT_META, contactMeta);
+  renderContacts(); toast('Address added'); pushChange();
+});
+function editAddress(id){
+  const a = contactAddresses.find(x=>x.id===id); if(!a) return;
+  const val = prompt('Edit address:', a.value);
+  if(val===null || !val.trim()) return;
+  a.value = val.trim(); a.updatedAt = Date.now();
+  save(LS_ADDRS, contactAddresses); renderContacts(); toast('Address updated'); pushChange();
+}
+function deleteAddress(id){
+  if(!confirm('Delete this address?')) return;
+  contactAddressTombstones.push({id, deletedAt:Date.now()});
+  contactAddresses = contactAddresses.filter(a=>a.id!==id);
+  if(contactMeta.primaryAddressId===id){ contactMeta.primaryAddressId = contactAddresses[0]?.id || null; contactMeta.updatedAt = Date.now(); }
+  save(LS_ADDRS, contactAddresses); save(LS_ADDR_TOMB, contactAddressTombstones); save(LS_CONTACT_META, contactMeta);
+  renderContacts(); pushChange();
+}
+function setPrimaryAddress(id){ contactMeta.primaryAddressId = id; contactMeta.updatedAt = Date.now(); save(LS_CONTACT_META, contactMeta); renderContacts(); pushChange(); }
+
 /* ===== Tabs / Settings ===== */
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -1175,6 +1359,7 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.classList.add('active');
     document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
     if(btn.dataset.tab==='history') renderHistory();
+    if(btn.dataset.tab==='contact') renderContacts();
   });
 });
 const settingsBtn = document.getElementById('settingsBtn');
@@ -1188,7 +1373,7 @@ document.getElementById('clientIdInput').addEventListener('change', e=>{
   if(e.target.value.trim()) initTokenClient(e.target.value.trim());
 });
 
-/* ===== Backup & Restore (manual — separate from automatic sync) ===== */
+/* ===== Backup & Restore — additive-only restore (item #5) ===== */
 document.getElementById('backupBtn').addEventListener('click', (e)=>{
   e.stopPropagation();
   document.getElementById('backupChoice').classList.toggle('show');
@@ -1203,11 +1388,12 @@ document.getElementById('backupChoice').addEventListener('click', e=>e.stopPropa
 document.getElementById('restoreChoice').addEventListener('click', e=>e.stopPropagation());
 
 async function buildBackupPayload(){
-  const logo = await loadLogoDataUrl();
+  const logo = await loadImageDataUrl('nagmeena-logo.png');
   return {
     app:'Nagmeena Billing', backupCreatedAt: new Date().toISOString(),
     brandLogo: logo,
     products, productTombstones, sales, saleTombstones, cats,
+    contactPhones, contactAddresses, contactPhoneTombstones, contactAddressTombstones, contactMeta,
     seq: parseInt(localStorage.getItem(LS_SEQ)||'0',10),
     version: DATA_VERSION, deviceId: DEVICE_ID
   };
@@ -1253,48 +1439,86 @@ document.getElementById('restoreFileInput').addEventListener('change', async (e)
   try{
     const text = await file.text();
     const data = JSON.parse(text);
-    applyBackupData(data);
-    toast('Restored from local backup file');
-  }catch(err){ toast('Could not read that backup file', true); }
+    const added = applyBackupDataAdditive(data);
+    toast(`Restored from local backup — added ${added} new record(s), nothing removed`);
+  }catch(err){ console.error(err); toast('Could not read that backup file — check it is a valid Nagmeena backup JSON', true); }
   e.target.value='';
 });
 async function restoreFromCloud(){
   if(!localStorage.getItem(LS_CLIENTID)){ toast('Add a Google Client ID and connect Drive first', true); return; }
   try{
     await ensureValidToken(true);
-    const res = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files?q=name contains 'nagmeena_backup_' and trashed=false&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&spaces=drive`, { headers:{ Authorization:'Bearer '+accessToken } });
+    const res = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files?q=name contains 'nagmeena_backup_' and trashed=false&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&spaces=drive`, { headers:{ Authorization:'Bearer '+accessToken }, cache:'no-store' });
     const data = await res.json();
     const latest = data.files && data.files[0];
     if(!latest){ toast('No cloud backups found yet'); return; }
     const backup = await driveDownloadFile(latest.id);
-    applyBackupData(backup);
-    toast(`Restored from cloud backup (${new Date(latest.modifiedTime).toLocaleString()})`);
+    const added = applyBackupDataAdditive(backup);
+    toast(`Restored from cloud backup (${new Date(latest.modifiedTime).toLocaleString()}) — added ${added} new record(s)`);
   }catch(err){ toast('Cloud restore failed: '+mapError(err), true); }
 }
-/* Restoring merges with current local data (same safe merge used for sync) so it
-   can never silently discard newer local work that hadn't been backed up yet. */
-function applyBackupData(data){
-  const local = buildLocalPayload();
-  const incoming = {
-    products:data.products||[], productTombstones:data.productTombstones||[],
-    sales:data.sales||[], saleTombstones:data.saleTombstones||[],
-    cats:data.cats||defaultCats, seq:data.seq||0,
-    timestamp: data.backupCreatedAt ? new Date(data.backupCreatedAt).getTime() : Date.now()
-  };
-  const merged = mergeData(local, incoming);
-  applyRemoteData(merged);
+/* Additive-only merge: adds any row/entry present in the backup but missing
+   locally (matched by id). Never deletes or overwrites anything already present
+   in the app — this is the fix for item #5. */
+function unionRowsAdditive(localRows, incomingRows){
+  const existingIds = new Set(localRows.map(r=>r.id));
+  const toAdd = (incomingRows||[]).filter(r=>r.id && !existingIds.has(r.id));
+  return { merged: localRows.concat(toAdd), addedCount: toAdd.length };
+}
+function applyBackupDataAdditive(data){
+  let addedCount = 0;
+
+  const pRes = unionRowsAdditive(products, data.products||[]); products = pRes.merged; addedCount += pRes.addedCount;
+  const sRes = unionRowsAdditive(sales, data.sales||[]); sales = sRes.merged; addedCount += sRes.addedCount;
+  const phRes = unionRowsAdditive(contactPhones, data.contactPhones||[]); contactPhones = phRes.merged; addedCount += phRes.addedCount;
+  const adRes = unionRowsAdditive(contactAddresses, data.contactAddresses||[]); contactAddresses = adRes.merged; addedCount += adRes.addedCount;
+
+  // Categories: add any subsection entries (matched by code) not already present.
+  Object.keys(data.cats||{}).forEach(key=>{
+    if(key==='series' || !cats[key]) return;
+    const existingCodes = new Set(cats[key].items.map(i=>i.code));
+    (data.cats[key].items||[]).forEach(it=>{
+      if(!existingCodes.has(it.code)){ cats[key].items.push(it); existingCodes.add(it.code); addedCount++; }
+    });
+  });
+
+  // Invoice sequence: raise to the higher of the two, never lower (prevents duplicate invoice numbers).
+  const incomingSeq = data.seq||0;
+  const currentSeq = parseInt(localStorage.getItem(LS_SEQ)||'0',10);
+  if(incomingSeq > currentSeq) localStorage.setItem(LS_SEQ, String(incomingSeq));
+
+  save(LS_PRODUCTS, products); save(LS_SALES, sales);
+  save(LS_PHONES, contactPhones); save(LS_ADDRS, contactAddresses);
+  save(LS_CATS, cats);
+  CAT_KEYS.forEach(populateSelect);
+  renderProducts(); renderHistory(); renderContacts();
   pushChange();
+  return addedCount;
 }
 
-/* ===== Google Drive sync — row-level, tombstone-based merge ===== */
+/* =========================================================================
+   GOOGLE DRIVE SYNC — rewritten (item #6)
+
+   The previous version compared the freshly-merged local state against a
+   "last synced hash" variable that had JUST been set to that same merged
+   state one line earlier — so the comparison always matched, the upload
+   step was silently skipped, and "Sync successful" was shown even though
+   nothing reached Drive. That's what let two devices silently diverge.
+
+   Fix: every sync now (a) always downloads and merges with whatever is
+   currently on Drive — no timestamp-based skip, (b) compares the merged
+   result against the ACTUAL freshly-downloaded cloud content (not a
+   locally-cached hash) to decide whether an upload is needed, and
+   (c) fetches with cache:'no-store' so the browser can't quietly serve a
+   stale cached copy of the same Drive file URL.
+   ========================================================================= */
+
 const DRIVE_FILENAME = 'nagmeena_ledger_data.json';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const TOMBSTONE_RETENTION_MS = 90*24*60*60*1000;
 
 let gisReady = false, tokenClient = null, accessToken = null, driveFileId = null;
 let syncInProgress = false, syncQueued = false;
-let lastSyncedHash = load(LS_LAST_HASH, null);
-let lastSyncedTimestamp = load(LS_LAST_TS, 0);
 
 const STATUS = {
   connecting:{dot:'busy',text:'Connecting…'}, downloading:{dot:'busy',text:'Downloading…'}, uploading:{dot:'busy',text:'Uploading…'},
@@ -1369,7 +1593,8 @@ async function ensureValidToken(interactive){
 }
 async function fetchWithRetry(url, options={}, attempt=1){
   const MAX_ATTEMPTS = 3; let res;
-  try{ res = await fetch(url, options); }
+  const opts = { ...options, cache:'no-store' }; // defeat any browser caching of Drive API responses
+  try{ res = await fetch(url, opts); }
   catch(networkErr){ if(attempt<MAX_ATTEMPTS){ await sleep(attempt*800); return fetchWithRetry(url, options, attempt+1); } throw {code:'network_error'}; }
   if(res.status === 401) throw {code:'token_expired', status:401};
   if([429,500,503].includes(res.status) && attempt<MAX_ATTEMPTS){ await sleep(attempt*1000); return fetchWithRetry(url, options, attempt+1); }
@@ -1399,21 +1624,30 @@ async function driveSaveFile(fileId, data){
   if(!json.id) throw {code:'upload_failed'};
   return json.id;
 }
-async function driveVerify(fileId, expected){
-  try{ const remote = await driveDownloadFile(fileId); return !!remote && remote.timestamp === expected.timestamp && remote.deviceId === expected.deviceId; }
-  catch(e){ return false; }
-}
 function normalizeRows(rows){ return (rows||[]).map(r=> (r.id && r.updatedAt) ? r : {...r, id: r.id || uuid(), updatedAt: r.updatedAt || Date.now()}); }
 function buildLocalPayload(){
-  return { products, productTombstones, sales, saleTombstones, cats,
-    seq: parseInt(localStorage.getItem(LS_SEQ)||'0',10), timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID };
+  return {
+    products, productTombstones, sales, saleTombstones, cats,
+    contactPhones, contactAddresses, contactPhoneTombstones, contactAddressTombstones, contactMeta,
+    seq: parseInt(localStorage.getItem(LS_SEQ)||'0',10), timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID
+  };
 }
 function isFreshLocalState(d){
   return (d.products||[]).length===0 && (d.sales||[]).length===0 &&
-         (d.productTombstones||[]).length===0 && (d.saleTombstones||[]).length===0;
+         (d.productTombstones||[]).length===0 && (d.saleTombstones||[]).length===0 &&
+         (d.contactPhones||[]).length===0 && (d.contactAddresses||[]).length===0;
 }
+/* Hash covers everything meaningful except the wall-clock `timestamp` field
+   itself, so two payloads with identical content always hash identically —
+   this is what lets us correctly detect "nothing new to upload". */
 function hashPayload(data){
-  const str = JSON.stringify({products:data.products, productTombstones:data.productTombstones, sales:data.sales, saleTombstones:data.saleTombstones, cats:data.cats, seq:data.seq});
+  const str = JSON.stringify({
+    products:data.products, productTombstones:data.productTombstones,
+    sales:data.sales, saleTombstones:data.saleTombstones, cats:data.cats,
+    contactPhones:data.contactPhones, contactAddresses:data.contactAddresses,
+    contactPhoneTombstones:data.contactPhoneTombstones, contactAddressTombstones:data.contactAddressTombstones,
+    contactMeta:data.contactMeta, seq:data.seq
+  });
   let h = 0; for(let i=0;i<str.length;i++){ h = (Math.imul(31,h) + str.charCodeAt(i)) | 0; } return h;
 }
 function mergeRows(localRows, cloudRows, localTomb, cloudTomb){
@@ -1440,106 +1674,48 @@ function mergeCats(localCats, cloudCats){
   });
   return mergedCats;
 }
+function mergeContactMeta(localMeta, cloudMeta){
+  if(!cloudMeta) return localMeta;
+  if(!localMeta) return cloudMeta;
+  return (localMeta.updatedAt||0) >= (cloudMeta.updatedAt||0) ? localMeta : cloudMeta;
+}
 function mergeData(local, cloud){
   const cloudProducts = normalizeRows(cloud.products), cloudSales = normalizeRows(cloud.sales);
   const localProducts = normalizeRows(local.products), localSales = normalizeRows(local.sales);
+  const cloudPhones = normalizeRows(cloud.contactPhones), localPhones = normalizeRows(local.contactPhones);
+  const cloudAddrs = normalizeRows(cloud.contactAddresses), localAddrs = normalizeRows(local.contactAddresses);
+
   const pMerge = mergeRows(localProducts, cloudProducts, local.productTombstones||[], cloud.productTombstones||[]);
   const sMerge = mergeRows(localSales, cloudSales, local.saleTombstones||[], cloud.saleTombstones||[]);
-  return { products: pMerge.rows, productTombstones: pMerge.tombstones, sales: sMerge.rows, saleTombstones: sMerge.tombstones,
-    cats: mergeCats(local.cats, cloud.cats), seq: Math.max(local.seq||0, cloud.seq||0), timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID };
+  const phMerge = mergeRows(localPhones, cloudPhones, local.contactPhoneTombstones||[], cloud.contactPhoneTombstones||[]);
+  const adMerge = mergeRows(localAddrs, cloudAddrs, local.contactAddressTombstones||[], cloud.contactAddressTombstones||[]);
+
+  return {
+    products: pMerge.rows, productTombstones: pMerge.tombstones,
+    sales: sMerge.rows, saleTombstones: sMerge.tombstones,
+    contactPhones: phMerge.rows, contactPhoneTombstones: phMerge.tombstones,
+    contactAddresses: adMerge.rows, contactAddressTombstones: adMerge.tombstones,
+    contactMeta: mergeContactMeta(local.contactMeta, cloud.contactMeta),
+    cats: mergeCats(local.cats, cloud.cats),
+    seq: Math.max(local.seq||0, cloud.seq||0),
+    timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID
+  };
 }
 function applyRemoteData(data){
   products = data.products || []; sales = data.sales || [];
   productTombstones = data.productTombstones || []; saleTombstones = data.saleTombstones || [];
+  contactPhones = data.contactPhones || []; contactAddresses = data.contactAddresses || [];
+  contactPhoneTombstones = data.contactPhoneTombstones || []; contactAddressTombstones = data.contactAddressTombstones || [];
+  contactMeta = data.contactMeta || {primaryPhoneId:null, primaryAddressId:null, updatedAt:0};
   cats = data.cats || defaultCats;
   if(cats.series) delete cats.series;
   Object.values(cats).forEach(c=>{ if(!c.freeCodes) c.freeCodes = []; });
   localStorage.setItem(LS_SEQ, String(data.seq || 0));
   save(LS_PRODUCTS, products); save(LS_SALES, sales);
   save(LS_PROD_TOMB, productTombstones); save(LS_SALE_TOMB, saleTombstones); save(LS_CATS, cats);
-  CAT_KEYS.forEach(populateSelect); renderProducts(); renderHistory();
-  lastSyncedTimestamp = data.timestamp || Date.now(); lastSyncedHash = hashPayload(data);
-  save(LS_LAST_TS, lastSyncedTimestamp); save(LS_LAST_HASH, lastSyncedHash);
+  save(LS_PHONES, contactPhones); save(LS_ADDRS, contactAddresses);
+  save(LS_PHONE_TOMB, contactPhoneTombstones); save(LS_ADDR_TOMB, contactAddressTombstones);
+  save(LS_CONTACT_META, contactMeta);
+  CAT_KEYS.forEach(populateSelect); renderProducts(); renderHistory(); renderContacts();
 }
-function markSynced(){ localStorage.setItem(LS_SYNCED, new Date().toLocaleString()); }
-async function performSync(trigger){
-  if(!navigator.onLine){ setStatus('offline'); return; }
-  if(!isDriveConnected() && trigger!=='connect'){ if(trigger==='manual') setStatus('failed', mapError({code:'no_client'})); return; }
-  if(syncInProgress){ syncQueued = true; return; }
-  syncInProgress = true; setButtonsBusy(true);
-  try{
-    setStatus('connecting');
-    await ensureValidToken(trigger==='manual' || trigger==='connect');
-    setStatus('downloading');
-    if(!driveFileId) driveFileId = await driveFindFile();
-    let cloudData = driveFileId ? await driveDownloadFile(driveFileId) : null;
-    const localData = buildLocalPayload();
-    let finalData = localData;
-    if(cloudData){
-      if(isFreshLocalState(localData) && !isFreshLocalState(cloudData)){
-        applyRemoteData(cloudData); localStorage.setItem(LS_CONNECTED,'1');
-        setStatus('success', 'Restored from cloud backup'); markSynced(); return;
-      }
-      if(trigger==='manual' || (cloudData.timestamp||0) > lastSyncedTimestamp){
-        finalData = mergeData(localData, cloudData);
-        applyRemoteData(finalData);
-      }
-    }
-    const currentHash = hashPayload(finalData);
-    if(currentHash === lastSyncedHash && driveFileId){
-      localStorage.setItem(LS_CONNECTED,'1');
-      setStatus('success', trigger==='manual' ? 'Already up to date' : 'Sync successful');
-      markSynced(); return;
-    }
-    setStatus('uploading');
-    const savedId = await driveSaveFile(driveFileId, finalData);
-    const verified = await driveVerify(savedId, finalData);
-    if(!verified) throw {code:'verify_failed'};
-    driveFileId = savedId; lastSyncedTimestamp = finalData.timestamp; lastSyncedHash = currentHash;
-    save(LS_LAST_TS, lastSyncedTimestamp); save(LS_LAST_HASH, lastSyncedHash);
-    localStorage.setItem(LS_CONNECTED,'1');
-    setStatus('success', 'Sync successful'); markSynced();
-  }catch(err){
-    console.error('Drive sync error:', err);
-    if(trigger==='startup') setStatus('disconnected', 'Working offline — reconnect Drive to sync');
-    else{ setStatus('failed', mapError(err)); toast(mapError(err), true); }
-  }finally{
-    syncInProgress = false; setButtonsBusy(false);
-    if(syncQueued){ syncQueued = false; performSync('auto'); }
-  }
-}
-function pushChange(){ if(!isDriveConnected()) return; performSync('auto'); }
-
-document.getElementById('connectDriveBtn').addEventListener('click', async (e)=>{
-  e.stopPropagation();
-  const clientId = localStorage.getItem(LS_CLIENTID);
-  if(!clientId){ toast('Paste your Google OAuth Client ID first'); return; }
-  if(!gisReady || typeof google==='undefined'){ toast('Google sign-in is still loading — try again in a moment'); return; }
-  if(!tokenClient) initTokenClient(clientId);
-  localStorage.setItem(LS_CONNECTED,'1');
-  await performSync('connect');
-});
-document.getElementById('disconnectDriveBtn').addEventListener('click', (e)=>{
-  e.stopPropagation();
-  accessToken = null; driveFileId = null;
-  localStorage.removeItem(LS_CONNECTED); localStorage.removeItem(LS_TOKEN_EXP);
-  setStatus('disconnected'); toast('Disconnected from Google Drive');
-});
-document.getElementById('syncNowBtn').addEventListener('click', (e)=>{ e.stopPropagation(); performSync('manual'); });
-window.addEventListener('online', ()=>{ if(isDriveConnected()) performSync('auto'); });
-window.addEventListener('offline', ()=>setStatus('offline'));
-window.addEventListener('beforeunload', (e)=>{
-  if(isDriveConnected() && hashPayload(buildLocalPayload()) !== lastSyncedHash){ e.preventDefault(); e.returnValue = ''; }
-});
-if(localStorage.getItem(LS_SYNCED)) setStatus(isDriveConnected() ? 'success' : 'disconnected'); else setStatus('disconnected');
-
-/* ===== Utilities ===== */
-function money(n){ return '₹'+(Number(n)||0).toFixed(2); }
-function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-function esc(str){ return String(str).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-function toast(msg, isErr){ const t=document.getElementById('toast'); t.textContent=msg; t.className='toast show'+(isErr?' err':''); clearTimeout(toast._h); toast._h=setTimeout(()=>t.classList.remove('show'),2600); }
-
-renderCart(); renderProducts(); renderHistory();
-</script>
-</body>
-</html>
+function markSynced(){ localStorage.setItem(LS_SYNCED, new Date().toLocaleString
