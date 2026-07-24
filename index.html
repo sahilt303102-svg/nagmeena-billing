@@ -89,7 +89,10 @@
   textarea{ resize:vertical; min-height:56px; }
   input::placeholder, textarea::placeholder{ color:var(--grey-soft); }
   input:focus, select:focus, textarea:focus{ background:#fff; border-color:var(--gold); box-shadow:0 0 0 3px rgba(172,138,78,0.16); }
+  input.field-error{ border-color:var(--burgundy) !important; box-shadow:0 0 0 3px rgba(122,46,58,0.14) !important; }
   .field{ margin-bottom:16px; } .row{ display:flex; gap:12px; flex-wrap:wrap; } .row > .field{ flex:1; min-width:120px; }
+  .field-hint-error{ font-size:11px; color:var(--burgundy); margin-top:-10px; margin-bottom:12px; display:none; }
+  .field-hint-error.show{ display:block; }
 
   .btn{ display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:11px 20px; border-radius:999px; border:1px solid transparent; font-size:13.5px; font-weight:600; letter-spacing:0.3px; transition:all .22s ease; }
   .btn-primary{ background:var(--teal); color:var(--ivory); box-shadow:0 6px 16px -8px rgba(18,56,50,0.55); }
@@ -114,7 +117,12 @@
   .num{ text-align:right; white-space:nowrap; } td.num{ font-family:'IBM Plex Mono',monospace; } .mono{ font-family:'IBM Plex Mono',monospace; }
   .empty-row td{ color:var(--grey-soft); font-style:italic; text-align:center; padding:26px 8px; background:transparent !important; }
   .adj-pos{ color:var(--green); font-weight:600; } .adj-neg{ color:var(--burgundy); font-weight:600; } .adj-zero{ color:var(--grey-soft); }
-  .cell-input{ width:64px; padding:5px 6px; border-radius:6px; font-size:12.5px; font-family:'IBM Plex Mono',monospace; text-align:right; }
+  /* Fix: qty edit box was inheriting no explicit color in some states and rendered
+     white-on-white; both inline-edit cells now force the same visible styling. */
+  .cell-input, .cell-input.price{
+    width:64px; padding:5px 6px; border-radius:6px; font-size:12.5px; font-family:'IBM Plex Mono',monospace;
+    text-align:right; color:var(--charcoal) !important; background:#FFFFFF !important; border:1px solid var(--gold-line) !important;
+  }
   .cell-input.price{ width:78px; }
   .masked-text{ letter-spacing:2px; color:var(--grey-soft); user-select:none; }
 
@@ -160,6 +168,9 @@
   .codepreview .autodesc b{ color:var(--teal); font-family:'Cormorant Garamond',serif; font-size:15px; }
   .inline-add{ display:none; gap:8px; margin-top:6px; padding:12px; background:var(--gold-soft); border-radius:var(--radius-sm); border:1px solid var(--gold-line); }
   .inline-add.show{ display:flex; flex-wrap:wrap; } .inline-add input{ flex:1; min-width:100px; }
+
+  .margin-calc{ background:var(--teal-tint); border:1px solid var(--gold-line); border-radius:var(--radius-sm); padding:14px 16px; margin-bottom:16px; }
+  .margin-calc p.help{ font-size:11px; color:var(--muted-teal); margin:0 0 10px 0; line-height:1.5; }
 
   .settings-panel{ display:none; position:fixed; top:78px; right:30px; width:380px; max-width:90vw; background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px; z-index:60; max-height:80vh; overflow-y:auto; }
   .settings-panel.show{ display:block; animation:fadeIn .2s ease; }
@@ -253,8 +264,9 @@
           <p class="sub">At least one of name or number is required.</p>
           <div class="row">
             <div class="field"><label for="custName">Customer Name</label><input type="text" id="custName" placeholder="e.g. Ramesh Kumar"></div>
-            <div class="field"><label for="custNumber">Customer Number</label><input type="tel" id="custNumber" placeholder="e.g. 9876543210"></div>
+            <div class="field"><label for="custNumber">Customer Number</label><input type="tel" id="custNumber" inputmode="numeric" maxlength="15" placeholder="e.g. 9876543210"></div>
           </div>
+          <div class="field-hint-error" id="custNumberError">Mobile number cannot exceed 10 digits.</div>
         </div>
         <div class="card">
           <h2>Add Item</h2>
@@ -324,10 +336,17 @@
           <div class="autodesc" id="autoDescPreview">Description: <b>—</b></div>
         </div>
         <div class="field"><label for="pStock">Quantity</label><input type="number" id="pStock" min="0" step="1" placeholder="e.g. 10"></div>
-        <div class="row">
-          <div class="field"><label for="pCost">Cost Price (₹)</label><input type="number" id="pCost" min="0" step="0.01" placeholder="0.00"></div>
-          <div class="field"><label for="pPrice">MRP (₹)</label><input type="number" id="pPrice" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="field"><label for="pCost">Cost Price (₹)</label><input type="number" id="pCost" min="0" step="0.01" placeholder="0.00"></div>
+
+        <div class="margin-calc">
+          <p class="help">Enter Cost Price above, then any ONE of the three fields below — the other two fill in automatically (assumes selling at MRP).</p>
+          <div class="row">
+            <div class="field" style="margin-bottom:0;"><label for="pPrice">MRP (₹)</label><input type="number" id="pPrice" min="0" step="0.01" placeholder="0.00"></div>
+            <div class="field" style="margin-bottom:0;"><label for="pMarginValue">Margin (₹)</label><input type="number" id="pMarginValue" step="0.01" placeholder="0.00"></div>
+            <div class="field" style="margin-bottom:0;"><label for="pMarginPercent">Margin %</label><input type="number" id="pMarginPercent" step="0.01" placeholder="0.00"></div>
+          </div>
         </div>
+
         <div style="display:flex; gap:10px;">
           <button class="btn btn-primary" id="saveProductBtn">Save Product</button>
           <button class="btn btn-ghost" id="cancelEditBtn" style="display:none;">Cancel Edit</button>
@@ -461,12 +480,8 @@ function generateTimestampCode(){
   const mi = String(d.getMinutes()).padStart(2,'0');
   return dd+mm+yy+hh+mi;
 }
-/* Only a 20-digit numeric code (10-digit subsection combo + 10-digit date-time
-   stamp) is treated as a valid, generated Nagmeena product code. */
 function isValidProductCode(code){ return /^\d{20}$/.test(String(code||'')); }
 
-/* Masking helpers — used only for display; never touch the underlying data,
-   so search/filter/export logic always operates on real values. */
 let salesUnmasked = false;
 let catalogUnmasked = false;
 function maskText(v){ return v ? '••••••••' : '—'; }
@@ -483,7 +498,7 @@ let contactAddressTombstones = load(LS_ADDR_TOMB, []);
 let contactMeta = load(LS_CONTACT_META, {primaryPhoneId:null, primaryAddressId:null, updatedAt:0});
 let cart = [];
 let editingProductId = null;
-let editingSaleIds = new Set(); // rows currently unlocked for inline edit in Sales Book
+let editingSaleIds = new Set();
 
 (function migrate(){
   let touched = false;
@@ -502,7 +517,7 @@ let editingSaleIds = new Set(); // rows currently unlocked for inline edit in Sa
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 9; // v9: timestamp suffix (was prefix), masking, inline sale editing
+const DATA_VERSION = 10; // v10: fixed base-10 category code counter + one-time repair
 
 /* ===== Product code categories ===== */
 const defaultCats = {
@@ -526,16 +541,46 @@ let cats = load(LS_CATS, defaultCats);
 if(cats.series) delete cats.series;
 Object.values(cats).forEach(c=>{ if(!c.freeCodes) c.freeCodes = []; });
 
+/* One-time repair for the base-36 counting bug: any category containing a code
+   that isn't a clean two-digit "01"-"99" string, or containing duplicate codes,
+   gets ALL of its codes reassigned sequentially (01, 02, 03…) in existing list
+   order. This never touches already-saved products — their product.code is a
+   fixed snapshot from when they were created, independent of these dropdown
+   codes — so nothing about existing inventory changes, only future selections. */
+(function repairCategoryCodes(){
+  let touched = false;
+  Object.keys(cats).forEach(key=>{
+    const cat = cats[key];
+    if(!cat || !cat.items) return;
+    const seen = new Set();
+    const broken = cat.items.some(it=>{
+      const bad = !/^\d{2}$/.test(it.code) || seen.has(it.code);
+      seen.add(it.code);
+      return bad;
+    });
+    if(broken){
+      cat.items.forEach((it,i)=>{ it.code = String(i+1).padStart(2,'0'); });
+      cat.freeCodes = [];
+      touched = true;
+    }
+  });
+  if(touched){ save(LS_CATS, cats); }
+})();
+
 const CAT_KEYS = ['fabric','work','print','colour','style'];
 const DESC_KEYS = ['fabric','work','print','colour'];
 const selected = {};
 
+/* Fixed: was parsing codes as base-36, which misreads "10" as 36 and eventually
+   overflows past 99 into 3-digit output. Base-10 keeps this correctly bounded
+   to the intended 01–99 range for every subsection, always. */
 function nextCode(cat){
   if(cat.freeCodes && cat.freeCodes.length){
-    cat.freeCodes.sort((a,b)=> (parseInt(a,36)||0)-(parseInt(b,36)||0));
+    cat.freeCodes.sort((a,b)=> (parseInt(a,10)||0)-(parseInt(b,10)||0));
     return cat.freeCodes.shift();
   }
-  const max = cat.items.reduce((m,i)=>Math.max(m, parseInt(i.code,36)||0), 0);
+  const max = cat.items.reduce((m,i)=>Math.max(m, parseInt(i.code,10)||0), 0);
+  if(max>=99) return null; // pool exhausted — caller must handle
   return String(max+1).padStart(2,'0');
 }
 
@@ -596,6 +641,7 @@ function addCustom(key){
   const dupe = cat.items.find(it => it.desc.trim().toLowerCase() === desc.toLowerCase());
   if(dupe){ toast(`"${desc}" already exists as "${dupe.desc}"${dupe.mnemonic?' ('+dupe.mnemonic+')':''} — pick it from the dropdown instead`, true); return; }
   const code = nextCode(cat);
+  if(code===null){ toast(`All 99 codes for ${cat.label} are in use — delete an unused entry to free one up`, true); return; }
   const item = cat.hasMnemonic ? {desc, mnemonic: mnemonic || desc.slice(0,3).toUpperCase(), code} : {desc, code};
   cat.items.push(item);
   save(LS_CATS, cats);
@@ -603,7 +649,7 @@ function addCustom(key){
   document.getElementById(`sel_${key}`).value = String(cat.items.length-1);
   onSelectChange(key);
   document.getElementById(`newdesc_${key}`).value=''; if(mnemInput) mnemInput.value='';
-  toast(`Added "${desc}" to ${cat.label}`);
+  toast(`Added "${desc}" to ${cat.label} — code ${code}`);
   pushChange();
 }
 function editCategoryItem(key){
@@ -670,8 +716,6 @@ function updatePreview(){
   autoDesc.innerHTML = `Description: <b>${desc ? esc(desc) : '—'}</b>`;
 }
 
-/* Combo (subsections) is now the FIRST 10 digits, date-time stamp the LAST 10
-   — reversed from the previous version, per this update. */
 function decodeCodeToSelections(fullCode){
   const combo = String(fullCode).slice(0,10);
   const chunks = combo.match(/.{1,2}/g) || [];
@@ -682,6 +726,65 @@ function decodeCodeToSelections(fullCode){
   });
   return result;
 }
+
+/* ===== Margin / MRP three-way calculator =====
+   Formulas (assuming selling at MRP):
+     Margin (₹)  = MRP − Cost
+     Margin %    = (MRP − Cost) ÷ MRP × 100
+     MRP         = Cost ÷ (1 − Margin % / 100)
+   Whichever of the three the user last typed into "drives" the other two.
+   Clearing the driving field clears the other two as well. */
+const pCostEl = document.getElementById('pCost'), pPriceEl = document.getElementById('pPrice');
+const pMarginValueEl = document.getElementById('pMarginValue'), pMarginPercentEl = document.getElementById('pMarginPercent');
+let marginDriver = null; // 'mrp' | 'value' | 'percent' | null
+
+function clearMarginFields(exceptId){
+  [pPriceEl, pMarginValueEl, pMarginPercentEl].forEach(el=>{ if(el.id!==exceptId) el.value=''; });
+}
+function recalcMargin(){
+  const cost = parseFloat(pCostEl.value);
+  if(isNaN(cost)){ return; } // can't compute anything meaningful without cost
+
+  if(marginDriver==='mrp'){
+    const mrp = parseFloat(pPriceEl.value);
+    if(isNaN(mrp)){ pMarginValueEl.value=''; pMarginPercentEl.value=''; return; }
+    const marginValue = mrp - cost;
+    const marginPercent = mrp>0 ? (marginValue/mrp)*100 : 0;
+    pMarginValueEl.value = marginValue.toFixed(2);
+    pMarginPercentEl.value = marginPercent.toFixed(2);
+  }else if(marginDriver==='value'){
+    const marginValue = parseFloat(pMarginValueEl.value);
+    if(isNaN(marginValue)){ pPriceEl.value=''; pMarginPercentEl.value=''; return; }
+    const mrp = cost + marginValue;
+    const marginPercent = mrp>0 ? (marginValue/mrp)*100 : 0;
+    pPriceEl.value = mrp.toFixed(2);
+    pMarginPercentEl.value = marginPercent.toFixed(2);
+  }else if(marginDriver==='percent'){
+    const marginPercent = parseFloat(pMarginPercentEl.value);
+    if(isNaN(marginPercent)){ pPriceEl.value=''; pMarginValueEl.value=''; return; }
+    if(marginPercent>=100){ toast('Margin % must be less than 100', true); return; }
+    const mrp = cost/(1-marginPercent/100);
+    const marginValue = mrp - cost;
+    pPriceEl.value = mrp.toFixed(2);
+    pMarginValueEl.value = marginValue.toFixed(2);
+  }
+}
+pPriceEl.addEventListener('input', ()=>{
+  marginDriver='mrp';
+  if(pPriceEl.value===''){ clearMarginFields('pPrice'); return; }
+  recalcMargin();
+});
+pMarginValueEl.addEventListener('input', ()=>{
+  marginDriver='value';
+  if(pMarginValueEl.value===''){ clearMarginFields('pMarginValue'); return; }
+  recalcMargin();
+});
+pMarginPercentEl.addEventListener('input', ()=>{
+  marginDriver='percent';
+  if(pMarginPercentEl.value===''){ clearMarginFields('pMarginPercent'); return; }
+  recalcMargin();
+});
+pCostEl.addEventListener('input', ()=>{ if(marginDriver) recalcMargin(); });
 
 /* ===== Products CRUD ===== */
 function findProduct(code){ code=(code||'').replace(/[^0-9A-Za-z]/g,'').toUpperCase(); return products.find(p=>p.code.toUpperCase()===code); }
@@ -700,7 +803,7 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
     const idx = products.findIndex(p=>p.id===editingProductId);
     if(idx<0){ toast('That product no longer exists'); return; }
     const existing = products[idx];
-    const timestampPart = existing.code.slice(10); // date-time stamp is the LAST 10 digits — keep original
+    const timestampPart = existing.code.slice(10);
     const newFullCode = comboCode + timestampPart;
     const clash = products.find(p=>p.id!==editingProductId && p.code===newFullCode);
     if(clash){ toast('Another product already uses this exact subsection combination'); return; }
@@ -712,14 +815,15 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
     toast('Product updated');
   }else{
     const desc = assembledDescription();
-    const fullCode = comboCode + generateTimestampCode(); // combo FIRST, stamp LAST
+    const fullCode = comboCode + generateTimestampCode();
     if(!isValidProductCode(fullCode)){ toast('Could not build a valid 20-digit product code'); return; }
     if(findProduct(fullCode)){ toast('A product with this exact code already exists — try again in a moment'); return; }
     products.push({id:uuid(), code:fullCode, name:desc, cost, price, stock, updatedAt: Date.now()});
     toast(`Product added — code ${formatCode(fullCode)}`);
   }
   save(LS_PRODUCTS, products);
-  document.getElementById('pStock').value=''; document.getElementById('pCost').value=''; document.getElementById('pPrice').value='';
+  document.getElementById('pStock').value=''; document.getElementById('pCost').value='';
+  clearMarginFields(null); marginDriver=null;
   renderProducts();
   pushChange();
 });
@@ -727,7 +831,8 @@ function resetProductForm(){
   editingProductId=null;
   document.getElementById('productFormTitle').textContent='Add Product';
   document.getElementById('cancelEditBtn').style.display='none';
-  document.getElementById('pStock').value=''; document.getElementById('pCost').value=''; document.getElementById('pPrice').value='';
+  document.getElementById('pStock').value=''; document.getElementById('pCost').value='';
+  clearMarginFields(null); marginDriver=null;
   CAT_KEYS.forEach(key=>{ document.getElementById('sel_'+key).value=''; onSelectChange(key); });
 }
 document.getElementById('cancelEditBtn').addEventListener('click', resetProductForm);
@@ -745,10 +850,14 @@ function editProduct(code){
   if(!p) return;
   document.getElementById('pStock').value = p.stock ?? 0;
   document.getElementById('pCost').value = p.cost;
-  document.getElementById('pPrice').value = p.price;
   editingProductId = p.id;
   document.getElementById('productFormTitle').textContent=`Edit Product — ${formatCode(p.code)}`;
   document.getElementById('cancelEditBtn').style.display='inline-flex';
+
+  // Populate MRP and derive the other two margin fields from the saved values.
+  pPriceEl.value = p.price;
+  marginDriver = 'mrp';
+  recalcMargin();
 
   const map = decodeCodeToSelections(p.code);
   let allMatched = true;
@@ -803,8 +912,6 @@ function updateItemCodeSuggestions(query){
   const matches = q ? products.filter(p=>p.code.includes(q)) : products;
   dl.innerHTML = matches.map(p=>`<option value="${esc(formatCode(p.code))}">${esc(p.name)} — ${money(p.price)}</option>`).join('');
 }
-/* Filtering always runs against the real, unmasked data regardless of mask
-   toggle state — masking is purely a rendering concern. */
 function productMatchesFilters(p){
   if(stockFilter==='in' && !inStock(p)) return false;
   if(stockFilter==='out' && inStock(p)) return false;
@@ -843,6 +950,17 @@ function renderProducts(){
 }
 
 /* ===== Billing ===== */
+const custNumberEl = document.getElementById('custNumber');
+const custNumberErrorEl = document.getElementById('custNumberError');
+function validateCustNumber(){
+  const digits = custNumberEl.value.replace(/\D/g,'');
+  const tooLong = digits.length>10;
+  custNumberErrorEl.classList.toggle('show', tooLong);
+  custNumberEl.classList.toggle('field-error', tooLong);
+  return !tooLong;
+}
+custNumberEl.addEventListener('input', ()=>{ validateCustNumber(); renderCart(); });
+
 const itemCode=document.getElementById('itemCode'), itemName=document.getElementById('itemName'), lookupHint=document.getElementById('lookupHint');
 const itemSellPrice = document.getElementById('itemSellPrice');
 const stockWarning = document.getElementById('stockWarning');
@@ -871,10 +989,6 @@ function doLookup(digitsOnly){
   lookupHint.textContent = `Code ${formatCode(p.code)} · ${p.stock} unit(s) in stock`;
   return p;
 }
-/* Live auto-hyphenation as the user types: digits are kept as the source of
-   truth, but the visible input is reformatted to 0000-0000-0000-0000-0000 on
-   every keystroke — matching the catalog's display format exactly. Cursor is
-   kept at the end for simplicity (typing/pasting still works smoothly). */
 itemCode.addEventListener('input', ()=>{
   const digitsOnly = itemCode.value.replace(/[^0-9]/g,'').slice(0,20);
   const formatted = formatCode(digitsOnly);
@@ -926,7 +1040,7 @@ function renderCart(){
   document.getElementById('rvCustomer').textContent=document.getElementById('custName').value.trim()||'—';
   document.getElementById('rvDate').textContent=todayStr();
 }
-['custName','custNumber'].forEach(id=>document.getElementById(id).addEventListener('input', renderCart));
+['custName'].forEach(id=>document.getElementById(id).addEventListener('input', renderCart));
 
 function nextInvoiceNo(){
   const seq = parseInt(localStorage.getItem(LS_SEQ)||'0',10) + 1;
@@ -935,7 +1049,8 @@ function nextInvoiceNo(){
 }
 
 document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
-  const name=document.getElementById('custName').value.trim(), number=document.getElementById('custNumber').value.trim();
+  const name=document.getElementById('custName').value.trim(), number=custNumberEl.value.trim();
+  if(!validateCustNumber()){ toast('Fix the mobile number before generating the invoice', true); return; }
   if(!name && !number){ toast('Enter at least a customer name or number'); return; }
   if(cart.length===0){ toast('Add at least one item'); return; }
 
@@ -966,7 +1081,7 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
   renderProducts(); renderHistory();
 
   toast(`Invoice ${invoiceNo} generated and saved`);
-  cart=[]; document.getElementById('custName').value=''; document.getElementById('custNumber').value='';
+  cart=[]; document.getElementById('custName').value=''; custNumberEl.value=''; validateCustNumber();
   document.getElementById('printInvoiceCheckbox').checked = false;
   renderCart(); hideStockWarning();
   pushChange();
@@ -1040,11 +1155,10 @@ async function generateInvoicePDF(invoiceNo, date, name, number, items){
   const contactLine = [primaryPhone?.value, secondaryPhone?.value].filter(Boolean).join(' / ');
 
   const nameColChars = 16;
-  // "Suit" appended to every item description on the printed invoice.
   const wrappedItems = items.map(it=>({ ...it, lines: wrapPlain(it.name.replace(/\s*Unstiched Suit\s*$/i,'').trim()+' Suit', nameColChars) }));
   const addressLines = primaryAddress ? wrapPlain('Location : '+primaryAddress.value, 30) : [];
 
-  const LOGO_SIZE = 27; // was 18mm — increased 50%
+  const LOGO_SIZE = 27;
 
   let heightMM = MARGIN;
   heightMM += (bwLogoUrl ? LOGO_SIZE+4 : 0);
@@ -1205,7 +1319,7 @@ function toggleSaleEdit(id){
   renderHistory();
 }
 function renderHistory(){
-  const visible = activeFilter ? sales.filter(matchesFilter) : sales; // masking never affects what's included here
+  const visible = activeFilter ? sales.filter(matchesFilter) : sales;
   const body=document.getElementById('historyBody');
   body.innerHTML = visible.length===0 ? '<tr class="empty-row"><td colspan="15">No sales recorded yet</td></tr>' :
     visible.map((s)=>{
@@ -1305,7 +1419,6 @@ document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{
   pushChange();
 });
 document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
-  // Export always uses real, unmasked data regardless of on-screen mask state.
   if(sales.length===0){ toast('No sales to export yet'); return; }
   let exportSet = sales;
   if(activeFilter){
