@@ -122,8 +122,9 @@
   .cell-input, .cell-input.price, .cell-input-text{
     padding:5px 6px; border-radius:6px; font-size:12.5px;
     color:#2B2620 !important; -webkit-text-fill-color:#2B2620 !important;
-    background:#FFFFFF !important; border:1px solid var(--gold-line) !important;
+    background:#FFFFFF !important; background-color:#FFFFFF !important; border:1px solid var(--gold-line) !important;
     opacity:1 !important; caret-color:#2B2620 !important; filter:none !important;
+    -webkit-appearance:none; appearance:none;
   }
   .cell-input{ width:64px; font-family:'IBM Plex Mono',monospace; text-align:right; }
   .cell-input.price{ width:78px; font-family:'IBM Plex Mono',monospace; text-align:right; }
@@ -331,7 +332,7 @@
     <div class="grid-2">
       <div class="card">
         <h2 id="productFormTitle">Add Product</h2>
-        <p class="sub">Build the code from its subsections. A date-time stamp is appended automatically on save — description is generated automatically too.</p>
+        <p class="sub">Build the code from its subsections. Pick "Blank" for a subsection you want left out of the description (its code still counts toward the product code). A date-time stamp is appended automatically on save.</p>
         <div class="codebuilder" id="codeBuilder"></div>
         <div class="codepreview">
           <div class="code" id="codePreview">— — — — —</div>
@@ -521,34 +522,35 @@ let editingSaleIds = new Set();
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 12; // v12: row-level sync for category subsections (edit/delete no longer resurrect on sync)
+const DATA_VERSION = 13; // v13: Blank/00 entries in every subsection, qty edit switched off native number input
 
 /* ===== Product code categories ===== */
 const defaultCats = {
   fabric:{label:'Fabric', hasMnemonic:true, items:[
+    {desc:'Blank', mnemonic:'BLK', code:'00'},
     {desc:'Cotton', mnemonic:'CTN', code:'01'},{desc:'Rayon', mnemonic:'RYN', code:'02'},
     {desc:'Linen Blend', mnemonic:'LNB', code:'03'},{desc:'Chanderi', mnemonic:'CDN', code:'04'},
     {desc:'Georgette', mnemonic:'GEO', code:'05'}]},
   work:{label:'Work', hasMnemonic:true, items:[
+    {desc:'Blank', mnemonic:'BLK', code:'00'},
     {desc:'Cutdana', mnemonic:'CTD', code:'01'},{desc:'Gotapatti', mnemonic:'GTP', code:'02'},
     {desc:'Sequence', mnemonic:'SQN', code:'03'},{desc:'Thread Work', mnemonic:'THD', code:'04'}]},
   print:{label:'Print', hasMnemonic:true, items:[
+    {desc:'Blank', mnemonic:'BLK', code:'00'},
     {desc:'Plain', mnemonic:'PLN', code:'01'},{desc:'Floral', mnemonic:'FRL', code:'02'}]},
   colour:{label:'Colour', hasMnemonic:true, items:[
+    {desc:'Blank', mnemonic:'BLK', code:'00'},
     {desc:'Beige', mnemonic:'BEG', code:'01'},{desc:'Blue', mnemonic:'BLU', code:'02'},
     {desc:'Pink', mnemonic:'PNK', code:'03'},{desc:'Red', mnemonic:'RED', code:'04'}]},
   style:{label:'Style', hasMnemonic:true, items:[
+    {desc:'Blank', mnemonic:'BLK', code:'00'},
     {desc:'Daily Wear', mnemonic:'DW', code:'01'},{desc:'Premium', mnemonic:'PRM', code:'02'},
     {desc:'Festive', mnemonic:'FST', code:'03'}]}
 };
 const CAT_KEYS = ['fabric','work','print','colour','style'];
-const DESC_KEYS = ['fabric','work','print','colour']; // categories that feed into product/sale descriptions
+const DESC_KEYS = ['fabric','work','print','colour']; // categories that feed into product/sale descriptions (Style is code-only, unchanged from before)
+const BLANK_CODE = '00';
 
-/* Ensures every category has the shape row-level sync needs: each item carries
-   its own id + updatedAt, plus a tombstones[] array recording deletions (with
-   the freed code, so a device can offer it again without collision). This is
-   the structural fix for the edit/delete-resurrection bug — categories now
-   follow the exact same sync rules as Products, Sales, and Contacts. */
 function ensureCatsShape(c){
   if(c.series) delete c.series;
   CAT_KEYS.forEach(key=>{
@@ -562,15 +564,33 @@ function ensureCatsShape(c){
   });
   return c;
 }
+/* Migration for anyone upgrading from before Blank/00 existed: adds it to
+   whichever categories don't already have it. No-op for fresh installs since
+   defaultCats already includes it. */
+function ensureBlankEntries(c){
+  let touched = false;
+  CAT_KEYS.forEach(key=>{
+    const cat = c[key];
+    const hasBlank = cat.items.some(it=>it.code===BLANK_CODE);
+    if(!hasBlank){
+      cat.items.unshift({id:uuid(), desc:'Blank', mnemonic:'BLK', code:BLANK_CODE, updatedAt:Date.now()});
+      touched = true;
+    }
+  });
+  return touched;
+}
 function recomputeFreeCodes(cat){
   const liveCodes = new Set(cat.items.map(i=>i.code));
   const freed = new Set();
-  (cat.tombstones||[]).forEach(t=>{ if(t.code && !liveCodes.has(t.code)) freed.add(t.code); });
+  (cat.tombstones||[]).forEach(t=>{ if(t.code && t.code!==BLANK_CODE && !liveCodes.has(t.code)) freed.add(t.code); });
   cat.freeCodes = Array.from(freed);
 }
 
 let cats = ensureCatsShape(load(LS_CATS, JSON.parse(JSON.stringify(defaultCats))));
+if(ensureBlankEntries(cats)) save(LS_CATS, cats);
 
+/* Repair for the old base-36 counting bug — special-cased so it never
+   renumbers the Blank entry away from 00 (that would break its meaning). */
 (function repairCategoryCodes(){
   let touched = false;
   CAT_KEYS.forEach(key=>{
@@ -582,7 +602,12 @@ let cats = ensureCatsShape(load(LS_CATS, JSON.parse(JSON.stringify(defaultCats))
       return bad;
     });
     if(broken){
-      cat.items.forEach((it,i)=>{ it.code = String(i+1).padStart(2,'0'); });
+      let n = 1;
+      cat.items.forEach(it=>{
+        const isBlank = it.desc==='Blank' && it.mnemonic==='BLK';
+        if(isBlank){ it.code = BLANK_CODE; }
+        else{ it.code = String(n).padStart(2,'0'); n++; }
+      });
       cat.tombstones = [];
       touched = true;
     }
@@ -689,15 +714,13 @@ function addCustom(key){
   toast(`Added "${desc}" to ${cat.label} — code ${code}`);
   pushChange();
 }
-/* Edit keeps the SAME id and code, only desc/mnemonic + updatedAt change.
-   Because id-based merge always prefers the row with the newer updatedAt,
-   this now correctly overrides a stale cloud copy instead of losing the edit. */
 function editCategoryItem(key){
   const sel = document.getElementById(`sel_${key}`);
   if(!sel.value || sel.value==='__custom__'){ toast('Select an existing entry to edit first'); return; }
   const cat = cats[key];
   const idx = parseInt(sel.value,10);
   const item = cat.items[idx];
+  if(item.code===BLANK_CODE){ toast('The Blank entry cannot be edited'); return; }
   const newDesc = prompt(`Edit description for this ${cat.label} entry:`, item.desc);
   if(newDesc===null) return;
   const trimmed = newDesc.trim();
@@ -715,21 +738,17 @@ function editCategoryItem(key){
   const sel2 = document.getElementById(`sel_${key}`);
   sel2.value = String(idx);
   onSelectChange(key);
-  refreshDescriptionsForCategoryCode(key, item.code); // propagate to Catalog + Sales Book
+  refreshDescriptionsForCategoryCode(key, item.code);
   toast('Entry updated');
   pushChange();
 }
-/* Delete records a tombstone (id + code + when) instead of just vanishing
-   locally. That tombstone travels with the next sync and, because it's newer
-   than the row's last edit, correctly suppresses the row everywhere — even if
-   the cloud still has an older copy. Its code is freed for reuse. Existing
-   products/sales keep their already-saved description, per prior design. */
 function deleteCategoryItem(key){
   const sel = document.getElementById(`sel_${key}`);
   if(!sel.value || sel.value==='__custom__'){ toast('Select an existing entry to delete first'); return; }
   const cat = cats[key];
   const idx = parseInt(sel.value,10);
   const item = cat.items[idx];
+  if(item.code===BLANK_CODE){ toast('The Blank entry cannot be deleted'); return; }
   if(!confirm(`Delete "${item.desc}" from ${cat.label}?\n\nIts code (${item.code}) will be reused for the next new entry. Existing products keep their saved description.`)) return;
   cat.items.splice(idx,1);
   cat.tombstones = cat.tombstones || [];
@@ -749,10 +768,11 @@ function assembledCode(){
   if(parts.some(p=>!p)) return null;
   return parts.join('');
 }
+/* Blank (code 00) entries are skipped from the description text but their
+   code still occupies its normal position in the 10-digit combo. */
 function assembledDescription(){
-  const parts = DESC_KEYS.map(k=>selected[k]?.desc).filter(Boolean);
-  if(parts.length===0) return '';
-  return parts.join(' ') + ' Unstiched Suit';
+  const parts = DESC_KEYS.map(k=>selected[k]).filter(item=>item && item.code!==BLANK_CODE).map(item=>item.desc);
+  return (parts.length ? parts.join(' ')+' ' : '') + 'Unstiched Suit';
 }
 function updatePreview(){
   const code = assembledCode();
@@ -762,7 +782,7 @@ function updatePreview(){
     decode.textContent = CAT_KEYS.map(k=>selected[k]?.desc).filter(Boolean).join(' · ');
   }else{ preview.textContent = '— — — — —'; decode.textContent = 'Select each subsection above'; }
   const desc = assembledDescription();
-  autoDesc.innerHTML = `Description: <b>${desc ? esc(desc) : '—'}</b>`;
+  autoDesc.innerHTML = `Description: <b>${esc(desc)}</b>`;
 }
 
 function decodeCodeToSelections(fullCode){
@@ -782,26 +802,25 @@ function decodeSegmentsCodes(fullCode){
   CAT_KEYS.forEach((key,i)=>{ result[key] = chunks[i] || null; });
   return result;
 }
-/* Rebuilds a product's description purely from the current dictionary state.
-   Returns null if any of its 4 description-bearing segments can no longer be
-   resolved (e.g. that entry was deleted with nothing put in its place). */
+/* Rebuilds a product's description purely from current dictionary state,
+   skipping any segment coded 00 (Blank). Returns null only if a NON-blank
+   segment can no longer be resolved to any item (fully deleted with nothing
+   left in its place). */
 function recomputeProductDescription(fullCode){
   const segs = decodeSegmentsCodes(fullCode);
   const parts = [];
   for(const key of DESC_KEYS){
     const code = segs[key];
-    const item = code ? cats[key].items.find(it=>it.code===code) : null;
+    if(!code) return null;
+    if(code === BLANK_CODE) continue;
+    const item = cats[key].items.find(it=>it.code===code);
     if(!item) return null;
     parts.push(item.desc);
   }
-  return parts.join(' ') + ' Unstiched Suit';
+  return (parts.length ? parts.join(' ')+' ' : '') + 'Unstiched Suit';
 }
-/* Called after an in-place edit to a subsection entry. Finds every product and
-   sale that used that exact code in that category, and refreshes their
-   description text to match — without touching prices, quantities, stock, or
-   any other historical figures. */
 function refreshDescriptionsForCategoryCode(categoryKey, code){
-  if(!DESC_KEYS.includes(categoryKey)) return; // Style doesn't feed the description
+  if(!DESC_KEYS.includes(categoryKey)) return;
   let touchedProducts = false, touchedSales = false;
   products.forEach(p=>{
     const segs = decodeSegmentsCodes(p.code);
@@ -1406,7 +1425,7 @@ function toggleSaleEdit(id){
   if(editingSaleIds.has(id)) editingSaleIds.delete(id); else editingSaleIds.add(id);
   renderHistory();
 }
-const CELL_STYLE_ATTR = `style="color:#2B2620 !important;-webkit-text-fill-color:#2B2620 !important;background:#ffffff !important;caret-color:#2B2620 !important;"`;
+const CELL_STYLE_ATTR = `style="color:#2B2620 !important;-webkit-text-fill-color:#2B2620 !important;background:#ffffff !important;background-color:#ffffff !important;caret-color:#2B2620 !important;"`;
 function renderHistory(){
   const visible = activeFilter ? sales.filter(matchesFilter) : sales;
   const body=document.getElementById('historyBody');
@@ -1421,8 +1440,12 @@ function renderHistory(){
       const numCell = editing
         ? `<input type="tel" class="cell-input-text" ${CELL_STYLE_ATTR} autocomplete="off" value="${esc(s.number||'')}" onchange="updateSaleNumber('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
         : (salesUnmasked ? esc(s.number||'—') : maskText(s.number));
+      /* Qty is now type="text" + inputmode="numeric" instead of type="number" —
+         removes Chrome's native number-spinner control, which is the most likely
+         source of the persistent white-on-white rendering that CSS alone could
+         not override. Digits are sanitized live via oninput. */
       const qtyCell = editing
-        ? `<input type="number" class="cell-input" ${CELL_STYLE_ATTR} autocomplete="off" min="1" value="${s.qty}" onchange="updateSaleQty('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
+        ? `<input type="text" inputmode="numeric" pattern="[0-9]*" class="cell-input" ${CELL_STYLE_ATTR} autocomplete="off" value="${s.qty}" oninput="this.value=this.value.replace(/[^0-9]/g,'')" onchange="updateSaleQty('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
         : (salesUnmasked ? s.qty : '••');
       const priceCell = editing
         ? `<input type="number" class="cell-input price" ${CELL_STYLE_ATTR} autocomplete="off" min="0" step="0.01" value="${s.price}" onchange="updateSalePrice('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
@@ -1761,7 +1784,6 @@ function applyBackupDataAdditive(data){
   const adRes = restoreRowsAdditive(contactAddresses, data.contactAddresses||[], contactAddressTombstones);
   contactAddresses = adRes.merged; addedCount += adRes.addedCount;
 
-  // Categories: same additive + un-delete treatment, per category.
   if(data.cats){
     CAT_KEYS.forEach(key=>{
       if(!data.cats[key]) return;
@@ -1788,7 +1810,7 @@ function applyBackupDataAdditive(data){
   return addedCount;
 }
 
-/* ===== Google Drive sync — row-level, tombstone-based merge (now includes categories) ===== */
+/* ===== Google Drive sync — row-level, tombstone-based merge (categories included) ===== */
 const DRIVE_FILENAME = 'nagmeena_ledger_data.json';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const TOMBSTONE_RETENTION_MS = 90*24*60*60*1000;
@@ -1934,10 +1956,6 @@ function mergeRows(localRows, cloudRows, localTomb, cloudTomb){
   const tombstones = Array.from(tombMap.values()).filter(t => (now - (t.deletedAt||0)) < TOMBSTONE_RETENTION_MS);
   return { rows, tombstones };
 }
-/* Category merge now goes through the exact same generic row-level engine as
-   Products/Sales/Contacts — each category's items[] and tombstones[] are
-   merged independently by id, then freeCodes is recomputed from the result
-   (never trusted as-is from either side, since it's easy for it to drift). */
 function mergeCategoryData(localCats, cloudCats){
   const result = {};
   CAT_KEYS.forEach(key=>{
@@ -1992,6 +2010,7 @@ function applyRemoteData(data){
   contactPhoneTombstones = data.contactPhoneTombstones || []; contactAddressTombstones = data.contactAddressTombstones || [];
   contactMeta = data.contactMeta || {primaryPhoneId:null, primaryAddressId:null, updatedAt:0};
   cats = ensureCatsShape(data.cats || JSON.parse(JSON.stringify(defaultCats)));
+  ensureBlankEntries(cats);
   CAT_KEYS.forEach(key=>recomputeFreeCodes(cats[key]));
   localStorage.setItem(LS_SEQ, String(data.seq || 0));
   save(LS_PRODUCTS, products); save(LS_SALES, sales);
