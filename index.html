@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
 <title>Nagmeena — Billing &amp; Sales Book</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -23,7 +24,7 @@
     --shadow:0 4px 10px rgba(43,38,32,0.04), 0 20px 44px -22px rgba(18,56,50,0.18);
     --shadow-soft:0 2px 8px rgba(43,38,32,0.05);
   }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; tap-highlight-color:transparent;}
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; tap-highlight-color:transparent; color-scheme:light;}
   html,body{margin:0;padding:0;}
   body{
     background:
@@ -35,7 +36,7 @@
   }
   ::selection{ background:var(--gold-soft); }
   button{ cursor:pointer; font-family:inherit; -webkit-appearance:none; appearance:none; }
-  input,select,textarea{ font-family:inherit; }
+  input,select,textarea{ font-family:inherit; color-scheme:light; }
   button:focus, input:focus, select:focus, textarea:focus, a:focus{ outline:none; }
   button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{
     outline:none; box-shadow:0 0 0 3px rgba(172,138,78,0.35);
@@ -93,6 +94,7 @@
   .field{ margin-bottom:16px; } .row{ display:flex; gap:12px; flex-wrap:wrap; } .row > .field{ flex:1; min-width:120px; }
   .field-hint-error{ font-size:11px; color:var(--burgundy); margin-top:-10px; margin-bottom:12px; display:none; }
   .field-hint-error.show{ display:block; }
+  .cat-search{ margin-bottom:6px; font-size:13px !important; padding:8px 10px !important; }
 
   .btn{ display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:11px 20px; border-radius:999px; border:1px solid transparent; font-size:13.5px; font-weight:600; letter-spacing:0.3px; transition:all .22s ease; }
   .btn-primary{ background:var(--teal); color:var(--ivory); box-shadow:0 6px 16px -8px rgba(18,56,50,0.55); }
@@ -117,13 +119,18 @@
   .num{ text-align:right; white-space:nowrap; } td.num{ font-family:'IBM Plex Mono',monospace; } .mono{ font-family:'IBM Plex Mono',monospace; }
   .empty-row td{ color:var(--grey-soft); font-style:italic; text-align:center; padding:26px 8px; background:transparent !important; }
   .adj-pos{ color:var(--green); font-weight:600; } .adj-neg{ color:var(--burgundy); font-weight:600; } .adj-zero{ color:var(--grey-soft); }
-  /* Fix: qty edit box was inheriting no explicit color in some states and rendered
-     white-on-white; both inline-edit cells now force the same visible styling. */
-  .cell-input, .cell-input.price{
-    width:64px; padding:5px 6px; border-radius:6px; font-size:12.5px; font-family:'IBM Plex Mono',monospace;
-    text-align:right; color:var(--charcoal) !important; background:#FFFFFF !important; border:1px solid var(--gold-line) !important;
+  /* Forced visibility for inline-edit cells: explicit color + background + border,
+     with -webkit-text-fill-color as a second guard against OS/browser dark-mode
+     auto-inverting native form control text independently of the `color` property. */
+  .cell-input, .cell-input.price, .cell-input-text{
+    padding:5px 6px; border-radius:6px; font-size:12.5px;
+    color:#2B2620 !important; -webkit-text-fill-color:#2B2620 !important;
+    background:#FFFFFF !important; border:1px solid var(--gold-line) !important;
+    opacity:1 !important;
   }
-  .cell-input.price{ width:78px; }
+  .cell-input{ width:64px; font-family:'IBM Plex Mono',monospace; text-align:right; }
+  .cell-input.price{ width:78px; font-family:'IBM Plex Mono',monospace; text-align:right; }
+  .cell-input-text{ width:110px; font-family:'Inter',sans-serif; text-align:left; }
   .masked-text{ letter-spacing:2px; color:var(--grey-soft); user-select:none; }
 
   .totals{ margin-top:16px; padding-top:16px; border-top:1px dashed var(--gold-line); }
@@ -238,7 +245,7 @@
 
   <div class="divider"></div>
   <h4>Backup &amp; Restore</h4>
-  <p class="help">Separate from automatic sync. Restore is additive-only — it adds anything missing, never removes or overwrites what's already in the app.</p>
+  <p class="help">Separate from automatic sync. Restore is additive-only and now correctly un-deletes anything that had been removed — restored rows get a fresh timestamp so sync won't silently erase them again.</p>
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
     <button class="btn btn-ghost btn-sm" id="backupBtn">Backup Data</button>
     <button class="btn btn-ghost btn-sm" id="restoreBtn">Restore Data</button>
@@ -403,7 +410,7 @@
           <button class="btn btn-danger btn-sm" id="clearHistoryBtn">Clear All Records</button>
         </div>
       </div>
-      <p class="sub" style="margin-top:-8px;">Click Edit on a row to change Qty or Selling Price in place.</p>
+      <p class="sub" style="margin-top:-8px;">Click Edit on a row to change Customer, Number, Qty, or Selling Price in place.</p>
 
       <div class="filter-bar">
         <div class="filter-group">
@@ -517,7 +524,7 @@ let editingSaleIds = new Set();
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 10; // v10: fixed base-10 category code counter + one-time repair
+const DATA_VERSION = 11; // v11: restore un-deletes correctly, inline customer/number edit, category search
 
 /* ===== Product code categories ===== */
 const defaultCats = {
@@ -541,12 +548,6 @@ let cats = load(LS_CATS, defaultCats);
 if(cats.series) delete cats.series;
 Object.values(cats).forEach(c=>{ if(!c.freeCodes) c.freeCodes = []; });
 
-/* One-time repair for the base-36 counting bug: any category containing a code
-   that isn't a clean two-digit "01"-"99" string, or containing duplicate codes,
-   gets ALL of its codes reassigned sequentially (01, 02, 03…) in existing list
-   order. This never touches already-saved products — their product.code is a
-   fixed snapshot from when they were created, independent of these dropdown
-   codes — so nothing about existing inventory changes, only future selections. */
 (function repairCategoryCodes(){
   let touched = false;
   Object.keys(cats).forEach(key=>{
@@ -571,16 +572,13 @@ const CAT_KEYS = ['fabric','work','print','colour','style'];
 const DESC_KEYS = ['fabric','work','print','colour'];
 const selected = {};
 
-/* Fixed: was parsing codes as base-36, which misreads "10" as 36 and eventually
-   overflows past 99 into 3-digit output. Base-10 keeps this correctly bounded
-   to the intended 01–99 range for every subsection, always. */
 function nextCode(cat){
   if(cat.freeCodes && cat.freeCodes.length){
     cat.freeCodes.sort((a,b)=> (parseInt(a,10)||0)-(parseInt(b,10)||0));
     return cat.freeCodes.shift();
   }
   const max = cat.items.reduce((m,i)=>Math.max(m, parseInt(i.code,10)||0), 0);
-  if(max>=99) return null; // pool exhausted — caller must handle
+  if(max>=99) return null;
   return String(max+1).padStart(2,'0');
 }
 
@@ -590,6 +588,8 @@ CAT_KEYS.forEach(key=>{
   const wrap = document.createElement('div');
   wrap.innerHTML = `
     <label>${cat.label}</label>
+    <input type="text" class="cat-search" id="search_${key}" list="catsearch_${key}" placeholder="Search ${cat.label.toLowerCase()}…">
+    <datalist id="catsearch_${key}"></datalist>
     <select id="sel_${key}"></select>
     <div class="sub-hint" id="hint_${key}"></div>
     <div class="cat-actions">
@@ -605,18 +605,36 @@ CAT_KEYS.forEach(key=>{
   builder.appendChild(wrap);
   populateSelect(key);
   document.getElementById(`sel_${key}`).addEventListener('change', ()=>onSelectChange(key));
+  document.getElementById(`search_${key}`).addEventListener('input', (e)=> filterCategorySelect(key, e.target.value));
 });
 
+/* Full rebuild of a category's dropdown + its "add custom" datalist. Used on
+   init and whenever the underlying data changes (add/edit/delete). */
 function populateSelect(key){
-  const sel = document.getElementById(`sel_${key}`);
   const cat = cats[key];
-  const prevValue = sel.value;
-  sel.innerHTML = '<option value="">Select…</option>' +
-    cat.items.map((it,i)=>`<option value="${i}">${esc(it.desc)}${it.mnemonic?' ('+esc(it.mnemonic)+')':''}</option>`).join('') +
-    '<option value="__custom__">+ Add custom…</option>';
-  if(prevValue && prevValue!=='__custom__' && cat.items[parseInt(prevValue,10)]) sel.value = prevValue;
+  const searchInput = document.getElementById(`search_${key}`);
+  if(searchInput) searchInput.value = '';
   const dl = document.getElementById(`dl_${key}`);
   if(dl) dl.innerHTML = cat.items.map(it=>`<option value="${esc(it.desc)}">`).join('');
+  const searchDl = document.getElementById(`catsearch_${key}`);
+  if(searchDl) searchDl.innerHTML = cat.items.map(it=>`<option value="${esc(it.desc)}${it.mnemonic?' ('+esc(it.mnemonic)+')':''}">`).join('');
+  filterCategorySelect(key, '');
+}
+/* Live-filters the visible dropdown options by description, mnemonic, or code,
+   while keeping option values pointing at the correct original array index. */
+function filterCategorySelect(key, query){
+  const sel = document.getElementById(`sel_${key}`);
+  const cat = cats[key];
+  const q = (query||'').trim().toLowerCase();
+  const prevValue = sel.value;
+  const matches = cat.items
+    .map((it,i)=>({it,i}))
+    .filter(({it})=> !q || it.desc.toLowerCase().includes(q) || (it.mnemonic||'').toLowerCase().includes(q) || it.code.includes(q));
+  sel.innerHTML = '<option value="">Select…</option>' +
+    matches.map(({it,i})=>`<option value="${i}">${esc(it.desc)}${it.mnemonic?' ('+esc(it.mnemonic)+')':''}</option>`).join('') +
+    '<option value="__custom__">+ Add custom…</option>';
+  if(prevValue && matches.some(({i})=>String(i)===prevValue)) sel.value = prevValue;
+  else if(q && matches.length===1){ sel.value = String(matches[0].i); onSelectChange(key); }
 }
 function onSelectChange(key){
   const sel = document.getElementById(`sel_${key}`);
@@ -671,7 +689,8 @@ function editCategoryItem(key){
   }
   save(LS_CATS, cats);
   populateSelect(key);
-  sel.value = String(idx);
+  const sel2 = document.getElementById(`sel_${key}`);
+  sel2.value = String(idx);
   onSelectChange(key);
   toast('Entry updated');
   pushChange();
@@ -727,23 +746,17 @@ function decodeCodeToSelections(fullCode){
   return result;
 }
 
-/* ===== Margin / MRP three-way calculator =====
-   Formulas (assuming selling at MRP):
-     Margin (₹)  = MRP − Cost
-     Margin %    = (MRP − Cost) ÷ MRP × 100
-     MRP         = Cost ÷ (1 − Margin % / 100)
-   Whichever of the three the user last typed into "drives" the other two.
-   Clearing the driving field clears the other two as well. */
+/* ===== Margin / MRP three-way calculator ===== */
 const pCostEl = document.getElementById('pCost'), pPriceEl = document.getElementById('pPrice');
 const pMarginValueEl = document.getElementById('pMarginValue'), pMarginPercentEl = document.getElementById('pMarginPercent');
-let marginDriver = null; // 'mrp' | 'value' | 'percent' | null
+let marginDriver = null;
 
 function clearMarginFields(exceptId){
   [pPriceEl, pMarginValueEl, pMarginPercentEl].forEach(el=>{ if(el.id!==exceptId) el.value=''; });
 }
 function recalcMargin(){
   const cost = parseFloat(pCostEl.value);
-  if(isNaN(cost)){ return; } // can't compute anything meaningful without cost
+  if(isNaN(cost)){ return; }
 
   if(marginDriver==='mrp'){
     const mrp = parseFloat(pPriceEl.value);
@@ -833,7 +846,7 @@ function resetProductForm(){
   document.getElementById('cancelEditBtn').style.display='none';
   document.getElementById('pStock').value=''; document.getElementById('pCost').value='';
   clearMarginFields(null); marginDriver=null;
-  CAT_KEYS.forEach(key=>{ document.getElementById('sel_'+key).value=''; onSelectChange(key); });
+  CAT_KEYS.forEach(key=>{ populateSelect(key); onSelectChange(key); });
 }
 document.getElementById('cancelEditBtn').addEventListener('click', resetProductForm);
 function deleteProduct(code){
@@ -854,7 +867,6 @@ function editProduct(code){
   document.getElementById('productFormTitle').textContent=`Edit Product — ${formatCode(p.code)}`;
   document.getElementById('cancelEditBtn').style.display='inline-flex';
 
-  // Populate MRP and derive the other two margin fields from the saved values.
   pPriceEl.value = p.price;
   marginDriver = 'mrp';
   recalcMargin();
@@ -862,6 +874,7 @@ function editProduct(code){
   const map = decodeCodeToSelections(p.code);
   let allMatched = true;
   CAT_KEYS.forEach(key=>{
+    populateSelect(key); // reset search + full option list before setting the selection
     const idx = map[key];
     const sel = document.getElementById('sel_'+key);
     if(idx>=0){ sel.value = String(idx); } else { sel.value=''; allMatched=false; }
@@ -1326,6 +1339,12 @@ function renderHistory(){
       const mpp = s.marginPerPiece ?? (s.price-s.cost);
       const mpct = s.marginPercent ?? (s.price>0 ? ((s.price-s.cost)/s.price)*100 : 0);
       const editing = editingSaleIds.has(s.id);
+      const custCell = editing
+        ? `<input type="text" class="cell-input-text" value="${esc(s.customer||'')}" onchange="updateSaleCustomer('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
+        : (salesUnmasked ? esc(s.customer||'—') : maskText(s.customer));
+      const numCell = editing
+        ? `<input type="tel" class="cell-input-text" value="${esc(s.number||'')}" onchange="updateSaleNumber('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
+        : (salesUnmasked ? esc(s.number||'—') : maskText(s.number));
       const qtyCell = editing
         ? `<input type="number" class="cell-input" min="1" value="${s.qty}" onchange="updateSaleQty('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
         : (salesUnmasked ? s.qty : '••');
@@ -1334,8 +1353,8 @@ function renderHistory(){
         : (salesUnmasked ? money(s.price) : maskMoney());
       return `<tr>
       <td class="mono">${esc(s.invoice)}</td><td>${esc(s.date)}</td>
-      <td>${salesUnmasked ? esc(s.customer||'—') : maskText(s.customer)}</td>
-      <td class="mono">${salesUnmasked ? esc(s.number||'—') : maskText(s.number)}</td>
+      <td>${custCell}</td>
+      <td class="mono">${numCell}</td>
       <td class="mono">${esc(formatCode(s.code))}</td><td>${esc(s.product)}</td>
       <td class="num">${qtyCell}</td>
       <td class="num">${salesUnmasked ? money(s.cost) : maskMoney()}</td>
@@ -1371,6 +1390,22 @@ function recalcSaleRow(s){
   s.marginPerPiece = s.price - s.cost;
   s.marginPercent = s.price>0 ? ((s.price-s.cost)/s.price)*100 : 0;
   s.updatedAt = Date.now();
+}
+function updateSaleCustomer(id, val){
+  const s = sales.find(x=>x.id===id); if(!s) return;
+  s.customer = val.trim(); s.updatedAt = Date.now();
+  save(LS_SALES, sales); renderHistory();
+  toast('Customer name updated');
+  pushChange();
+}
+function updateSaleNumber(id, val){
+  const s = sales.find(x=>x.id===id); if(!s) return;
+  const digits = val.replace(/\D/g,'');
+  if(digits.length>10){ toast('Mobile number cannot exceed 10 digits', true); renderHistory(); return; }
+  s.number = val.trim(); s.updatedAt = Date.now();
+  save(LS_SALES, sales); renderHistory();
+  toast('Customer number updated');
+  pushChange();
 }
 function updateSaleQty(id, val){
   const s = sales.find(x=>x.id===id); if(!s) return;
@@ -1539,7 +1574,7 @@ document.getElementById('clientIdInput').addEventListener('change', e=>{
   if(e.target.value.trim()) initTokenClient(e.target.value.trim());
 });
 
-/* ===== Backup & Restore — additive-only ===== */
+/* ===== Backup & Restore — additive-only, now correctly un-deletes ===== */
 document.getElementById('backupBtn').addEventListener('click', (e)=>{
   e.stopPropagation();
   document.getElementById('backupChoice').classList.toggle('show');
@@ -1606,7 +1641,7 @@ document.getElementById('restoreFileInput').addEventListener('change', async (e)
     const text = await file.text();
     const data = JSON.parse(text);
     const added = applyBackupDataAdditive(data);
-    toast(`Restored from local backup — added ${added} new record(s), nothing removed`);
+    toast(`Restored from local backup — added ${added} record(s) back, nothing removed`);
   }catch(err){ console.error(err); toast('Could not read that backup file — check it is a valid Nagmeena backup JSON', true); }
   e.target.value='';
 });
@@ -1620,20 +1655,40 @@ async function restoreFromCloud(){
     if(!latest){ toast('No cloud backups found yet'); return; }
     const backup = await driveDownloadFile(latest.id);
     const added = applyBackupDataAdditive(backup);
-    toast(`Restored from cloud backup (${new Date(latest.modifiedTime).toLocaleString()}) — added ${added} new record(s)`);
+    toast(`Restored from cloud backup (${new Date(latest.modifiedTime).toLocaleString()}) — added ${added} record(s) back`);
   }catch(err){ toast('Cloud restore failed: '+mapError(err), true); }
 }
-function unionRowsAdditive(localRows, incomingRows){
+/* Restores any row missing locally. Crucially: gives it a FRESH updatedAt (now)
+   and removes any matching local tombstone. This makes the restore an explicit,
+   provably-newer "un-delete" that survives the very next sync — previously a
+   restored row kept its old backup timestamp, which was older than the deletion's
+   tombstone, so the next auto-sync silently deleted it again. */
+function restoreRowsAdditive(localRows, incomingRows, tombstoneArray){
   const existingIds = new Set(localRows.map(r=>r.id));
-  const toAdd = (incomingRows||[]).filter(r=>r.id && !existingIds.has(r.id));
+  const now = Date.now();
+  const toAdd = (incomingRows||[])
+    .filter(r=>r.id && !existingIds.has(r.id))
+    .map(r=>({...r, updatedAt: now}));
+  toAdd.forEach(r=>{
+    const ti = tombstoneArray.findIndex(t=>t.id===r.id);
+    if(ti>-1) tombstoneArray.splice(ti,1); // un-delete: this id is no longer considered deleted
+  });
   return { merged: localRows.concat(toAdd), addedCount: toAdd.length };
 }
 function applyBackupDataAdditive(data){
   let addedCount = 0;
-  const pRes = unionRowsAdditive(products, data.products||[]); products = pRes.merged; addedCount += pRes.addedCount;
-  const sRes = unionRowsAdditive(sales, data.sales||[]); sales = sRes.merged; addedCount += sRes.addedCount;
-  const phRes = unionRowsAdditive(contactPhones, data.contactPhones||[]); contactPhones = phRes.merged; addedCount += phRes.addedCount;
-  const adRes = unionRowsAdditive(contactAddresses, data.contactAddresses||[]); contactAddresses = adRes.merged; addedCount += adRes.addedCount;
+
+  const pRes = restoreRowsAdditive(products, data.products||[], productTombstones);
+  products = pRes.merged; addedCount += pRes.addedCount;
+
+  const sRes = restoreRowsAdditive(sales, data.sales||[], saleTombstones);
+  sales = sRes.merged; addedCount += sRes.addedCount;
+
+  const phRes = restoreRowsAdditive(contactPhones, data.contactPhones||[], contactPhoneTombstones);
+  contactPhones = phRes.merged; addedCount += phRes.addedCount;
+
+  const adRes = restoreRowsAdditive(contactAddresses, data.contactAddresses||[], contactAddressTombstones);
+  contactAddresses = adRes.merged; addedCount += adRes.addedCount;
 
   Object.keys(data.cats||{}).forEach(key=>{
     if(key==='series' || !cats[key]) return;
@@ -1648,7 +1703,9 @@ function applyBackupDataAdditive(data){
   if(incomingSeq > currentSeq) localStorage.setItem(LS_SEQ, String(incomingSeq));
 
   save(LS_PRODUCTS, products); save(LS_SALES, sales);
+  save(LS_PROD_TOMB, productTombstones); save(LS_SALE_TOMB, saleTombstones);
   save(LS_PHONES, contactPhones); save(LS_ADDRS, contactAddresses);
+  save(LS_PHONE_TOMB, contactPhoneTombstones); save(LS_ADDR_TOMB, contactAddressTombstones);
   save(LS_CATS, cats);
   CAT_KEYS.forEach(populateSelect);
   renderProducts(); renderHistory(); renderContacts();
