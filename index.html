@@ -119,14 +119,11 @@
   .num{ text-align:right; white-space:nowrap; } td.num{ font-family:'IBM Plex Mono',monospace; } .mono{ font-family:'IBM Plex Mono',monospace; }
   .empty-row td{ color:var(--grey-soft); font-style:italic; text-align:center; padding:26px 8px; background:transparent !important; }
   .adj-pos{ color:var(--green); font-weight:600; } .adj-neg{ color:var(--burgundy); font-weight:600; } .adj-zero{ color:var(--grey-soft); }
-  /* Forced visibility for inline-edit cells: explicit color + background + border,
-     with -webkit-text-fill-color as a second guard against OS/browser dark-mode
-     auto-inverting native form control text independently of the `color` property. */
   .cell-input, .cell-input.price, .cell-input-text{
     padding:5px 6px; border-radius:6px; font-size:12.5px;
     color:#2B2620 !important; -webkit-text-fill-color:#2B2620 !important;
     background:#FFFFFF !important; border:1px solid var(--gold-line) !important;
-    opacity:1 !important;
+    opacity:1 !important; caret-color:#2B2620 !important; filter:none !important;
   }
   .cell-input{ width:64px; font-family:'IBM Plex Mono',monospace; text-align:right; }
   .cell-input.price{ width:78px; font-family:'IBM Plex Mono',monospace; text-align:right; }
@@ -245,7 +242,7 @@
 
   <div class="divider"></div>
   <h4>Backup &amp; Restore</h4>
-  <p class="help">Separate from automatic sync. Restore is additive-only and now correctly un-deletes anything that had been removed — restored rows get a fresh timestamp so sync won't silently erase them again.</p>
+  <p class="help">Separate from automatic sync. Restore is additive-only and correctly un-deletes anything removed — restored rows get a fresh timestamp so sync won't erase them again.</p>
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
     <button class="btn btn-ghost btn-sm" id="backupBtn">Backup Data</button>
     <button class="btn btn-ghost btn-sm" id="restoreBtn">Restore Data</button>
@@ -524,35 +521,60 @@ let editingSaleIds = new Set();
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 11; // v11: restore un-deletes correctly, inline customer/number edit, category search
+const DATA_VERSION = 12; // v12: row-level sync for category subsections (edit/delete no longer resurrect on sync)
 
 /* ===== Product code categories ===== */
 const defaultCats = {
   fabric:{label:'Fabric', hasMnemonic:true, items:[
     {desc:'Cotton', mnemonic:'CTN', code:'01'},{desc:'Rayon', mnemonic:'RYN', code:'02'},
     {desc:'Linen Blend', mnemonic:'LNB', code:'03'},{desc:'Chanderi', mnemonic:'CDN', code:'04'},
-    {desc:'Georgette', mnemonic:'GEO', code:'05'}], freeCodes:[]},
+    {desc:'Georgette', mnemonic:'GEO', code:'05'}]},
   work:{label:'Work', hasMnemonic:true, items:[
     {desc:'Cutdana', mnemonic:'CTD', code:'01'},{desc:'Gotapatti', mnemonic:'GTP', code:'02'},
-    {desc:'Sequence', mnemonic:'SQN', code:'03'},{desc:'Thread Work', mnemonic:'THD', code:'04'}], freeCodes:[]},
+    {desc:'Sequence', mnemonic:'SQN', code:'03'},{desc:'Thread Work', mnemonic:'THD', code:'04'}]},
   print:{label:'Print', hasMnemonic:true, items:[
-    {desc:'Plain', mnemonic:'PLN', code:'01'},{desc:'Floral', mnemonic:'FRL', code:'02'}], freeCodes:[]},
+    {desc:'Plain', mnemonic:'PLN', code:'01'},{desc:'Floral', mnemonic:'FRL', code:'02'}]},
   colour:{label:'Colour', hasMnemonic:true, items:[
     {desc:'Beige', mnemonic:'BEG', code:'01'},{desc:'Blue', mnemonic:'BLU', code:'02'},
-    {desc:'Pink', mnemonic:'PNK', code:'03'},{desc:'Red', mnemonic:'RED', code:'04'}], freeCodes:[]},
+    {desc:'Pink', mnemonic:'PNK', code:'03'},{desc:'Red', mnemonic:'RED', code:'04'}]},
   style:{label:'Style', hasMnemonic:true, items:[
     {desc:'Daily Wear', mnemonic:'DW', code:'01'},{desc:'Premium', mnemonic:'PRM', code:'02'},
-    {desc:'Festive', mnemonic:'FST', code:'03'}], freeCodes:[]}
+    {desc:'Festive', mnemonic:'FST', code:'03'}]}
 };
-let cats = load(LS_CATS, defaultCats);
-if(cats.series) delete cats.series;
-Object.values(cats).forEach(c=>{ if(!c.freeCodes) c.freeCodes = []; });
+const CAT_KEYS = ['fabric','work','print','colour','style'];
+const DESC_KEYS = ['fabric','work','print','colour']; // categories that feed into product/sale descriptions
+
+/* Ensures every category has the shape row-level sync needs: each item carries
+   its own id + updatedAt, plus a tombstones[] array recording deletions (with
+   the freed code, so a device can offer it again without collision). This is
+   the structural fix for the edit/delete-resurrection bug — categories now
+   follow the exact same sync rules as Products, Sales, and Contacts. */
+function ensureCatsShape(c){
+  if(c.series) delete c.series;
+  CAT_KEYS.forEach(key=>{
+    if(!c[key]) c[key] = {label:defaultCats[key].label, hasMnemonic:defaultCats[key].hasMnemonic, items:[], tombstones:[], freeCodes:[]};
+    const cat = c[key];
+    if(!cat.label) cat.label = defaultCats[key].label;
+    if(cat.hasMnemonic===undefined) cat.hasMnemonic = defaultCats[key].hasMnemonic;
+    if(!cat.tombstones) cat.tombstones = [];
+    if(!cat.freeCodes) cat.freeCodes = [];
+    cat.items.forEach(it=>{ if(!it.id) it.id = uuid(); if(!it.updatedAt) it.updatedAt = Date.now(); });
+  });
+  return c;
+}
+function recomputeFreeCodes(cat){
+  const liveCodes = new Set(cat.items.map(i=>i.code));
+  const freed = new Set();
+  (cat.tombstones||[]).forEach(t=>{ if(t.code && !liveCodes.has(t.code)) freed.add(t.code); });
+  cat.freeCodes = Array.from(freed);
+}
+
+let cats = ensureCatsShape(load(LS_CATS, JSON.parse(JSON.stringify(defaultCats))));
 
 (function repairCategoryCodes(){
   let touched = false;
-  Object.keys(cats).forEach(key=>{
+  CAT_KEYS.forEach(key=>{
     const cat = cats[key];
-    if(!cat || !cat.items) return;
     const seen = new Set();
     const broken = cat.items.some(it=>{
       const bad = !/^\d{2}$/.test(it.code) || seen.has(it.code);
@@ -561,15 +583,14 @@ Object.values(cats).forEach(c=>{ if(!c.freeCodes) c.freeCodes = []; });
     });
     if(broken){
       cat.items.forEach((it,i)=>{ it.code = String(i+1).padStart(2,'0'); });
-      cat.freeCodes = [];
+      cat.tombstones = [];
       touched = true;
     }
+    recomputeFreeCodes(cat);
   });
   if(touched){ save(LS_CATS, cats); }
 })();
 
-const CAT_KEYS = ['fabric','work','print','colour','style'];
-const DESC_KEYS = ['fabric','work','print','colour'];
 const selected = {};
 
 function nextCode(cat){
@@ -608,8 +629,6 @@ CAT_KEYS.forEach(key=>{
   document.getElementById(`search_${key}`).addEventListener('input', (e)=> filterCategorySelect(key, e.target.value));
 });
 
-/* Full rebuild of a category's dropdown + its "add custom" datalist. Used on
-   init and whenever the underlying data changes (add/edit/delete). */
 function populateSelect(key){
   const cat = cats[key];
   const searchInput = document.getElementById(`search_${key}`);
@@ -620,8 +639,6 @@ function populateSelect(key){
   if(searchDl) searchDl.innerHTML = cat.items.map(it=>`<option value="${esc(it.desc)}${it.mnemonic?' ('+esc(it.mnemonic)+')':''}">`).join('');
   filterCategorySelect(key, '');
 }
-/* Live-filters the visible dropdown options by description, mnemonic, or code,
-   while keeping option values pointing at the correct original array index. */
 function filterCategorySelect(key, query){
   const sel = document.getElementById(`sel_${key}`);
   const cat = cats[key];
@@ -660,7 +677,9 @@ function addCustom(key){
   if(dupe){ toast(`"${desc}" already exists as "${dupe.desc}"${dupe.mnemonic?' ('+dupe.mnemonic+')':''} — pick it from the dropdown instead`, true); return; }
   const code = nextCode(cat);
   if(code===null){ toast(`All 99 codes for ${cat.label} are in use — delete an unused entry to free one up`, true); return; }
-  const item = cat.hasMnemonic ? {desc, mnemonic: mnemonic || desc.slice(0,3).toUpperCase(), code} : {desc, code};
+  const item = cat.hasMnemonic
+    ? {id:uuid(), desc, mnemonic: mnemonic || desc.slice(0,3).toUpperCase(), code, updatedAt:Date.now()}
+    : {id:uuid(), desc, code, updatedAt:Date.now()};
   cat.items.push(item);
   save(LS_CATS, cats);
   populateSelect(key);
@@ -670,6 +689,9 @@ function addCustom(key){
   toast(`Added "${desc}" to ${cat.label} — code ${code}`);
   pushChange();
 }
+/* Edit keeps the SAME id and code, only desc/mnemonic + updatedAt change.
+   Because id-based merge always prefers the row with the newer updatedAt,
+   this now correctly overrides a stale cloud copy instead of losing the edit. */
 function editCategoryItem(key){
   const sel = document.getElementById(`sel_${key}`);
   if(!sel.value || sel.value==='__custom__'){ toast('Select an existing entry to edit first'); return; }
@@ -687,14 +709,21 @@ function editCategoryItem(key){
     const newMnem = prompt(`Edit mnemonic (leave blank to keep "${item.mnemonic||''}"):`, item.mnemonic||'');
     if(newMnem!==null && newMnem.trim()) item.mnemonic = newMnem.trim().toUpperCase();
   }
+  item.updatedAt = Date.now();
   save(LS_CATS, cats);
   populateSelect(key);
   const sel2 = document.getElementById(`sel_${key}`);
   sel2.value = String(idx);
   onSelectChange(key);
+  refreshDescriptionsForCategoryCode(key, item.code); // propagate to Catalog + Sales Book
   toast('Entry updated');
   pushChange();
 }
+/* Delete records a tombstone (id + code + when) instead of just vanishing
+   locally. That tombstone travels with the next sync and, because it's newer
+   than the row's last edit, correctly suppresses the row everywhere — even if
+   the cloud still has an older copy. Its code is freed for reuse. Existing
+   products/sales keep their already-saved description, per prior design. */
 function deleteCategoryItem(key){
   const sel = document.getElementById(`sel_${key}`);
   if(!sel.value || sel.value==='__custom__'){ toast('Select an existing entry to delete first'); return; }
@@ -703,8 +732,9 @@ function deleteCategoryItem(key){
   const item = cat.items[idx];
   if(!confirm(`Delete "${item.desc}" from ${cat.label}?\n\nIts code (${item.code}) will be reused for the next new entry. Existing products keep their saved description.`)) return;
   cat.items.splice(idx,1);
-  cat.freeCodes = cat.freeCodes || [];
-  if(!cat.freeCodes.includes(item.code)) cat.freeCodes.push(item.code);
+  cat.tombstones = cat.tombstones || [];
+  cat.tombstones.push({id:item.id, code:item.code, deletedAt: Date.now()});
+  recomputeFreeCodes(cat);
   save(LS_CATS, cats);
   populateSelect(key);
   selected[key] = null;
@@ -744,6 +774,51 @@ function decodeCodeToSelections(fullCode){
     result[key] = chunk ? cats[key].items.findIndex(it=>it.code===chunk) : -1;
   });
   return result;
+}
+function decodeSegmentsCodes(fullCode){
+  const combo = String(fullCode).slice(0,10);
+  const chunks = combo.match(/.{1,2}/g) || [];
+  const result = {};
+  CAT_KEYS.forEach((key,i)=>{ result[key] = chunks[i] || null; });
+  return result;
+}
+/* Rebuilds a product's description purely from the current dictionary state.
+   Returns null if any of its 4 description-bearing segments can no longer be
+   resolved (e.g. that entry was deleted with nothing put in its place). */
+function recomputeProductDescription(fullCode){
+  const segs = decodeSegmentsCodes(fullCode);
+  const parts = [];
+  for(const key of DESC_KEYS){
+    const code = segs[key];
+    const item = code ? cats[key].items.find(it=>it.code===code) : null;
+    if(!item) return null;
+    parts.push(item.desc);
+  }
+  return parts.join(' ') + ' Unstiched Suit';
+}
+/* Called after an in-place edit to a subsection entry. Finds every product and
+   sale that used that exact code in that category, and refreshes their
+   description text to match — without touching prices, quantities, stock, or
+   any other historical figures. */
+function refreshDescriptionsForCategoryCode(categoryKey, code){
+  if(!DESC_KEYS.includes(categoryKey)) return; // Style doesn't feed the description
+  let touchedProducts = false, touchedSales = false;
+  products.forEach(p=>{
+    const segs = decodeSegmentsCodes(p.code);
+    if(segs[categoryKey] === code){
+      const newDesc = recomputeProductDescription(p.code);
+      if(newDesc && newDesc !== p.name){ p.name = newDesc; p.updatedAt = Date.now(); touchedProducts = true; }
+    }
+  });
+  sales.forEach(s=>{
+    const segs = decodeSegmentsCodes(s.code);
+    if(segs[categoryKey] === code){
+      const newDesc = recomputeProductDescription(s.code);
+      if(newDesc && newDesc !== s.product){ s.product = newDesc; s.updatedAt = Date.now(); touchedSales = true; }
+    }
+  });
+  if(touchedProducts){ save(LS_PRODUCTS, products); renderProducts(); }
+  if(touchedSales){ save(LS_SALES, sales); renderHistory(); }
 }
 
 /* ===== Margin / MRP three-way calculator ===== */
@@ -874,7 +949,7 @@ function editProduct(code){
   const map = decodeCodeToSelections(p.code);
   let allMatched = true;
   CAT_KEYS.forEach(key=>{
-    populateSelect(key); // reset search + full option list before setting the selection
+    populateSelect(key);
     const idx = map[key];
     const sel = document.getElementById('sel_'+key);
     if(idx>=0){ sel.value = String(idx); } else { sel.value=''; allMatched=false; }
@@ -1331,6 +1406,7 @@ function toggleSaleEdit(id){
   if(editingSaleIds.has(id)) editingSaleIds.delete(id); else editingSaleIds.add(id);
   renderHistory();
 }
+const CELL_STYLE_ATTR = `style="color:#2B2620 !important;-webkit-text-fill-color:#2B2620 !important;background:#ffffff !important;caret-color:#2B2620 !important;"`;
 function renderHistory(){
   const visible = activeFilter ? sales.filter(matchesFilter) : sales;
   const body=document.getElementById('historyBody');
@@ -1340,16 +1416,16 @@ function renderHistory(){
       const mpct = s.marginPercent ?? (s.price>0 ? ((s.price-s.cost)/s.price)*100 : 0);
       const editing = editingSaleIds.has(s.id);
       const custCell = editing
-        ? `<input type="text" class="cell-input-text" value="${esc(s.customer||'')}" onchange="updateSaleCustomer('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
+        ? `<input type="text" class="cell-input-text" ${CELL_STYLE_ATTR} autocomplete="off" value="${esc(s.customer||'')}" onchange="updateSaleCustomer('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
         : (salesUnmasked ? esc(s.customer||'—') : maskText(s.customer));
       const numCell = editing
-        ? `<input type="tel" class="cell-input-text" value="${esc(s.number||'')}" onchange="updateSaleNumber('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
+        ? `<input type="tel" class="cell-input-text" ${CELL_STYLE_ATTR} autocomplete="off" value="${esc(s.number||'')}" onchange="updateSaleNumber('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
         : (salesUnmasked ? esc(s.number||'—') : maskText(s.number));
       const qtyCell = editing
-        ? `<input type="number" class="cell-input" min="1" value="${s.qty}" onchange="updateSaleQty('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
+        ? `<input type="number" class="cell-input" ${CELL_STYLE_ATTR} autocomplete="off" min="1" value="${s.qty}" onchange="updateSaleQty('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
         : (salesUnmasked ? s.qty : '••');
       const priceCell = editing
-        ? `<input type="number" class="cell-input price" min="0" step="0.01" value="${s.price}" onchange="updateSalePrice('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
+        ? `<input type="number" class="cell-input price" ${CELL_STYLE_ATTR} autocomplete="off" min="0" step="0.01" value="${s.price}" onchange="updateSalePrice('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
         : (salesUnmasked ? money(s.price) : maskMoney());
       return `<tr>
       <td class="mono">${esc(s.invoice)}</td><td>${esc(s.date)}</td>
@@ -1574,7 +1650,7 @@ document.getElementById('clientIdInput').addEventListener('change', e=>{
   if(e.target.value.trim()) initTokenClient(e.target.value.trim());
 });
 
-/* ===== Backup & Restore — additive-only, now correctly un-deletes ===== */
+/* ===== Backup & Restore — additive-only, un-deletes correctly ===== */
 document.getElementById('backupBtn').addEventListener('click', (e)=>{
   e.stopPropagation();
   document.getElementById('backupChoice').classList.toggle('show');
@@ -1658,11 +1734,6 @@ async function restoreFromCloud(){
     toast(`Restored from cloud backup (${new Date(latest.modifiedTime).toLocaleString()}) — added ${added} record(s) back`);
   }catch(err){ toast('Cloud restore failed: '+mapError(err), true); }
 }
-/* Restores any row missing locally. Crucially: gives it a FRESH updatedAt (now)
-   and removes any matching local tombstone. This makes the restore an explicit,
-   provably-newer "un-delete" that survives the very next sync — previously a
-   restored row kept its old backup timestamp, which was older than the deletion's
-   tombstone, so the next auto-sync silently deleted it again. */
 function restoreRowsAdditive(localRows, incomingRows, tombstoneArray){
   const existingIds = new Set(localRows.map(r=>r.id));
   const now = Date.now();
@@ -1671,7 +1742,7 @@ function restoreRowsAdditive(localRows, incomingRows, tombstoneArray){
     .map(r=>({...r, updatedAt: now}));
   toAdd.forEach(r=>{
     const ti = tombstoneArray.findIndex(t=>t.id===r.id);
-    if(ti>-1) tombstoneArray.splice(ti,1); // un-delete: this id is no longer considered deleted
+    if(ti>-1) tombstoneArray.splice(ti,1);
   });
   return { merged: localRows.concat(toAdd), addedCount: toAdd.length };
 }
@@ -1690,13 +1761,17 @@ function applyBackupDataAdditive(data){
   const adRes = restoreRowsAdditive(contactAddresses, data.contactAddresses||[], contactAddressTombstones);
   contactAddresses = adRes.merged; addedCount += adRes.addedCount;
 
-  Object.keys(data.cats||{}).forEach(key=>{
-    if(key==='series' || !cats[key]) return;
-    const existingCodes = new Set(cats[key].items.map(i=>i.code));
-    (data.cats[key].items||[]).forEach(it=>{
-      if(!existingCodes.has(it.code)){ cats[key].items.push(it); existingCodes.add(it.code); addedCount++; }
+  // Categories: same additive + un-delete treatment, per category.
+  if(data.cats){
+    CAT_KEYS.forEach(key=>{
+      if(!data.cats[key]) return;
+      const localCat = cats[key];
+      const incomingItems = (data.cats[key].items||[]).map(it=> it.id ? it : {...it, id:uuid(), updatedAt: it.updatedAt||Date.now()});
+      const res = restoreRowsAdditive(localCat.items, incomingItems, localCat.tombstones);
+      localCat.items = res.merged; addedCount += res.addedCount;
+      recomputeFreeCodes(localCat);
     });
-  });
+  }
 
   const incomingSeq = data.seq||0;
   const currentSeq = parseInt(localStorage.getItem(LS_SEQ)||'0',10);
@@ -1713,7 +1788,7 @@ function applyBackupDataAdditive(data){
   return addedCount;
 }
 
-/* ===== Google Drive sync — row-level, tombstone-based merge ===== */
+/* ===== Google Drive sync — row-level, tombstone-based merge (now includes categories) ===== */
 const DRIVE_FILENAME = 'nagmeena_ledger_data.json';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const TOMBSTONE_RETENTION_MS = 90*24*60*60*1000;
@@ -1859,18 +1934,29 @@ function mergeRows(localRows, cloudRows, localTomb, cloudTomb){
   const tombstones = Array.from(tombMap.values()).filter(t => (now - (t.deletedAt||0)) < TOMBSTONE_RETENTION_MS);
   return { rows, tombstones };
 }
-function mergeCats(localCats, cloudCats){
-  const mergedCats = JSON.parse(JSON.stringify(cloudCats || localCats || defaultCats));
-  if(mergedCats.series) delete mergedCats.series;
-  Object.keys(localCats||{}).forEach(key=>{
-    if(key==='series') return;
-    if(!mergedCats[key]){ mergedCats[key] = localCats[key]; return; }
-    const existingCodes = new Set(mergedCats[key].items.map(i=>i.code));
-    (localCats[key].items||[]).forEach(it=>{ if(!existingCodes.has(it.code)){ mergedCats[key].items.push(it); existingCodes.add(it.code); } });
-    const freeSet = new Set([...(mergedCats[key].freeCodes||[]), ...(localCats[key].freeCodes||[])]);
-    mergedCats[key].freeCodes = Array.from(freeSet);
+/* Category merge now goes through the exact same generic row-level engine as
+   Products/Sales/Contacts — each category's items[] and tombstones[] are
+   merged independently by id, then freeCodes is recomputed from the result
+   (never trusted as-is from either side, since it's easy for it to drift). */
+function mergeCategoryData(localCats, cloudCats){
+  const result = {};
+  CAT_KEYS.forEach(key=>{
+    const lc = localCats[key] || {label:defaultCats[key].label, hasMnemonic:defaultCats[key].hasMnemonic, items:[], tombstones:[]};
+    const cc = cloudCats ? cloudCats[key] : null;
+    const localItems = normalizeRows(lc.items);
+    const cloudItems = cc ? normalizeRows(cc.items) : [];
+    const merged = mergeRows(localItems, cloudItems, lc.tombstones||[], (cc&&cc.tombstones)||[]);
+    const catObj = {
+      label: lc.label || (cc&&cc.label) || defaultCats[key].label,
+      hasMnemonic: lc.hasMnemonic!==undefined ? lc.hasMnemonic : ((cc&&cc.hasMnemonic!==undefined) ? cc.hasMnemonic : defaultCats[key].hasMnemonic),
+      items: merged.rows,
+      tombstones: merged.tombstones,
+      freeCodes: []
+    };
+    recomputeFreeCodes(catObj);
+    result[key] = catObj;
   });
-  return mergedCats;
+  return result;
 }
 function mergeContactMeta(localMeta, cloudMeta){
   if(!cloudMeta) return localMeta;
@@ -1894,7 +1980,7 @@ function mergeData(local, cloud){
     contactPhones: phMerge.rows, contactPhoneTombstones: phMerge.tombstones,
     contactAddresses: adMerge.rows, contactAddressTombstones: adMerge.tombstones,
     contactMeta: mergeContactMeta(local.contactMeta, cloud.contactMeta),
-    cats: mergeCats(local.cats, cloud.cats),
+    cats: mergeCategoryData(local.cats, cloud.cats),
     seq: Math.max(local.seq||0, cloud.seq||0),
     timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID
   };
@@ -1905,9 +1991,8 @@ function applyRemoteData(data){
   contactPhones = data.contactPhones || []; contactAddresses = data.contactAddresses || [];
   contactPhoneTombstones = data.contactPhoneTombstones || []; contactAddressTombstones = data.contactAddressTombstones || [];
   contactMeta = data.contactMeta || {primaryPhoneId:null, primaryAddressId:null, updatedAt:0};
-  cats = data.cats || defaultCats;
-  if(cats.series) delete cats.series;
-  Object.values(cats).forEach(c=>{ if(!c.freeCodes) c.freeCodes = []; });
+  cats = ensureCatsShape(data.cats || JSON.parse(JSON.stringify(defaultCats)));
+  CAT_KEYS.forEach(key=>recomputeFreeCodes(cats[key]));
   localStorage.setItem(LS_SEQ, String(data.seq || 0));
   save(LS_PRODUCTS, products); save(LS_SALES, sales);
   save(LS_PROD_TOMB, productTombstones); save(LS_SALE_TOMB, saleTombstones); save(LS_CATS, cats);
