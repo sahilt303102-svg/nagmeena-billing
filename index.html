@@ -145,8 +145,8 @@
   .receipt tbody tr:nth-child(even) td, .receipt tbody tr:hover td{ background:transparent; }
   .receipt .foot{ text-align:center; color:var(--gold); font-size:11px; margin-top:18px; letter-spacing:1px; text-transform:uppercase; }
 
-  .summary-cards{ display:grid; grid-template-columns:repeat(6,1fr); gap:16px; margin-bottom:20px; }
-  @media (max-width:980px){ .summary-cards{ grid-template-columns:repeat(3,1fr); } }
+  .summary-cards{ display:grid; grid-template-columns:repeat(7,1fr); gap:16px; margin-bottom:20px; }
+  @media (max-width:1100px){ .summary-cards{ grid-template-columns:repeat(4,1fr); } }
   @media (max-width:600px){ .summary-cards{ grid-template-columns:repeat(2,1fr); } }
   .stat{ background:linear-gradient(160deg, #FFFFFF, var(--beige-soft)); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px; box-shadow:var(--shadow-soft); transition:transform .25s ease, box-shadow .25s ease; }
   .stat:hover{ transform:translateY(-2px); box-shadow:var(--shadow); }
@@ -182,6 +182,9 @@
   .recent-box .label{ font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--gold); font-weight:700; margin-bottom:6px; }
   .recent-box .code{ font-family:'IBM Plex Mono',monospace; font-size:16px; font-weight:600; color:var(--teal); letter-spacing:1px; word-break:break-all; }
   .recent-box .desc{ font-size:13px; color:var(--charcoal); margin-top:6px; }
+
+  .catalog-total-qty{ font-size:12.5px; color:var(--muted-teal); font-weight:600; margin:-4px 0 14px 2px; }
+  .catalog-total-qty b{ color:var(--teal); font-family:'Cormorant Garamond',serif; font-size:15px; }
 
   .settings-panel{ display:none; position:fixed; top:78px; right:30px; width:380px; max-width:90vw; background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px; z-index:60; max-height:80vh; overflow-y:auto; }
   .settings-panel.show{ display:block; animation:fadeIn .2s ease; }
@@ -390,6 +393,7 @@
             <datalist id="catalogSearchSuggestions"></datalist>
           </div>
         </div>
+        <div class="catalog-total-qty" id="catalogTotalQty">Total Quantity: <b>0</b> unit(s)</div>
         <div class="table-scroll">
         <table><thead><tr><th>Code</th><th>Description</th><th class="num">Stock</th><th class="num">Cost</th><th class="num">MRP</th><th class="num">Margin</th><th></th></tr></thead>
           <tbody id="productBody"><tr class="empty-row"><td colspan="7">No products yet</td></tr></tbody></table>
@@ -407,6 +411,7 @@
     </div>
     <div class="summary-cards">
       <div class="stat"><div class="label">Bills Raised</div><div class="value" id="statBills">0</div></div>
+      <div class="stat"><div class="label">Total Qty Sold</div><div class="value" id="statTotalQty">0</div></div>
       <div class="stat"><div class="label">Revenue</div><div class="value" id="statRevenue">₹0.00</div></div>
       <div class="stat cost"><div class="label">Cost of Goods</div><div class="value" id="statCost">₹0.00</div></div>
       <div class="stat profit"><div class="label">Total Profit</div><div class="value" id="statProfit">₹0.00</div></div>
@@ -535,15 +540,10 @@ let editingSaleIds = new Set();
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 14; // v14: deterministic IDs for built-in category entries (fixes cross-device delete/duplicate bug)
+const DATA_VERSION = 15; // v15: total quantity readouts (catalog + sales book), customer name unmasked
 
 /* ===== Product code categories ===== */
 const BLANK_CODE = '00';
-/* Every built-in entry now carries a FIXED, deterministic id (not a random
-   uuid). This is the actual fix for the cross-device delete/duplicate bug:
-   previously each device independently generated its own random id for
-   "Cotton" etc. the first time it loaded, so a delete on one device never
-   matched the id on another device's copy of the same entry. */
 const defaultCats = {
   fabric:{label:'Fabric', hasMnemonic:true, items:[
     {id:'fabric-seed-BLK', desc:'Blank', mnemonic:'BLK', code:'00'},
@@ -575,10 +575,8 @@ const defaultCats = {
     {id:'style-seed-FST', desc:'Festive', mnemonic:'FST', code:'03'}]}
 };
 const CAT_KEYS = ['fabric','work','print','colour','style'];
-const DESC_KEYS = ['fabric','work','print','colour']; // Style is code-only, unchanged from before
+const DESC_KEYS = ['fabric','work','print','colour'];
 
-/* Known mnemonics for each category's built-in entries — used to find and
-   consolidate any stray duplicate/mismatched-id copies from before this fix. */
 const SEED_MNEMONICS = {
   fabric:['BLK','CTN','RYN','LNB','CDN','GEO'],
   work:['BLK','CTD','GTP','SQN','THD'],
@@ -612,15 +610,6 @@ function ensureBlankEntries(c){
   });
   return touched;
 }
-/* THE ACTUAL FIX for the resurrection/duplication bug: for each category,
-   find every item matching one of its known built-in mnemonics. If more than
-   one exists (which happens when different devices independently created
-   their own random-id copy of "Cotton" etc. before this fix), keep exactly
-   one — preferring one that already has the correct deterministic id, else
-   the most recently updated — tombstone every other copy under ITS ORIGINAL
-   id (so that id is suppressed everywhere it still lingers on other
-   devices/cloud), and rewrite the survivor's id to the fixed deterministic
-   value so every device converges on the same identity going forward. */
 function normalizeSeedIdsForCategory(key, cat){
   const seedList = SEED_MNEMONICS[key] || [];
   const now = Date.now();
@@ -651,9 +640,6 @@ function recomputeFreeCodes(cat){
   (cat.tombstones||[]).forEach(t=>{ if(t.code && t.code!==BLANK_CODE && !liveCodes.has(t.code)) freed.add(t.code); });
   cat.freeCodes = Array.from(freed);
 }
-/* Blank (code 00) sorts first in every dropdown, regardless of its position
-   in the underlying items array. Options still carry the ORIGINAL array
-   index as their value, so nothing else that reads by index breaks. */
 function orderedIndexPairs(cat){
   return cat.items.map((it,i)=>({it,i})).sort((a,b)=> (a.it.code===BLANK_CODE?0:1) - (b.it.code===BLANK_CODE?0:1));
 }
@@ -905,7 +891,7 @@ function refreshDescriptionsForCategoryCode(categoryKey, code){
   if(touchedSales){ save(LS_SALES, sales); renderHistory(); }
 }
 
-/* ===== "Just Saved" persistent code/description box (item #2) ===== */
+/* ===== "Just Saved" persistent code/description box ===== */
 function showRecentAddedBox(fullCode, desc){
   document.getElementById('recentAddedCode').textContent = formatCode(fullCode);
   document.getElementById('recentAddedDesc').textContent = desc;
@@ -1012,7 +998,7 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
   document.getElementById('pStock').value=''; document.getElementById('pCost').value='';
   clearMarginFields(null); marginDriver=null;
   renderProducts();
-  showRecentAddedBox(finalCode, finalDesc); // stays visible until user touches subsections/cost/qty or saves again
+  showRecentAddedBox(finalCode, finalDesc);
   pushChange();
 });
 function resetProductForm(){
@@ -1072,7 +1058,7 @@ document.getElementById('deleteOutOfStockBtn').addEventListener('click', ()=>{
   pushChange();
 });
 
-/* ===== Catalog: mask toggle, stock filter, live partial search ===== */
+/* ===== Catalog: mask toggle, stock filter, live partial search, total quantity ===== */
 document.getElementById('catalogUnmaskBtn').addEventListener('click', (e)=>{
   catalogUnmasked = !catalogUnmasked;
   e.currentTarget.textContent = catalogUnmasked ? 'Mask Cost & Margin' : 'Unmask Cost & Margin';
@@ -1135,6 +1121,10 @@ function renderProducts(){
       }).join('');
   updateCatalogSuggestions();
   updateItemCodeSuggestions(document.getElementById('itemCode').value);
+
+  // Total Quantity readout respects the same Stock Filter + Search that shaped `visible`.
+  const totalQty = visible.reduce((sum,p)=> sum + (p.stock||0), 0);
+  document.getElementById('catalogTotalQty').innerHTML = `Total Quantity: <b>${totalQty}</b> unit(s)${(stockFilter!=='all'||searchQuery) ? ' <span style="font-weight:400;">(filtered)</span>' : ''}`;
 }
 
 /* ===== Billing ===== */
@@ -1515,9 +1505,10 @@ function renderHistory(){
       const mpp = s.marginPerPiece ?? (s.price-s.cost);
       const mpct = s.marginPercent ?? (s.price>0 ? ((s.price-s.cost)/s.price)*100 : 0);
       const editing = editingSaleIds.has(s.id);
+      // Customer name is always shown in plain text — never masked, per this update.
       const custCell = editing
         ? `<input type="text" class="cell-input-text" ${CELL_STYLE_ATTR} autocomplete="off" value="${esc(s.customer||'')}" onchange="updateSaleCustomer('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
-        : (salesUnmasked ? esc(s.customer||'—') : maskText(s.customer));
+        : esc(s.customer||'—');
       const numCell = editing
         ? `<input type="tel" class="cell-input-text" ${CELL_STYLE_ATTR} autocomplete="off" value="${esc(s.number||'')}" onchange="updateSaleNumber('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
         : (salesUnmasked ? esc(s.number||'—') : maskText(s.number));
@@ -1551,6 +1542,7 @@ function renderHistory(){
   const avgMarginValue = totalQty ? profit/totalQty : 0;
   const avgMarginPercent = revenue ? (profit/revenue)*100 : 0;
   document.getElementById('statBills').textContent=bills;
+  document.getElementById('statTotalQty').textContent=totalQty; // always shown as a real number — respects activeFilter via `visible`
   document.getElementById('statRevenue').textContent= salesUnmasked ? money(revenue) : maskMoney();
   document.getElementById('statCost').textContent= salesUnmasked ? money(cost) : maskMoney();
   document.getElementById('statProfit').textContent= salesUnmasked ? money(profit) : maskMoney();
@@ -1642,7 +1634,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   ws['!cols']=[{wch:16},{wch:12},{wch:18},{wch:14},{wch:24},{wch:24},{wch:6},{wch:10},{wch:10},{wch:12},{wch:12},{wch:10},{wch:10},{wch:10}];
   const bills=new Set(exportSet.map(s=>s.invoice)).size, revenue=exportSet.reduce((a,s)=>a+s.revenue,0), cost=exportSet.reduce((a,s)=>a+s.cost*s.qty,0), profit=exportSet.reduce((a,s)=>a+s.profit,0);
   const totalQty = exportSet.reduce((a,s)=>a+s.qty,0);
-  const summary = XLSX.utils.aoa_to_sheet([['Nagmeena — Sales Summary'],[],['Bills Raised',bills],['Total Revenue',revenue],['Total Cost of Goods',cost],['Total Profit',profit],['Avg Margin/Pc', totalQty?profit/totalQty:0],['Avg Margin %', revenue?((profit/revenue)*100).toFixed(1)+'%':'0%']]);
+  const summary = XLSX.utils.aoa_to_sheet([['Nagmeena — Sales Summary'],[],['Bills Raised',bills],['Total Qty Sold',totalQty],['Total Revenue',revenue],['Total Cost of Goods',cost],['Total Profit',profit],['Avg Margin/Pc', totalQty?profit/totalQty:0],['Avg Margin %', revenue?((profit/revenue)*100).toFixed(1)+'%':'0%']]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, summary, 'Summary');
   XLSX.utils.book_append_sheet(wb, ws, 'Sales Record');
@@ -1888,7 +1880,7 @@ function applyBackupDataAdditive(data){
   return addedCount;
 }
 
-/* ===== Google Drive sync — row-level, tombstone-based merge (categories with normalized seed ids) ===== */
+/* ===== Google Drive sync — row-level, tombstone-based merge ===== */
 const DRIVE_FILENAME = 'nagmeena_ledger_data.json';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const TOMBSTONE_RETENTION_MS = 90*24*60*60*1000;
@@ -2049,7 +2041,7 @@ function mergeCategoryData(localCats, cloudCats){
       tombstones: merged.tombstones,
       freeCodes: []
     };
-    normalizeSeedIdsForCategory(key, catObj); // consolidate any stray duplicate seed copies post-merge
+    normalizeSeedIdsForCategory(key, catObj);
     recomputeFreeCodes(catObj);
     result[key] = catObj;
   });
