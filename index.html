@@ -177,6 +177,12 @@
   .margin-calc{ background:var(--teal-tint); border:1px solid var(--gold-line); border-radius:var(--radius-sm); padding:14px 16px; margin-bottom:16px; }
   .margin-calc p.help{ font-size:11px; color:var(--muted-teal); margin:0 0 10px 0; line-height:1.5; }
 
+  .recent-box{ display:none; background:linear-gradient(160deg, var(--gold-soft), #FFFFFF); border:1px solid var(--gold); border-radius:var(--radius-sm); padding:14px 16px; margin-bottom:18px; }
+  .recent-box.show{ display:block; }
+  .recent-box .label{ font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--gold); font-weight:700; margin-bottom:6px; }
+  .recent-box .code{ font-family:'IBM Plex Mono',monospace; font-size:16px; font-weight:600; color:var(--teal); letter-spacing:1px; word-break:break-all; }
+  .recent-box .desc{ font-size:13px; color:var(--charcoal); margin-top:6px; }
+
   .settings-panel{ display:none; position:fixed; top:78px; right:30px; width:380px; max-width:90vw; background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px; z-index:60; max-height:80vh; overflow-y:auto; }
   .settings-panel.show{ display:block; animation:fadeIn .2s ease; }
   .settings-panel h3{ font-family:'Cormorant Garamond',serif; font-size:18px; margin:0 0 6px 0; color:var(--teal); }
@@ -333,6 +339,13 @@
       <div class="card">
         <h2 id="productFormTitle">Add Product</h2>
         <p class="sub">Build the code from its subsections. Pick "Blank" for a subsection you want left out of the description (its code still counts toward the product code). A date-time stamp is appended automatically on save.</p>
+
+        <div class="recent-box" id="recentAddedBox">
+          <div class="label">Just Saved — Code &amp; Description</div>
+          <div class="code" id="recentAddedCode"></div>
+          <div class="desc" id="recentAddedDesc"></div>
+        </div>
+
         <div class="codebuilder" id="codeBuilder"></div>
         <div class="codepreview">
           <div class="code" id="codePreview">— — — — —</div>
@@ -522,34 +535,57 @@ let editingSaleIds = new Set();
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 13; // v13: Blank/00 entries in every subsection, qty edit switched off native number input
+const DATA_VERSION = 14; // v14: deterministic IDs for built-in category entries (fixes cross-device delete/duplicate bug)
 
 /* ===== Product code categories ===== */
+const BLANK_CODE = '00';
+/* Every built-in entry now carries a FIXED, deterministic id (not a random
+   uuid). This is the actual fix for the cross-device delete/duplicate bug:
+   previously each device independently generated its own random id for
+   "Cotton" etc. the first time it loaded, so a delete on one device never
+   matched the id on another device's copy of the same entry. */
 const defaultCats = {
   fabric:{label:'Fabric', hasMnemonic:true, items:[
-    {desc:'Blank', mnemonic:'BLK', code:'00'},
-    {desc:'Cotton', mnemonic:'CTN', code:'01'},{desc:'Rayon', mnemonic:'RYN', code:'02'},
-    {desc:'Linen Blend', mnemonic:'LNB', code:'03'},{desc:'Chanderi', mnemonic:'CDN', code:'04'},
-    {desc:'Georgette', mnemonic:'GEO', code:'05'}]},
+    {id:'fabric-seed-BLK', desc:'Blank', mnemonic:'BLK', code:'00'},
+    {id:'fabric-seed-CTN', desc:'Cotton', mnemonic:'CTN', code:'01'},
+    {id:'fabric-seed-RYN', desc:'Rayon', mnemonic:'RYN', code:'02'},
+    {id:'fabric-seed-LNB', desc:'Linen Blend', mnemonic:'LNB', code:'03'},
+    {id:'fabric-seed-CDN', desc:'Chanderi', mnemonic:'CDN', code:'04'},
+    {id:'fabric-seed-GEO', desc:'Georgette', mnemonic:'GEO', code:'05'}]},
   work:{label:'Work', hasMnemonic:true, items:[
-    {desc:'Blank', mnemonic:'BLK', code:'00'},
-    {desc:'Cutdana', mnemonic:'CTD', code:'01'},{desc:'Gotapatti', mnemonic:'GTP', code:'02'},
-    {desc:'Sequence', mnemonic:'SQN', code:'03'},{desc:'Thread Work', mnemonic:'THD', code:'04'}]},
+    {id:'work-seed-BLK', desc:'Blank', mnemonic:'BLK', code:'00'},
+    {id:'work-seed-CTD', desc:'Cutdana', mnemonic:'CTD', code:'01'},
+    {id:'work-seed-GTP', desc:'Gotapatti', mnemonic:'GTP', code:'02'},
+    {id:'work-seed-SQN', desc:'Sequence', mnemonic:'SQN', code:'03'},
+    {id:'work-seed-THD', desc:'Thread Work', mnemonic:'THD', code:'04'}]},
   print:{label:'Print', hasMnemonic:true, items:[
-    {desc:'Blank', mnemonic:'BLK', code:'00'},
-    {desc:'Plain', mnemonic:'PLN', code:'01'},{desc:'Floral', mnemonic:'FRL', code:'02'}]},
+    {id:'print-seed-BLK', desc:'Blank', mnemonic:'BLK', code:'00'},
+    {id:'print-seed-PLN', desc:'Plain', mnemonic:'PLN', code:'01'},
+    {id:'print-seed-FRL', desc:'Floral', mnemonic:'FRL', code:'02'}]},
   colour:{label:'Colour', hasMnemonic:true, items:[
-    {desc:'Blank', mnemonic:'BLK', code:'00'},
-    {desc:'Beige', mnemonic:'BEG', code:'01'},{desc:'Blue', mnemonic:'BLU', code:'02'},
-    {desc:'Pink', mnemonic:'PNK', code:'03'},{desc:'Red', mnemonic:'RED', code:'04'}]},
+    {id:'colour-seed-BLK', desc:'Blank', mnemonic:'BLK', code:'00'},
+    {id:'colour-seed-BEG', desc:'Beige', mnemonic:'BEG', code:'01'},
+    {id:'colour-seed-BLU', desc:'Blue', mnemonic:'BLU', code:'02'},
+    {id:'colour-seed-PNK', desc:'Pink', mnemonic:'PNK', code:'03'},
+    {id:'colour-seed-RED', desc:'Red', mnemonic:'RED', code:'04'}]},
   style:{label:'Style', hasMnemonic:true, items:[
-    {desc:'Blank', mnemonic:'BLK', code:'00'},
-    {desc:'Daily Wear', mnemonic:'DW', code:'01'},{desc:'Premium', mnemonic:'PRM', code:'02'},
-    {desc:'Festive', mnemonic:'FST', code:'03'}]}
+    {id:'style-seed-BLK', desc:'Blank', mnemonic:'BLK', code:'00'},
+    {id:'style-seed-DW', desc:'Daily Wear', mnemonic:'DW', code:'01'},
+    {id:'style-seed-PRM', desc:'Premium', mnemonic:'PRM', code:'02'},
+    {id:'style-seed-FST', desc:'Festive', mnemonic:'FST', code:'03'}]}
 };
 const CAT_KEYS = ['fabric','work','print','colour','style'];
-const DESC_KEYS = ['fabric','work','print','colour']; // categories that feed into product/sale descriptions (Style is code-only, unchanged from before)
-const BLANK_CODE = '00';
+const DESC_KEYS = ['fabric','work','print','colour']; // Style is code-only, unchanged from before
+
+/* Known mnemonics for each category's built-in entries — used to find and
+   consolidate any stray duplicate/mismatched-id copies from before this fix. */
+const SEED_MNEMONICS = {
+  fabric:['BLK','CTN','RYN','LNB','CDN','GEO'],
+  work:['BLK','CTD','GTP','SQN','THD'],
+  print:['BLK','PLN','FRL'],
+  colour:['BLK','BEG','BLU','PNK','RED'],
+  style:['BLK','DW','PRM','FST']
+};
 
 function ensureCatsShape(c){
   if(c.series) delete c.series;
@@ -564,17 +600,47 @@ function ensureCatsShape(c){
   });
   return c;
 }
-/* Migration for anyone upgrading from before Blank/00 existed: adds it to
-   whichever categories don't already have it. No-op for fresh installs since
-   defaultCats already includes it. */
 function ensureBlankEntries(c){
   let touched = false;
   CAT_KEYS.forEach(key=>{
     const cat = c[key];
     const hasBlank = cat.items.some(it=>it.code===BLANK_CODE);
     if(!hasBlank){
-      cat.items.unshift({id:uuid(), desc:'Blank', mnemonic:'BLK', code:BLANK_CODE, updatedAt:Date.now()});
+      cat.items.unshift({id:`${key}-seed-BLK`, desc:'Blank', mnemonic:'BLK', code:BLANK_CODE, updatedAt:Date.now()});
       touched = true;
+    }
+  });
+  return touched;
+}
+/* THE ACTUAL FIX for the resurrection/duplication bug: for each category,
+   find every item matching one of its known built-in mnemonics. If more than
+   one exists (which happens when different devices independently created
+   their own random-id copy of "Cotton" etc. before this fix), keep exactly
+   one — preferring one that already has the correct deterministic id, else
+   the most recently updated — tombstone every other copy under ITS ORIGINAL
+   id (so that id is suppressed everywhere it still lingers on other
+   devices/cloud), and rewrite the survivor's id to the fixed deterministic
+   value so every device converges on the same identity going forward. */
+function normalizeSeedIdsForCategory(key, cat){
+  const seedList = SEED_MNEMONICS[key] || [];
+  const now = Date.now();
+  let touched = false;
+  seedList.forEach(mnem=>{
+    const det = `${key}-seed-${mnem}`;
+    const matches = cat.items.filter(it => (it.mnemonic||'').toUpperCase() === mnem);
+    if(matches.length === 0) return;
+    let survivor = matches.find(it => it.id === det);
+    if(!survivor) survivor = matches.slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))[0];
+    matches.forEach(it=>{
+      if(it !== survivor){
+        cat.tombstones = cat.tombstones || [];
+        cat.tombstones.push({id: it.id, code: it.code, deletedAt: now});
+        touched = true;
+      }
+    });
+    if(survivor.id !== det){ survivor.id = det; touched = true; }
+    if(matches.length > 1){
+      cat.items = cat.items.filter(it => it === survivor || (it.mnemonic||'').toUpperCase() !== mnem);
     }
   });
   return touched;
@@ -585,13 +651,17 @@ function recomputeFreeCodes(cat){
   (cat.tombstones||[]).forEach(t=>{ if(t.code && t.code!==BLANK_CODE && !liveCodes.has(t.code)) freed.add(t.code); });
   cat.freeCodes = Array.from(freed);
 }
+/* Blank (code 00) sorts first in every dropdown, regardless of its position
+   in the underlying items array. Options still carry the ORIGINAL array
+   index as their value, so nothing else that reads by index breaks. */
+function orderedIndexPairs(cat){
+  return cat.items.map((it,i)=>({it,i})).sort((a,b)=> (a.it.code===BLANK_CODE?0:1) - (b.it.code===BLANK_CODE?0:1));
+}
 
 let cats = ensureCatsShape(load(LS_CATS, JSON.parse(JSON.stringify(defaultCats))));
 if(ensureBlankEntries(cats)) save(LS_CATS, cats);
 
-/* Repair for the old base-36 counting bug — special-cased so it never
-   renumbers the Blank entry away from 00 (that would break its meaning). */
-(function repairCategoryCodes(){
+(function repairAndNormalize(){
   let touched = false;
   CAT_KEYS.forEach(key=>{
     const cat = cats[key];
@@ -604,16 +674,17 @@ if(ensureBlankEntries(cats)) save(LS_CATS, cats);
     if(broken){
       let n = 1;
       cat.items.forEach(it=>{
-        const isBlank = it.desc==='Blank' && it.mnemonic==='BLK';
+        const isBlank = it.mnemonic==='BLK';
         if(isBlank){ it.code = BLANK_CODE; }
         else{ it.code = String(n).padStart(2,'0'); n++; }
       });
       cat.tombstones = [];
       touched = true;
     }
+    if(normalizeSeedIdsForCategory(key, cat)) touched = true;
     recomputeFreeCodes(cat);
   });
-  if(touched){ save(LS_CATS, cats); }
+  if(touched) save(LS_CATS, cats);
 })();
 
 const selected = {};
@@ -651,6 +722,7 @@ CAT_KEYS.forEach(key=>{
   builder.appendChild(wrap);
   populateSelect(key);
   document.getElementById(`sel_${key}`).addEventListener('change', ()=>onSelectChange(key));
+  document.getElementById(`sel_${key}`).addEventListener('focus', hideRecentAddedBox);
   document.getElementById(`search_${key}`).addEventListener('input', (e)=> filterCategorySelect(key, e.target.value));
 });
 
@@ -669,8 +741,7 @@ function filterCategorySelect(key, query){
   const cat = cats[key];
   const q = (query||'').trim().toLowerCase();
   const prevValue = sel.value;
-  const matches = cat.items
-    .map((it,i)=>({it,i}))
+  let matches = orderedIndexPairs(cat)
     .filter(({it})=> !q || it.desc.toLowerCase().includes(q) || (it.mnemonic||'').toLowerCase().includes(q) || it.code.includes(q));
   sel.innerHTML = '<option value="">Select…</option>' +
     matches.map(({it,i})=>`<option value="${i}">${esc(it.desc)}${it.mnemonic?' ('+esc(it.mnemonic)+')':''}</option>`).join('') +
@@ -768,8 +839,6 @@ function assembledCode(){
   if(parts.some(p=>!p)) return null;
   return parts.join('');
 }
-/* Blank (code 00) entries are skipped from the description text but their
-   code still occupies its normal position in the 10-digit combo. */
 function assembledDescription(){
   const parts = DESC_KEYS.map(k=>selected[k]).filter(item=>item && item.code!==BLANK_CODE).map(item=>item.desc);
   return (parts.length ? parts.join(' ')+' ' : '') + 'Unstiched Suit';
@@ -802,10 +871,6 @@ function decodeSegmentsCodes(fullCode){
   CAT_KEYS.forEach((key,i)=>{ result[key] = chunks[i] || null; });
   return result;
 }
-/* Rebuilds a product's description purely from current dictionary state,
-   skipping any segment coded 00 (Blank). Returns null only if a NON-blank
-   segment can no longer be resolved to any item (fully deleted with nothing
-   left in its place). */
 function recomputeProductDescription(fullCode){
   const segs = decodeSegmentsCodes(fullCode);
   const parts = [];
@@ -839,6 +904,18 @@ function refreshDescriptionsForCategoryCode(categoryKey, code){
   if(touchedProducts){ save(LS_PRODUCTS, products); renderProducts(); }
   if(touchedSales){ save(LS_SALES, sales); renderHistory(); }
 }
+
+/* ===== "Just Saved" persistent code/description box (item #2) ===== */
+function showRecentAddedBox(fullCode, desc){
+  document.getElementById('recentAddedCode').textContent = formatCode(fullCode);
+  document.getElementById('recentAddedDesc').textContent = desc;
+  document.getElementById('recentAddedBox').classList.add('show');
+}
+function hideRecentAddedBox(){
+  document.getElementById('recentAddedBox').classList.remove('show');
+}
+document.getElementById('pStock').addEventListener('focus', hideRecentAddedBox);
+document.getElementById('pCost').addEventListener('focus', hideRecentAddedBox);
 
 /* ===== Margin / MRP three-way calculator ===== */
 const pCostEl = document.getElementById('pCost'), pPriceEl = document.getElementById('pPrice');
@@ -906,6 +983,7 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
   if(isNaN(stock) || stock<0){ toast('Enter a valid quantity (0 or more)'); return; }
   if(isNaN(cost)||isNaN(price)||cost<0||price<0){ toast('Enter valid cost and MRP'); return; }
 
+  let finalCode, finalDesc;
   if(editingProductId){
     const idx = products.findIndex(p=>p.id===editingProductId);
     if(idx<0){ toast('That product no longer exists'); return; }
@@ -916,6 +994,7 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
     if(clash){ toast('Another product already uses this exact subsection combination'); return; }
     const desc = assembledDescription();
     products[idx] = {...existing, code:newFullCode, name:desc, cost, price, stock, updatedAt: Date.now()};
+    finalCode = newFullCode; finalDesc = desc;
     editingProductId=null;
     document.getElementById('productFormTitle').textContent='Add Product';
     document.getElementById('cancelEditBtn').style.display='none';
@@ -926,12 +1005,14 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
     if(!isValidProductCode(fullCode)){ toast('Could not build a valid 20-digit product code'); return; }
     if(findProduct(fullCode)){ toast('A product with this exact code already exists — try again in a moment'); return; }
     products.push({id:uuid(), code:fullCode, name:desc, cost, price, stock, updatedAt: Date.now()});
+    finalCode = fullCode; finalDesc = desc;
     toast(`Product added — code ${formatCode(fullCode)}`);
   }
   save(LS_PRODUCTS, products);
   document.getElementById('pStock').value=''; document.getElementById('pCost').value='';
   clearMarginFields(null); marginDriver=null;
   renderProducts();
+  showRecentAddedBox(finalCode, finalDesc); // stays visible until user touches subsections/cost/qty or saves again
   pushChange();
 });
 function resetProductForm(){
@@ -1440,10 +1521,6 @@ function renderHistory(){
       const numCell = editing
         ? `<input type="tel" class="cell-input-text" ${CELL_STYLE_ATTR} autocomplete="off" value="${esc(s.number||'')}" onchange="updateSaleNumber('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
         : (salesUnmasked ? esc(s.number||'—') : maskText(s.number));
-      /* Qty is now type="text" + inputmode="numeric" instead of type="number" —
-         removes Chrome's native number-spinner control, which is the most likely
-         source of the persistent white-on-white rendering that CSS alone could
-         not override. Digits are sanitized live via oninput. */
       const qtyCell = editing
         ? `<input type="text" inputmode="numeric" pattern="[0-9]*" class="cell-input" ${CELL_STYLE_ATTR} autocomplete="off" value="${s.qty}" oninput="this.value=this.value.replace(/[^0-9]/g,'')" onchange="updateSaleQty('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
         : (salesUnmasked ? s.qty : '••');
@@ -1791,6 +1868,7 @@ function applyBackupDataAdditive(data){
       const incomingItems = (data.cats[key].items||[]).map(it=> it.id ? it : {...it, id:uuid(), updatedAt: it.updatedAt||Date.now()});
       const res = restoreRowsAdditive(localCat.items, incomingItems, localCat.tombstones);
       localCat.items = res.merged; addedCount += res.addedCount;
+      normalizeSeedIdsForCategory(key, localCat);
       recomputeFreeCodes(localCat);
     });
   }
@@ -1810,7 +1888,7 @@ function applyBackupDataAdditive(data){
   return addedCount;
 }
 
-/* ===== Google Drive sync — row-level, tombstone-based merge (categories included) ===== */
+/* ===== Google Drive sync — row-level, tombstone-based merge (categories with normalized seed ids) ===== */
 const DRIVE_FILENAME = 'nagmeena_ledger_data.json';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const TOMBSTONE_RETENTION_MS = 90*24*60*60*1000;
@@ -1971,6 +2049,7 @@ function mergeCategoryData(localCats, cloudCats){
       tombstones: merged.tombstones,
       freeCodes: []
     };
+    normalizeSeedIdsForCategory(key, catObj); // consolidate any stray duplicate seed copies post-merge
     recomputeFreeCodes(catObj);
     result[key] = catObj;
   });
@@ -2011,7 +2090,7 @@ function applyRemoteData(data){
   contactMeta = data.contactMeta || {primaryPhoneId:null, primaryAddressId:null, updatedAt:0};
   cats = ensureCatsShape(data.cats || JSON.parse(JSON.stringify(defaultCats)));
   ensureBlankEntries(cats);
-  CAT_KEYS.forEach(key=>recomputeFreeCodes(cats[key]));
+  CAT_KEYS.forEach(key=>{ normalizeSeedIdsForCategory(key, cats[key]); recomputeFreeCodes(cats[key]); });
   localStorage.setItem(LS_SEQ, String(data.seq || 0));
   save(LS_PRODUCTS, products); save(LS_SALES, sales);
   save(LS_PROD_TOMB, productTombstones); save(LS_SALE_TOMB, saleTombstones); save(LS_CATS, cats);
