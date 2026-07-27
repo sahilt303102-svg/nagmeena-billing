@@ -193,8 +193,15 @@
   .recent-box .code{ font-family:'IBM Plex Mono',monospace; font-size:16px; font-weight:600; color:var(--teal); letter-spacing:1px; word-break:break-all; }
   .recent-box .desc{ font-size:13px; color:var(--charcoal); margin-top:6px; }
 
-  .catalog-total-qty{ font-size:12.5px; color:var(--muted-teal); font-weight:600; margin:-4px 0 14px 2px; }
-  .catalog-total-qty b{ color:var(--teal); font-family:'Cormorant Garamond',serif; font-size:15px; }
+  /* Unit summary: every word — label, number, suffix, filter note — shares the
+     exact same font-family/weight/size, per this update. Only colour may vary
+     slightly for the "(filtered)" note; nothing about the typeface itself does. */
+  .catalog-total-qty{
+    font-family:'Inter',sans-serif; font-weight:600; font-size:13px; color:var(--teal);
+    margin:-4px 0 14px 2px; letter-spacing:0.2px;
+  }
+  .catalog-total-qty b{ font-family:inherit; font-weight:inherit; font-size:inherit; color:inherit; }
+  .catalog-total-qty .filter-note{ font-family:inherit; font-weight:inherit; font-size:inherit; color:var(--muted-teal); }
 
   .settings-panel{ display:none; position:fixed; top:78px; right:30px; width:380px; max-width:90vw; background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px; z-index:60; max-height:80vh; overflow-y:auto; }
   .settings-panel.show{ display:block; animation:fadeIn .2s ease; }
@@ -262,7 +269,7 @@
 
   <div class="divider"></div>
   <h4>Backup &amp; Restore</h4>
-  <p class="help">Separate from automatic sync. Restore is additive-only and correctly un-deletes anything removed — restored rows get a fresh timestamp so sync won't erase them again.</p>
+  <p class="help">Backup captures the exact same full data set that syncs to Drive — Product Catalog, Sales Book, and Contact Us (including which number/address is marked Primary). Restore is additive-only and correctly un-deletes anything removed — restored rows get a fresh timestamp so sync won't erase them again.</p>
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
     <button class="btn btn-ghost btn-sm" id="backupBtn">Backup Data</button>
     <button class="btn btn-ghost btn-sm" id="restoreBtn">Restore Data</button>
@@ -550,7 +557,7 @@ let editingSaleIds = new Set();
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 16; // v16: visible category search suggestions, catalog unit labels, merged invoice rows in Sales Book (rendering only — data model unchanged)
+const DATA_VERSION = 17; // v17: uniform-font unit summary, restore now includes primary phone/address selection
 
 /* ===== Product code categories ===== */
 const BLANK_CODE = '00';
@@ -750,10 +757,6 @@ function filterCategorySelect(key, query){
   if(prevValue && matches.some(({i})=>String(i)===prevValue)) sel.value = prevValue;
   else if(q && matches.length===1){ sel.value = String(matches[0].i); onSelectChange(key); }
 }
-/* Renders a live, clickable suggestion list beneath the search box — this is
-   the actual fix for "search suggestion not narrowing": the underlying select
-   was filtering correctly all along, but nothing visible showed the match
-   happening as you typed. This gives direct, substring-matched visual proof. */
 function renderCatSuggestions(key, query){
   const cat = cats[key];
   const listEl = document.getElementById(`suggestlist_${key}`);
@@ -776,7 +779,7 @@ function renderCatSuggestions(key, query){
   listEl.classList.add('show');
 }
 function selectCatSuggestion(key, idx){
-  populateSelect(key); // resets to the full unfiltered option list so `idx` is guaranteed to exist
+  populateSelect(key);
   const sel = document.getElementById(`sel_${key}`);
   sel.value = String(idx);
   onSelectChange(key);
@@ -1148,10 +1151,12 @@ function productMatchesFilters(p){
   }
   return true;
 }
-/* Label + count both depend on which Stock Filter is active, and both always
-   respect the current search query (via `visible`, already filtered upstream).
-   Out-of-stock items are 0 by definition, so "Unavailable Units" counts
-   out-of-stock PRODUCTS rather than a meaningless sum of zeroes. */
+/* Label + count both depend on the active Stock Filter, and both always
+   respect the current search query (via `visible`, already filtered
+   upstream). Out-of-stock items are 0 by definition, so "Unavailable Units"
+   counts out-of-stock PRODUCTS rather than a meaningless sum of zeroes.
+   Rendered as one flat string of uniform font (see .catalog-total-qty CSS —
+   label, number, suffix and filter note now all share the same typeface). */
 function renderCatalogUnitSummary(visible){
   let label, value, suffix;
   if(stockFilter === 'out'){
@@ -1167,7 +1172,7 @@ function renderCatalogUnitSummary(visible){
     value = visible.reduce((sum,p)=> sum + (p.stock||0), 0);
     suffix = ' unit(s)';
   }
-  const filterNote = (stockFilter!=='all' || searchQuery) ? ' <span style="font-weight:400;">(filtered)</span>' : '';
+  const filterNote = (stockFilter!=='all' || searchQuery) ? ' <span class="filter-note">(filtered)</span>' : '';
   document.getElementById('catalogTotalQty').innerHTML = `${label}: <b>${value}</b>${suffix}${filterNote}`;
 }
 
@@ -1552,9 +1557,6 @@ function matchesFilter(sale){
   return true;
 }
 
-/* Groups a flat list of sale rows by invoice number, preserving the order
-   each invoice was first encountered. Works regardless of whether the rows
-   happen to be contiguous in the underlying array. */
 function groupSalesByInvoice(rows){
   const map = new Map();
   rows.forEach(s=>{
@@ -1571,9 +1573,6 @@ document.getElementById('salesUnmaskBtn').addEventListener('click', (e)=>{
   e.currentTarget.classList.toggle('active', salesUnmasked);
   renderHistory();
 });
-/* Toggling Edit for an invoice unlocks/locks Customer, Number, Qty, and
-   Selling Price for EVERY line item under that invoice at once — since
-   Customer/Number are now a single merged cell shared across the group. */
 function toggleInvoiceEdit(invoiceNo){
   const ids = sales.filter(s=>s.invoice===invoiceNo).map(s=>s.id);
   const allEditing = ids.length>0 && ids.every(id=>editingSaleIds.has(id));
@@ -1642,7 +1641,6 @@ function renderHistory(){
     body.innerHTML = html;
   }
 
-  // Summary stats are computed over the flat, filtered list — unaffected by grouping/rendering.
   const bills=new Set(visible.map(s=>s.invoice)).size;
   const revenue=visible.reduce((a,s)=>a+s.revenue,0), cost=visible.reduce((a,s)=>a+s.cost*s.qty,0), profit=visible.reduce((a,s)=>a+s.profit,0);
   const totalQty = visible.reduce((a,s)=>a+s.qty,0);
@@ -1666,9 +1664,6 @@ function recalcSaleRow(s){
   s.marginPercent = s.price>0 ? ((s.price-s.cost)/s.price)*100 : 0;
   s.updatedAt = Date.now();
 }
-/* Customer/Number are edited once per invoice (merged cell) and applied to
-   every sale record sharing that invoice number — they're the same person's
-   details for every line item in a single bill. */
 function updateInvoiceCustomer(invoiceNo, val){
   const trimmed = val.trim();
   let touched = false;
@@ -1850,7 +1845,16 @@ document.getElementById('clientIdInput').addEventListener('change', e=>{
   if(e.target.value.trim()) initTokenClient(e.target.value.trim());
 });
 
-/* ===== Backup & Restore — additive-only, un-deletes correctly ===== */
+/* =========================================================================
+   Backup & Restore — additive-only, un-deletes correctly.
+   buildBackupPayload() below intentionally mirrors buildLocalPayload() (used
+   for Google Drive sync) field-for-field: products/productTombstones,
+   sales/saleTombstones, cats, contactPhones/contactAddresses + their
+   tombstones, contactMeta (which phone/address is Primary), and the invoice
+   sequence counter. This is "the same image" the user asked for — Local
+   backup and Drive sync always capture identical, complete state across all
+   three tabs (Product Catalog, Sales Book, Contact Us).
+   ========================================================================= */
 document.getElementById('backupBtn').addEventListener('click', (e)=>{
   e.stopPropagation();
   document.getElementById('backupChoice').classList.toggle('show');
@@ -1895,7 +1899,7 @@ async function doBackup(target){
     a.href=url; a.download = `Nagmeena_Backup_${todayStr()}.json`;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
-    toast('Local backup downloaded');
+    toast('Local backup downloaded — includes Catalog, Sales Book & Contact Us');
   }
   if(target==='cloud' || target==='both'){
     if(!localStorage.getItem(LS_CLIENTID)){ toast('Add a Google Client ID and connect Drive first', true); return; }
@@ -1917,7 +1921,7 @@ document.getElementById('restoreFileInput').addEventListener('change', async (e)
     const text = await file.text();
     const data = JSON.parse(text);
     const added = applyBackupDataAdditive(data);
-    toast(`Restored from local backup — added ${added} record(s) back, nothing removed`);
+    toast(`Restored from local backup — Catalog, Sales Book & Contact Us: ${added} record(s) added back, nothing removed`);
   }catch(err){ console.error(err); toast('Could not read that backup file — check it is a valid Nagmeena backup JSON', true); }
   e.target.value='';
 });
@@ -1931,7 +1935,7 @@ async function restoreFromCloud(){
     if(!latest){ toast('No cloud backups found yet'); return; }
     const backup = await driveDownloadFile(latest.id);
     const added = applyBackupDataAdditive(backup);
-    toast(`Restored from cloud backup (${new Date(latest.modifiedTime).toLocaleString()}) — added ${added} record(s) back`);
+    toast(`Restored from cloud backup (${new Date(latest.modifiedTime).toLocaleString()}) — ${added} record(s) added back`);
   }catch(err){ toast('Cloud restore failed: '+mapError(err), true); }
 }
 function restoreRowsAdditive(localRows, incomingRows, tombstoneArray){
@@ -1973,6 +1977,20 @@ function applyBackupDataAdditive(data){
     });
   }
 
+  /* Additive restore of the Contact Us "Primary" selection: only fills in a
+     primary phone/address if the current app doesn't already have one set
+     (never overwrites an existing choice), and only if that entry actually
+     exists locally after the merge above. This was the one piece of Contact
+     Us data that previously wasn't restored — now it is. */
+  if(data.contactMeta){
+    if(!contactMeta.primaryPhoneId && data.contactMeta.primaryPhoneId && contactPhones.some(p=>p.id===data.contactMeta.primaryPhoneId)){
+      contactMeta.primaryPhoneId = data.contactMeta.primaryPhoneId; contactMeta.updatedAt = Date.now();
+    }
+    if(!contactMeta.primaryAddressId && data.contactMeta.primaryAddressId && contactAddresses.some(a=>a.id===data.contactMeta.primaryAddressId)){
+      contactMeta.primaryAddressId = data.contactMeta.primaryAddressId; contactMeta.updatedAt = Date.now();
+    }
+  }
+
   const incomingSeq = data.seq||0;
   const currentSeq = parseInt(localStorage.getItem(LS_SEQ)||'0',10);
   if(incomingSeq > currentSeq) localStorage.setItem(LS_SEQ, String(incomingSeq));
@@ -1981,6 +1999,7 @@ function applyBackupDataAdditive(data){
   save(LS_PROD_TOMB, productTombstones); save(LS_SALE_TOMB, saleTombstones);
   save(LS_PHONES, contactPhones); save(LS_ADDRS, contactAddresses);
   save(LS_PHONE_TOMB, contactPhoneTombstones); save(LS_ADDR_TOMB, contactAddressTombstones);
+  save(LS_CONTACT_META, contactMeta);
   save(LS_CATS, cats);
   CAT_KEYS.forEach(populateSelect);
   renderProducts(); renderHistory(); renderContacts();
