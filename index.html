@@ -94,7 +94,16 @@
   .field{ margin-bottom:16px; } .row{ display:flex; gap:12px; flex-wrap:wrap; } .row > .field{ flex:1; min-width:120px; }
   .field-hint-error{ font-size:11px; color:var(--burgundy); margin-top:-10px; margin-bottom:12px; display:none; }
   .field-hint-error.show{ display:block; }
-  .cat-search{ margin-bottom:6px; font-size:13px !important; padding:8px 10px !important; }
+  .cat-search{ margin-bottom:0; font-size:13px !important; padding:8px 10px !important; }
+
+  .cat-suggest-wrap{ position:relative; margin-bottom:6px; }
+  .cat-suggest-list{ position:absolute; left:0; right:0; top:100%; margin-top:4px; background:#fff; border:1px solid var(--gold-line);
+    border-radius:8px; max-height:190px; overflow-y:auto; box-shadow:var(--shadow); z-index:80; display:none; }
+  .cat-suggest-list.show{ display:block; }
+  .cat-suggest-item{ padding:8px 10px; font-size:13px; cursor:pointer; border-bottom:1px solid var(--line-soft); display:flex; justify-content:space-between; gap:8px; }
+  .cat-suggest-item:last-child{ border-bottom:none; }
+  .cat-suggest-item:hover{ background:var(--gold-soft); }
+  .cat-suggest-item .code-tag{ font-family:'IBM Plex Mono',monospace; color:var(--grey-soft); font-size:11.5px; white-space:nowrap; }
 
   .btn{ display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:11px 20px; border-radius:999px; border:1px solid transparent; font-size:13.5px; font-weight:600; letter-spacing:0.3px; transition:all .22s ease; }
   .btn-primary{ background:var(--teal); color:var(--ivory); box-shadow:0 6px 16px -8px rgba(18,56,50,0.55); }
@@ -130,6 +139,7 @@
   .cell-input.price{ width:78px; font-family:'IBM Plex Mono',monospace; text-align:right; }
   .cell-input-text{ width:110px; font-family:'Inter',sans-serif; text-align:left; }
   .masked-text{ letter-spacing:2px; color:var(--grey-soft); user-select:none; }
+  .merged-cell{ vertical-align:middle; }
 
   .totals{ margin-top:16px; padding-top:16px; border-top:1px dashed var(--gold-line); }
   .totals .line{ display:flex; justify-content:space-between; font-size:13.5px; padding:4px 0; color:var(--charcoal-muted); }
@@ -393,7 +403,7 @@
             <datalist id="catalogSearchSuggestions"></datalist>
           </div>
         </div>
-        <div class="catalog-total-qty" id="catalogTotalQty">Total Quantity: <b>0</b> unit(s)</div>
+        <div class="catalog-total-qty" id="catalogTotalQty">All Units: <b>0</b> unit(s)</div>
         <div class="table-scroll">
         <table><thead><tr><th>Code</th><th>Description</th><th class="num">Stock</th><th class="num">Cost</th><th class="num">MRP</th><th class="num">Margin</th><th></th></tr></thead>
           <tbody id="productBody"><tr class="empty-row"><td colspan="7">No products yet</td></tr></tbody></table>
@@ -426,7 +436,7 @@
           <button class="btn btn-danger btn-sm" id="clearHistoryBtn">Clear All Records</button>
         </div>
       </div>
-      <p class="sub" style="margin-top:-8px;">Click Edit on a row to change Customer, Number, Qty, or Selling Price in place.</p>
+      <p class="sub" style="margin-top:-8px;">Rows sharing an invoice number are merged. Click Edit once per invoice to unlock Customer, Number, Qty, and Selling Price for every item in it.</p>
 
       <div class="filter-bar">
         <div class="filter-group">
@@ -445,8 +455,8 @@
       <div class="filter-status" id="filterStatus"></div>
 
       <div class="table-scroll">
-      <table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Number</th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">MRP</th><th class="num">Selling</th><th class="num">Margin/Pc</th><th class="num">Margin %</th><th class="num">Revenue</th><th class="num">Profit</th><th></th></tr></thead>
-        <tbody id="historyBody"><tr class="empty-row"><td colspan="15">No sales recorded yet</td></tr></tbody></table>
+      <table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Number</th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">MRP</th><th class="num">Selling</th><th class="num">Margin/Pc</th><th class="num">Margin %</th><th class="num">Revenue</th><th class="num">Profit</th><th></th><th></th></tr></thead>
+        <tbody id="historyBody"><tr class="empty-row"><td colspan="16">No sales recorded yet</td></tr></tbody></table>
       </div>
     </div>
   </section>
@@ -540,7 +550,7 @@ let editingSaleIds = new Set();
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 15; // v15: total quantity readouts (catalog + sales book), customer name unmasked
+const DATA_VERSION = 16; // v16: visible category search suggestions, catalog unit labels, merged invoice rows in Sales Book (rendering only — data model unchanged)
 
 /* ===== Product code categories ===== */
 const BLANK_CODE = '00';
@@ -691,8 +701,10 @@ CAT_KEYS.forEach(key=>{
   const wrap = document.createElement('div');
   wrap.innerHTML = `
     <label>${cat.label}</label>
-    <input type="text" class="cat-search" id="search_${key}" list="catsearch_${key}" placeholder="Search ${cat.label.toLowerCase()}…">
-    <datalist id="catsearch_${key}"></datalist>
+    <div class="cat-suggest-wrap">
+      <input type="text" class="cat-search" id="search_${key}" autocomplete="off" placeholder="Search ${cat.label.toLowerCase()}…">
+      <div class="cat-suggest-list" id="suggestlist_${key}"></div>
+    </div>
     <select id="sel_${key}"></select>
     <div class="sub-hint" id="hint_${key}"></div>
     <div class="cat-actions">
@@ -709,17 +721,20 @@ CAT_KEYS.forEach(key=>{
   populateSelect(key);
   document.getElementById(`sel_${key}`).addEventListener('change', ()=>onSelectChange(key));
   document.getElementById(`sel_${key}`).addEventListener('focus', hideRecentAddedBox);
-  document.getElementById(`search_${key}`).addEventListener('input', (e)=> filterCategorySelect(key, e.target.value));
+  const searchEl = document.getElementById(`search_${key}`);
+  searchEl.addEventListener('input', (e)=>{ filterCategorySelect(key, e.target.value); renderCatSuggestions(key, e.target.value); });
+  searchEl.addEventListener('focus', (e)=>{ hideRecentAddedBox(); renderCatSuggestions(key, e.target.value); });
+  searchEl.addEventListener('blur', ()=>{ setTimeout(()=>{ const l=document.getElementById(`suggestlist_${key}`); if(l) l.classList.remove('show'); }, 150); });
 });
 
 function populateSelect(key){
   const cat = cats[key];
   const searchInput = document.getElementById(`search_${key}`);
   if(searchInput) searchInput.value = '';
+  const suggestList = document.getElementById(`suggestlist_${key}`);
+  if(suggestList){ suggestList.classList.remove('show'); suggestList.innerHTML=''; }
   const dl = document.getElementById(`dl_${key}`);
   if(dl) dl.innerHTML = cat.items.map(it=>`<option value="${esc(it.desc)}">`).join('');
-  const searchDl = document.getElementById(`catsearch_${key}`);
-  if(searchDl) searchDl.innerHTML = cat.items.map(it=>`<option value="${esc(it.desc)}${it.mnemonic?' ('+esc(it.mnemonic)+')':''}">`).join('');
   filterCategorySelect(key, '');
 }
 function filterCategorySelect(key, query){
@@ -734,6 +749,39 @@ function filterCategorySelect(key, query){
     '<option value="__custom__">+ Add custom…</option>';
   if(prevValue && matches.some(({i})=>String(i)===prevValue)) sel.value = prevValue;
   else if(q && matches.length===1){ sel.value = String(matches[0].i); onSelectChange(key); }
+}
+/* Renders a live, clickable suggestion list beneath the search box — this is
+   the actual fix for "search suggestion not narrowing": the underlying select
+   was filtering correctly all along, but nothing visible showed the match
+   happening as you typed. This gives direct, substring-matched visual proof. */
+function renderCatSuggestions(key, query){
+  const cat = cats[key];
+  const listEl = document.getElementById(`suggestlist_${key}`);
+  const q = (query||'').trim().toLowerCase();
+  if(!q){ listEl.classList.remove('show'); listEl.innerHTML=''; return; }
+  const matches = cat.items
+    .map((it,i)=>({it,i}))
+    .filter(({it})=> it.desc.toLowerCase().includes(q) || (it.mnemonic||'').toLowerCase().includes(q) || it.code.includes(q))
+    .slice(0,8);
+  if(matches.length===0){
+    listEl.innerHTML = `<div class="cat-suggest-item" style="color:var(--grey-soft); cursor:default;">No matches</div>`;
+    listEl.classList.add('show');
+    return;
+  }
+  listEl.innerHTML = matches.map(({it,i})=>
+    `<div class="cat-suggest-item" onmousedown="selectCatSuggestion('${key}', ${i})">
+       <span>${esc(it.desc)}${it.mnemonic?' ('+esc(it.mnemonic)+')':''}</span>
+       <span class="code-tag">#${esc(it.code)}</span>
+     </div>`).join('');
+  listEl.classList.add('show');
+}
+function selectCatSuggestion(key, idx){
+  populateSelect(key); // resets to the full unfiltered option list so `idx` is guaranteed to exist
+  const sel = document.getElementById(`sel_${key}`);
+  sel.value = String(idx);
+  onSelectChange(key);
+  const listEl = document.getElementById(`suggestlist_${key}`);
+  listEl.classList.remove('show'); listEl.innerHTML='';
 }
 function onSelectChange(key){
   const sel = document.getElementById(`sel_${key}`);
@@ -1058,7 +1106,7 @@ document.getElementById('deleteOutOfStockBtn').addEventListener('click', ()=>{
   pushChange();
 });
 
-/* ===== Catalog: mask toggle, stock filter, live partial search, total quantity ===== */
+/* ===== Catalog: mask toggle, stock filter, live partial search, unit label/count ===== */
 document.getElementById('catalogUnmaskBtn').addEventListener('click', (e)=>{
   catalogUnmasked = !catalogUnmasked;
   e.currentTarget.textContent = catalogUnmasked ? 'Mask Cost & Margin' : 'Unmask Cost & Margin';
@@ -1100,6 +1148,28 @@ function productMatchesFilters(p){
   }
   return true;
 }
+/* Label + count both depend on which Stock Filter is active, and both always
+   respect the current search query (via `visible`, already filtered upstream).
+   Out-of-stock items are 0 by definition, so "Unavailable Units" counts
+   out-of-stock PRODUCTS rather than a meaningless sum of zeroes. */
+function renderCatalogUnitSummary(visible){
+  let label, value, suffix;
+  if(stockFilter === 'out'){
+    label = 'Unavailable Units';
+    value = visible.length;
+    suffix = value===1 ? ' product' : ' products';
+  }else if(stockFilter === 'in'){
+    label = 'Available Units';
+    value = visible.reduce((sum,p)=> sum + (p.stock||0), 0);
+    suffix = ' unit(s)';
+  }else{
+    label = 'All Units';
+    value = visible.reduce((sum,p)=> sum + (p.stock||0), 0);
+    suffix = ' unit(s)';
+  }
+  const filterNote = (stockFilter!=='all' || searchQuery) ? ' <span style="font-weight:400;">(filtered)</span>' : '';
+  document.getElementById('catalogTotalQty').innerHTML = `${label}: <b>${value}</b>${suffix}${filterNote}`;
+}
 
 function renderProducts(){
   const body = document.getElementById('productBody');
@@ -1121,10 +1191,7 @@ function renderProducts(){
       }).join('');
   updateCatalogSuggestions();
   updateItemCodeSuggestions(document.getElementById('itemCode').value);
-
-  // Total Quantity readout respects the same Stock Filter + Search that shaped `visible`.
-  const totalQty = visible.reduce((sum,p)=> sum + (p.stock||0), 0);
-  document.getElementById('catalogTotalQty').innerHTML = `Total Quantity: <b>${totalQty}</b> unit(s)${(stockFilter!=='all'||searchQuery) ? ' <span style="font-weight:400;">(filtered)</span>' : ''}`;
+  renderCatalogUnitSummary(visible);
 }
 
 /* ===== Billing ===== */
@@ -1485,64 +1552,104 @@ function matchesFilter(sale){
   return true;
 }
 
-/* ===== Sales Book: mask toggle + inline row editing ===== */
+/* Groups a flat list of sale rows by invoice number, preserving the order
+   each invoice was first encountered. Works regardless of whether the rows
+   happen to be contiguous in the underlying array. */
+function groupSalesByInvoice(rows){
+  const map = new Map();
+  rows.forEach(s=>{
+    if(!map.has(s.invoice)) map.set(s.invoice, []);
+    map.get(s.invoice).push(s);
+  });
+  return Array.from(map.values());
+}
+
+/* ===== Sales Book: mask toggle + merged invoice rows ===== */
 document.getElementById('salesUnmaskBtn').addEventListener('click', (e)=>{
   salesUnmasked = !salesUnmasked;
   e.currentTarget.textContent = salesUnmasked ? 'Mask Data' : 'Unmask Data';
   e.currentTarget.classList.toggle('active', salesUnmasked);
   renderHistory();
 });
-function toggleSaleEdit(id){
-  if(editingSaleIds.has(id)) editingSaleIds.delete(id); else editingSaleIds.add(id);
+/* Toggling Edit for an invoice unlocks/locks Customer, Number, Qty, and
+   Selling Price for EVERY line item under that invoice at once — since
+   Customer/Number are now a single merged cell shared across the group. */
+function toggleInvoiceEdit(invoiceNo){
+  const ids = sales.filter(s=>s.invoice===invoiceNo).map(s=>s.id);
+  const allEditing = ids.length>0 && ids.every(id=>editingSaleIds.has(id));
+  if(allEditing) ids.forEach(id=>editingSaleIds.delete(id));
+  else ids.forEach(id=>editingSaleIds.add(id));
   renderHistory();
 }
 const CELL_STYLE_ATTR = `style="color:#2B2620 !important;-webkit-text-fill-color:#2B2620 !important;background:#ffffff !important;background-color:#ffffff !important;caret-color:#2B2620 !important;"`;
 function renderHistory(){
   const visible = activeFilter ? sales.filter(matchesFilter) : sales;
   const body=document.getElementById('historyBody');
-  body.innerHTML = visible.length===0 ? '<tr class="empty-row"><td colspan="15">No sales recorded yet</td></tr>' :
-    visible.map((s)=>{
-      const mpp = s.marginPerPiece ?? (s.price-s.cost);
-      const mpct = s.marginPercent ?? (s.price>0 ? ((s.price-s.cost)/s.price)*100 : 0);
-      const editing = editingSaleIds.has(s.id);
-      // Customer name is always shown in plain text — never masked, per this update.
-      const custCell = editing
-        ? `<input type="text" class="cell-input-text" ${CELL_STYLE_ATTR} autocomplete="off" value="${esc(s.customer||'')}" onchange="updateSaleCustomer('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
-        : esc(s.customer||'—');
-      const numCell = editing
-        ? `<input type="tel" class="cell-input-text" ${CELL_STYLE_ATTR} autocomplete="off" value="${esc(s.number||'')}" onchange="updateSaleNumber('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
-        : (salesUnmasked ? esc(s.number||'—') : maskText(s.number));
-      const qtyCell = editing
-        ? `<input type="text" inputmode="numeric" pattern="[0-9]*" class="cell-input" ${CELL_STYLE_ATTR} autocomplete="off" value="${s.qty}" oninput="this.value=this.value.replace(/[^0-9]/g,'')" onchange="updateSaleQty('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
-        : (salesUnmasked ? s.qty : '••');
-      const priceCell = editing
-        ? `<input type="number" class="cell-input price" ${CELL_STYLE_ATTR} autocomplete="off" min="0" step="0.01" value="${s.price}" onchange="updateSalePrice('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
-        : (salesUnmasked ? money(s.price) : maskMoney());
-      return `<tr>
-      <td class="mono">${esc(s.invoice)}</td><td>${esc(s.date)}</td>
-      <td>${custCell}</td>
-      <td class="mono">${numCell}</td>
-      <td class="mono">${esc(formatCode(s.code))}</td><td>${esc(s.product)}</td>
-      <td class="num">${qtyCell}</td>
-      <td class="num">${salesUnmasked ? money(s.cost) : maskMoney()}</td>
-      <td class="num">${salesUnmasked ? money(s.expectedPrice??s.price) : maskMoney()}</td>
-      <td class="num">${priceCell}</td>
-      <td class="num ${salesUnmasked ? adjClass(mpp) : ''}">${salesUnmasked ? adjText(mpp) : maskMoney()}</td>
-      <td class="num ${salesUnmasked ? adjClass(mpct) : ''}">${salesUnmasked ? pctText(mpct) : '••%'}</td>
-      <td class="num">${salesUnmasked ? money(s.revenue) : maskMoney()}</td>
-      <td class="num" style="color:${salesUnmasked ? (s.profit>=0?'var(--green)':'var(--burgundy)') : 'var(--grey-soft)'}">${salesUnmasked ? money(s.profit) : maskMoney()}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="printInvoiceFromSales('${esc(s.invoice)}')">Print</button>
-          <button class="btn ${editing?'btn-primary':'btn-ghost'} btn-sm" onclick="toggleSaleEdit('${s.id}')">${editing?'Done':'Edit'}</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteSaleRow('${s.id}')">Delete</button></td></tr>`;
-    }).join('');
 
+  if(visible.length===0){
+    body.innerHTML = '<tr class="empty-row"><td colspan="16">No sales recorded yet</td></tr>';
+  }else{
+    const groups = groupSalesByInvoice(visible);
+    let html = '';
+    groups.forEach(group=>{
+      const invoiceNo = group[0].invoice;
+      const first = group[0];
+      const rowspan = group.length;
+      const allEditing = group.every(s=>editingSaleIds.has(s.id));
+
+      const custCell = allEditing
+        ? `<input type="text" class="cell-input-text" ${CELL_STYLE_ATTR} autocomplete="off" value="${esc(first.customer||'')}" onchange="updateInvoiceCustomer('${esc(invoiceNo)}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
+        : esc(first.customer||'—');
+      const numCell = allEditing
+        ? `<input type="tel" class="cell-input-text" ${CELL_STYLE_ATTR} autocomplete="off" value="${esc(first.number||'')}" onchange="updateInvoiceNumber('${esc(invoiceNo)}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
+        : (salesUnmasked ? esc(first.number||'—') : maskText(first.number));
+      const invoiceActionsCell = `<button class="btn btn-ghost btn-sm" onclick="printInvoiceFromSales('${esc(invoiceNo)}')">Print</button>
+          <button class="btn ${allEditing?'btn-primary':'btn-ghost'} btn-sm" onclick="toggleInvoiceEdit('${esc(invoiceNo)}')">${allEditing?'Done':'Edit'}</button>`;
+
+      group.forEach((s,idx)=>{
+        const mpp = s.marginPerPiece ?? (s.price-s.cost);
+        const mpct = s.marginPercent ?? (s.price>0 ? ((s.price-s.cost)/s.price)*100 : 0);
+        const qtyCell = allEditing
+          ? `<input type="text" inputmode="numeric" pattern="[0-9]*" class="cell-input" ${CELL_STYLE_ATTR} autocomplete="off" value="${s.qty}" oninput="this.value=this.value.replace(/[^0-9]/g,'')" onchange="updateSaleQty('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
+          : (salesUnmasked ? s.qty : '••');
+        const priceCell = allEditing
+          ? `<input type="number" class="cell-input price" ${CELL_STYLE_ATTR} autocomplete="off" min="0" step="0.01" value="${s.price}" onchange="updateSalePrice('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
+          : (salesUnmasked ? money(s.price) : maskMoney());
+
+        html += '<tr>';
+        if(idx===0){
+          html += `<td class="mono merged-cell" rowspan="${rowspan}">${esc(invoiceNo)}</td>`;
+          html += `<td class="merged-cell" rowspan="${rowspan}">${esc(first.date)}</td>`;
+          html += `<td class="merged-cell" rowspan="${rowspan}">${custCell}</td>`;
+          html += `<td class="mono merged-cell" rowspan="${rowspan}">${numCell}</td>`;
+        }
+        html += `<td class="mono">${esc(formatCode(s.code))}</td><td>${esc(s.product)}</td>`;
+        html += `<td class="num">${qtyCell}</td>`;
+        html += `<td class="num">${salesUnmasked ? money(s.cost) : maskMoney()}</td>`;
+        html += `<td class="num">${salesUnmasked ? money(s.expectedPrice??s.price) : maskMoney()}</td>`;
+        html += `<td class="num">${priceCell}</td>`;
+        html += `<td class="num ${salesUnmasked ? adjClass(mpp) : ''}">${salesUnmasked ? adjText(mpp) : maskMoney()}</td>`;
+        html += `<td class="num ${salesUnmasked ? adjClass(mpct) : ''}">${salesUnmasked ? pctText(mpct) : '••%'}</td>`;
+        html += `<td class="num">${salesUnmasked ? money(s.revenue) : maskMoney()}</td>`;
+        html += `<td class="num" style="color:${salesUnmasked ? (s.profit>=0?'var(--green)':'var(--burgundy)') : 'var(--grey-soft)'}">${salesUnmasked ? money(s.profit) : maskMoney()}</td>`;
+        if(idx===0){
+          html += `<td class="merged-cell" rowspan="${rowspan}">${invoiceActionsCell}</td>`;
+        }
+        html += `<td><button class="btn btn-danger btn-sm" onclick="deleteSaleRow('${s.id}')">Delete</button></td>`;
+        html += '</tr>';
+      });
+    });
+    body.innerHTML = html;
+  }
+
+  // Summary stats are computed over the flat, filtered list — unaffected by grouping/rendering.
   const bills=new Set(visible.map(s=>s.invoice)).size;
   const revenue=visible.reduce((a,s)=>a+s.revenue,0), cost=visible.reduce((a,s)=>a+s.cost*s.qty,0), profit=visible.reduce((a,s)=>a+s.profit,0);
   const totalQty = visible.reduce((a,s)=>a+s.qty,0);
   const avgMarginValue = totalQty ? profit/totalQty : 0;
   const avgMarginPercent = revenue ? (profit/revenue)*100 : 0;
   document.getElementById('statBills').textContent=bills;
-  document.getElementById('statTotalQty').textContent=totalQty; // always shown as a real number — respects activeFilter via `visible`
+  document.getElementById('statTotalQty').textContent=totalQty;
   document.getElementById('statRevenue').textContent= salesUnmasked ? money(revenue) : maskMoney();
   document.getElementById('statCost').textContent= salesUnmasked ? money(cost) : maskMoney();
   document.getElementById('statProfit').textContent= salesUnmasked ? money(profit) : maskMoney();
@@ -1559,21 +1666,22 @@ function recalcSaleRow(s){
   s.marginPercent = s.price>0 ? ((s.price-s.cost)/s.price)*100 : 0;
   s.updatedAt = Date.now();
 }
-function updateSaleCustomer(id, val){
-  const s = sales.find(x=>x.id===id); if(!s) return;
-  s.customer = val.trim(); s.updatedAt = Date.now();
-  save(LS_SALES, sales); renderHistory();
-  toast('Customer name updated');
-  pushChange();
+/* Customer/Number are edited once per invoice (merged cell) and applied to
+   every sale record sharing that invoice number — they're the same person's
+   details for every line item in a single bill. */
+function updateInvoiceCustomer(invoiceNo, val){
+  const trimmed = val.trim();
+  let touched = false;
+  sales.forEach(s=>{ if(s.invoice===invoiceNo){ s.customer = trimmed; s.updatedAt = Date.now(); touched = true; } });
+  if(touched){ save(LS_SALES, sales); renderHistory(); toast('Customer name updated'); pushChange(); }
 }
-function updateSaleNumber(id, val){
-  const s = sales.find(x=>x.id===id); if(!s) return;
+function updateInvoiceNumber(invoiceNo, val){
   const digits = val.replace(/\D/g,'');
   if(digits.length>10){ toast('Mobile number cannot exceed 10 digits', true); renderHistory(); return; }
-  s.number = val.trim(); s.updatedAt = Date.now();
-  save(LS_SALES, sales); renderHistory();
-  toast('Customer number updated');
-  pushChange();
+  const trimmed = val.trim();
+  let touched = false;
+  sales.forEach(s=>{ if(s.invoice===invoiceNo){ s.number = trimmed; s.updatedAt = Date.now(); touched = true; } });
+  if(touched){ save(LS_SALES, sales); renderHistory(); toast('Customer number updated'); pushChange(); }
 }
 function updateSaleQty(id, val){
   const s = sales.find(x=>x.id===id); if(!s) return;
