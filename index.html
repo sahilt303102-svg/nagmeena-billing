@@ -212,6 +212,14 @@
   .modal-box{ background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:26px; width:360px; max-width:100%; }
   .modal-box h3{ font-family:'Cormorant Garamond',serif; font-size:19px; color:var(--teal); margin:0 0 4px 0; }
 
+  /* Print preview popup: wider box, fixed-height iframe holding the rendered PDF */
+  .preview-box{ background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px; width:480px; max-width:96vw; }
+  .preview-box h3{ font-family:'Cormorant Garamond',serif; font-size:19px; color:var(--teal); margin:0 0 14px 0; }
+  .preview-frame-wrap{ border:1px solid var(--line); border-radius:var(--radius-sm); overflow:hidden; background:#5a5a5a; height:60vh; min-height:340px; }
+  .preview-frame-wrap iframe{ width:100%; height:100%; border:none; display:block; background:#fff; }
+  .preview-actions{ display:flex; gap:10px; margin-top:16px; }
+  .preview-actions .btn{ flex:1; }
+
   .settings-panel{ display:none; position:fixed; top:78px; right:30px; width:380px; max-width:90vw; background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px; z-index:60; max-height:80vh; overflow-y:auto; }
   .settings-panel.show{ display:block; animation:fadeIn .2s ease; }
   .settings-panel h3{ font-family:'Cormorant Garamond',serif; font-size:18px; margin:0 0 6px 0; color:var(--teal); }
@@ -476,7 +484,7 @@
           <button class="btn btn-danger btn-sm" id="clearHistoryBtn">Clear All Records</button>
         </div>
       </div>
-      <p class="sub" style="margin-top:-8px;">Rows sharing an invoice number are merged. Click Edit once per invoice to unlock Customer, Number, Payment Mode, Qty, and Selling Price for every item in it.</p>
+      <p class="sub" style="margin-top:-8px;">Rows sharing an invoice number are merged. Click Edit once per invoice to unlock Customer, Number, Payment Mode, Qty, and Selling Price for every item in it. Print opens a preview before generating the PDF.</p>
 
       <div class="filter-bar">
         <div class="filter-group">
@@ -558,6 +566,17 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="printPreviewOverlay">
+  <div class="preview-box">
+    <h3 id="printPreviewTitle">Invoice Preview</h3>
+    <div class="preview-frame-wrap"><iframe id="printPreviewFrame" title="Invoice PDF preview"></iframe></div>
+    <div class="preview-actions">
+      <button class="btn btn-gold" id="printPreviewPrintBtn">Print</button>
+      <button class="btn btn-ghost" id="printPreviewCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ===== Storage keys ===== */
 const LS_PRODUCTS='ledger_products', LS_SALES='ledger_sales', LS_SEQ='ledger_invoice_seq',
@@ -621,7 +640,6 @@ let editingSaleIds = new Set();
     const mpct = s.price>0 ? ((s.price-s.cost)/s.price)*100 : 0;
     if(s.marginPerPiece !== mpp){ s.marginPerPiece = mpp; touched = true; }
     if(s.marginPercent !== mpct){ s.marginPercent = mpct; touched = true; }
-    // Pre-existing sale records predate payment tracking — assume already fully paid via Cash.
     if(s.paymentMode===undefined){ s.paymentMode='cash'; touched = true; }
     if(s.paymentStatus===undefined){ s.paymentStatus='Done'; touched = true; }
     if(s.pendingAmount===undefined){ s.pendingAmount=0; touched = true; }
@@ -632,7 +650,7 @@ let editingSaleIds = new Set();
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 18; // v18: payment mode/status/pending tracking, Pay Now flow, Sales Book search
+const DATA_VERSION = 19; // v19: print preview popup for Sales Book invoice printing
 
 /* ===== Product code categories ===== */
 const BLANK_CODE = '00';
@@ -1458,18 +1476,22 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
   renderCart(); hideStockWarning();
   pushChange();
 
+  // New Bill's "Print Invoice" checkbox still auto-downloads immediately — unchanged.
   if(printChecked){
-    await generateInvoicePDF(invoiceNo, date, name||'—', number||'—', itemsForPdf, capitalizeMode(paymentMode));
+    const doc = buildInvoiceDoc(invoiceNo, date, name||'—', number||'—', itemsForPdf, capitalizeMode(paymentMode));
+    doc.save(`${invoiceNo}.pdf`);
   }
 });
 
+/* Sales Book "Print" now opens a preview popup instead of downloading directly. */
 async function printInvoiceFromSales(invoiceNo){
   const rows = sales.filter(s=>s.invoice===invoiceNo);
   if(rows.length===0){ toast('No records found for this invoice'); return; }
   const first = rows[0];
   if(first.paymentStatus === 'Pending'){ toast('This invoice has a pending payment — settle it via Pay Now before printing.', true); return; }
   const items = rows.map(r=>({code:r.code, name:r.product, qty:r.qty, price:r.price}));
-  await generateInvoicePDF(invoiceNo, first.date, first.customer||'—', first.number||'—', items, capitalizeMode(first.paymentMode));
+  const doc = await buildInvoiceDocAsync(invoiceNo, first.date, first.customer||'—', first.number||'—', items, capitalizeMode(first.paymentMode));
+  showInvoicePreview(doc, invoiceNo);
 }
 
 function loadImageDataUrl(src){
@@ -1512,8 +1534,12 @@ function getSecondaryPhone(){
 }
 function getPrimaryAddress(){ return contactAddresses.find(a=>a.id===contactMeta.primaryAddressId) || null; }
 
-/* ===== Thermal (88mm) receipt-style invoice PDF ===== */
-async function generateInvoicePDF(invoiceNo, date, name, number, items, paymentLabel){
+/* ===== Thermal (88mm) receipt-style invoice PDF — builds and returns the doc; caller decides what to do with it =====
+   Split into a sync/async pair: buildInvoiceDocAsync awaits the logo/QR fetches (used by Sales Book preview,
+   which needs the finished doc before showing it); buildInvoiceDoc is a thin sync wrapper kept for the one
+   remaining immediate-download call site (New Bill checkbox) — it just calls the async version and blocks
+   via await at the call site instead. Kept as two names for clarity at each call site. */
+async function buildInvoiceDocAsync(invoiceNo, date, name, number, items, paymentLabel){
   const { jsPDF } = window.jspdf;
   const PAGE_W = 88;
   const MARGIN = 3;
@@ -1540,7 +1566,7 @@ async function generateInvoicePDF(invoiceNo, date, name, number, items, paymentL
   heightMM += 3;
   heightMM += 4*2;
   heightMM += 4*((name&&name!=='—')?1:0) + 4*((number&&number!=='—')?1:0);
-  heightMM += 4; // payment mode line
+  heightMM += 4;
   heightMM += 3;
   heightMM += 4;
   heightMM += 2;
@@ -1641,8 +1667,46 @@ async function generateInvoicePDF(invoiceNo, date, name, number, items, paymentL
     if(primaryAddress){ addressLines.forEach(line=>{ doc.text(line, cx, y, {align:'center'}); y += 3.4; }); }
   }
 
-  doc.save(`${invoiceNo}.pdf`);
+  return doc;
 }
+function buildInvoiceDoc(invoiceNo, date, name, number, items, paymentLabel){
+  // Sync-looking wrapper used only by the New Bill immediate-download path — the
+  // async work has already resolved by the time this is awaited at the call site.
+  return buildInvoiceDocAsync(invoiceNo, date, name, number, items, paymentLabel);
+}
+
+/* ===== Print Preview popup (Sales Book) ===== */
+let currentPreviewBlobUrl = null;
+function showInvoicePreview(doc, invoiceNo){
+  closeInvoicePreview(); // clean up any stale blob URL first
+  const blobUrl = doc.output('bloburl');
+  currentPreviewBlobUrl = blobUrl;
+  document.getElementById('printPreviewTitle').textContent = `Invoice Preview — ${invoiceNo}`;
+  const frame = document.getElementById('printPreviewFrame');
+  frame.src = blobUrl;
+  frame.dataset.invoiceNo = invoiceNo;
+  document.getElementById('printPreviewOverlay').classList.add('show');
+}
+function closeInvoicePreview(){
+  document.getElementById('printPreviewOverlay').classList.remove('show');
+  const frame = document.getElementById('printPreviewFrame');
+  frame.src = 'about:blank';
+  if(currentPreviewBlobUrl){ URL.revokeObjectURL(currentPreviewBlobUrl); currentPreviewBlobUrl = null; }
+}
+document.getElementById('printPreviewCloseBtn').addEventListener('click', closeInvoicePreview);
+document.getElementById('printPreviewOverlay').addEventListener('click', (e)=>{ if(e.target.id==='printPreviewOverlay') closeInvoicePreview(); });
+document.getElementById('printPreviewPrintBtn').addEventListener('click', ()=>{
+  const frame = document.getElementById('printPreviewFrame');
+  const invoiceNo = frame.dataset.invoiceNo || 'invoice';
+  // Generates the actual PDF file the person can send to a printer.
+  if(currentPreviewBlobUrl){
+    const a = document.createElement('a');
+    a.href = currentPreviewBlobUrl;
+    a.download = `${invoiceNo}.pdf`;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  toast(`Invoice ${invoiceNo} PDF generated`);
+});
 
 let activeFilter = null;
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1848,9 +1912,6 @@ function recalcSaleRow(s){
   s.marginPercent = s.price>0 ? ((s.price-s.cost)/s.price)*100 : 0;
   s.updatedAt = Date.now();
 }
-/* Keeps an invoice's Pending Amount accurate if a line's qty/price is edited
-   after the fact. Only relevant for Loan invoices still showing Pending —
-   Cash/UPI invoices are always fully paid and untouched by this. */
 function recalcInvoicePaymentTotals(invoiceNo){
   const group = sales.filter(s=>s.invoice===invoiceNo);
   if(group.length===0) return;
@@ -1876,10 +1937,6 @@ function updateInvoiceNumber(invoiceNo, val){
   sales.forEach(s=>{ if(s.invoice===invoiceNo){ s.number = trimmed; s.updatedAt = Date.now(); touched = true; } });
   if(touched){ save(LS_SALES, sales); renderHistory(); toast('Customer number updated'); pushChange(); }
 }
-/* Manual Payment Mode edit. Switching to Cash/UPI marks the invoice fully
-   paid. Switching to Loan resets it to fully pending — since editing a mode
-   dropdown doesn't ask full/partial again, this is the safest default
-   (an operator would use Pay Now to record a partial settlement instead). */
 function updateInvoicePaymentMode(invoiceNo, newMode){
   const group = sales.filter(s=>s.invoice===invoiceNo);
   if(group.length===0) return;
@@ -1994,6 +2051,7 @@ document.getElementById('payNowConfirmBtn').addEventListener('click', async ()=>
   const invNo = payNowInvoiceNo;
   updateInvoicePaymentMode(invNo, mode);
   closePayNow();
+  // Now goes through the same preview popup as any other Sales Book print.
   if(printChecked){ await printInvoiceFromSales(invNo); }
 });
 
