@@ -140,6 +140,9 @@
   .cell-input-text{ width:110px; font-family:'Inter',sans-serif; text-align:left; }
   .masked-text{ letter-spacing:2px; color:var(--grey-soft); user-select:none; }
   .merged-cell{ vertical-align:middle; }
+  .pay-done{ color:var(--green); font-weight:700; }
+  .pay-pending{ color:var(--burgundy); font-weight:700; }
+  .pay-na{ color:var(--grey-soft); }
 
   .totals{ margin-top:16px; padding-top:16px; border-top:1px dashed var(--gold-line); }
   .totals .line{ display:flex; justify-content:space-between; font-size:13.5px; padding:4px 0; color:var(--charcoal-muted); }
@@ -155,14 +158,14 @@
   .receipt tbody tr:nth-child(even) td, .receipt tbody tr:hover td{ background:transparent; }
   .receipt .foot{ text-align:center; color:var(--gold); font-size:11px; margin-top:18px; letter-spacing:1px; text-transform:uppercase; }
 
-  .summary-cards{ display:grid; grid-template-columns:repeat(7,1fr); gap:16px; margin-bottom:20px; }
-  @media (max-width:1100px){ .summary-cards{ grid-template-columns:repeat(4,1fr); } }
+  .summary-cards{ display:grid; grid-template-columns:repeat(8,1fr); gap:16px; margin-bottom:20px; }
+  @media (max-width:1200px){ .summary-cards{ grid-template-columns:repeat(4,1fr); } }
   @media (max-width:600px){ .summary-cards{ grid-template-columns:repeat(2,1fr); } }
   .stat{ background:linear-gradient(160deg, #FFFFFF, var(--beige-soft)); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px; box-shadow:var(--shadow-soft); transition:transform .25s ease, box-shadow .25s ease; }
   .stat:hover{ transform:translateY(-2px); box-shadow:var(--shadow); }
   .stat .label{ font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--muted-teal); margin-bottom:8px; }
   .stat .value{ font-family:'Cormorant Garamond',serif; font-size:24px; font-weight:700; color:var(--teal); }
-  .stat.profit .value{ color:var(--green); } .stat.cost .value{ color:var(--burgundy); }
+  .stat.profit .value{ color:var(--green); } .stat.cost .value{ color:var(--burgundy); } .stat.pending .value{ color:var(--burgundy); }
 
   .toolbar{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px; }
   .toolbar .title{ font-family:'Cormorant Garamond',serif; font-size:20px; font-weight:700; color:var(--teal); letter-spacing:0.3px; }
@@ -193,15 +196,21 @@
   .recent-box .code{ font-family:'IBM Plex Mono',monospace; font-size:16px; font-weight:600; color:var(--teal); letter-spacing:1px; word-break:break-all; }
   .recent-box .desc{ font-size:13px; color:var(--charcoal); margin-top:6px; }
 
-  /* Unit summary: every word — label, number, suffix, filter note — shares the
-     exact same font-family/weight/size, per this update. Only colour may vary
-     slightly for the "(filtered)" note; nothing about the typeface itself does. */
   .catalog-total-qty{
     font-family:'Inter',sans-serif; font-weight:600; font-size:13px; color:var(--teal);
     margin:-4px 0 14px 2px; letter-spacing:0.2px;
   }
   .catalog-total-qty b{ font-family:inherit; font-weight:inherit; font-size:inherit; color:inherit; }
   .catalog-total-qty .filter-note{ font-family:inherit; font-weight:inherit; font-size:inherit; color:var(--muted-teal); }
+
+  .radio-row{ display:flex; gap:18px; flex-wrap:wrap; padding:10px 0 2px; }
+  .radio-row label{ display:flex; align-items:center; gap:7px; text-transform:none; font-size:13.5px; font-weight:500; color:var(--charcoal); letter-spacing:0; margin:0; }
+  .radio-row input[type=radio]{ width:auto; accent-color:var(--teal); }
+
+  .modal-overlay{ display:none; position:fixed; inset:0; background:rgba(18,56,50,0.45); z-index:100; align-items:center; justify-content:center; padding:20px; }
+  .modal-overlay.show{ display:flex; }
+  .modal-box{ background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:26px; width:360px; max-width:100%; }
+  .modal-box h3{ font-family:'Cormorant Garamond',serif; font-size:19px; color:var(--teal); margin:0 0 4px 0; }
 
   .settings-panel{ display:none; position:fixed; top:78px; right:30px; width:380px; max-width:90vw; background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px; z-index:60; max-height:80vh; overflow-y:auto; }
   .settings-panel.show{ display:block; animation:fadeIn .2s ease; }
@@ -269,7 +278,7 @@
 
   <div class="divider"></div>
   <h4>Backup &amp; Restore</h4>
-  <p class="help">Backup captures the exact same full data set that syncs to Drive — Product Catalog, Sales Book, and Contact Us (including which number/address is marked Primary). Restore is additive-only and correctly un-deletes anything removed — restored rows get a fresh timestamp so sync won't erase them again.</p>
+  <p class="help">Backup captures the exact same full data set that syncs to Drive — Product Catalog, Sales Book (including payment info), and Contact Us. Restore is additive-only and correctly un-deletes anything removed.</p>
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
     <button class="btn btn-ghost btn-sm" id="backupBtn">Backup Data</button>
     <button class="btn btn-ghost btn-sm" id="restoreBtn">Restore Data</button>
@@ -330,9 +339,32 @@
             <div class="line"><span>Items</span><span id="cartCount">0</span></div>
             <div class="line grand"><span>Total</span><span id="cartTotal">₹0.00</span></div>
           </div>
-          <div style="margin-top:18px; display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
+
+          <div class="field" style="margin-top:18px;">
+            <label for="paymentModeSelect">Payment Mode</label>
+            <select id="paymentModeSelect">
+              <option value="cash">Cash</option>
+              <option value="upi">UPI</option>
+              <option value="loan">Loan</option>
+            </select>
+          </div>
+          <div class="row" id="loanOptionsRow" style="display:none;">
+            <div class="field" style="flex:1;">
+              <label>Loan Amount</label>
+              <div class="radio-row">
+                <label><input type="radio" name="loanType" value="full" checked> Full Amount</label>
+                <label><input type="radio" name="loanType" value="partial"> Partial Amount</label>
+              </div>
+            </div>
+            <div class="field" id="partialAmountField" style="display:none; flex:0.7;">
+              <label for="partialAmountInput">Amount Paid Now (₹)</label>
+              <input type="number" id="partialAmountInput" min="0" step="0.01" placeholder="0.00">
+            </div>
+          </div>
+
+          <div style="margin-top:8px; display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
             <button class="btn btn-gold" id="generateBillBtn">Generate Invoice</button>
-            <div class="checkbox-row"><input type="checkbox" id="printInvoiceCheckbox"><label for="printInvoiceCheckbox">Print Invoice</label></div>
+            <div class="checkbox-row" id="printCheckboxRow"><input type="checkbox" id="printInvoiceCheckbox"><label for="printInvoiceCheckbox">Print Invoice</label></div>
             <button class="btn btn-ghost" id="clearCartBtn">Clear</button>
           </div>
         </div>
@@ -434,6 +466,7 @@
       <div class="stat profit"><div class="label">Total Profit</div><div class="value" id="statProfit">₹0.00</div></div>
       <div class="stat"><div class="label">Avg Margin/Pc</div><div class="value" id="statAvgMargin">₹0.00</div></div>
       <div class="stat"><div class="label">Avg Margin %</div><div class="value" id="statAvgMarginPct">0%</div></div>
+      <div class="stat pending"><div class="label">Pending Payments</div><div class="value" id="statPending">₹0.00</div></div>
     </div>
     <div class="card" style="margin-top:0;">
       <div class="toolbar">
@@ -443,7 +476,7 @@
           <button class="btn btn-danger btn-sm" id="clearHistoryBtn">Clear All Records</button>
         </div>
       </div>
-      <p class="sub" style="margin-top:-8px;">Rows sharing an invoice number are merged. Click Edit once per invoice to unlock Customer, Number, Qty, and Selling Price for every item in it.</p>
+      <p class="sub" style="margin-top:-8px;">Rows sharing an invoice number are merged. Click Edit once per invoice to unlock Customer, Number, Payment Mode, Qty, and Selling Price for every item in it.</p>
 
       <div class="filter-bar">
         <div class="filter-group">
@@ -459,11 +492,28 @@
           <button class="btn btn-ghost btn-sm" id="clearFilterBtn">Clear Filter</button>
         </div>
       </div>
+
+      <div class="row" style="align-items:flex-end;">
+        <div class="field" style="flex:0.8;"><label for="salesSearchField">Search By</label>
+          <select id="salesSearchField">
+            <option value="code">Product Code</option>
+            <option value="desc">Description</option>
+            <option value="paymentStatus">Payment Status</option>
+            <option value="paymentMode">Payment Mode</option>
+            <option value="customer">Customer Name</option>
+            <option value="number">Customer Number</option>
+          </select>
+        </div>
+        <div class="field" style="flex:1.6;"><label for="salesSearchInput">Search</label>
+          <input type="text" id="salesSearchInput" list="salesSearchSuggestions" placeholder="Start typing…">
+          <datalist id="salesSearchSuggestions"></datalist>
+        </div>
+      </div>
       <div class="filter-status" id="filterStatus"></div>
 
       <div class="table-scroll">
-      <table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Number</th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">MRP</th><th class="num">Selling</th><th class="num">Margin/Pc</th><th class="num">Margin %</th><th class="num">Revenue</th><th class="num">Profit</th><th></th><th></th></tr></thead>
-        <tbody id="historyBody"><tr class="empty-row"><td colspan="16">No sales recorded yet</td></tr></tbody></table>
+      <table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Number</th><th>Payment Mode</th><th>Payment Status</th><th>Pending Amount</th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">MRP</th><th class="num">Selling</th><th class="num">Margin/Pc</th><th class="num">Margin %</th><th class="num">Revenue</th><th class="num">Profit</th><th></th><th></th></tr></thead>
+        <tbody id="historyBody"><tr class="empty-row"><td colspan="19">No sales recorded yet</td></tr></tbody></table>
       </div>
     </div>
   </section>
@@ -488,6 +538,25 @@
 
 <footer class="hint">Data is stored in this browser and synced to your own Google Drive when connected. Export .xlsx regularly as a backup.</footer>
 <div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="payNowOverlay">
+  <div class="modal-box">
+    <h3>Complete Payment</h3>
+    <p class="sub" id="payNowInvoiceLabel">Invoice</p>
+    <div class="field">
+      <label>Payment Mode</label>
+      <div class="radio-row">
+        <label><input type="radio" name="payNowMode" value="cash" checked> Cash</label>
+        <label><input type="radio" name="payNowMode" value="upi"> UPI</label>
+      </div>
+    </div>
+    <div class="checkbox-row" style="margin-top:6px;"><input type="checkbox" id="payNowPrintCheckbox"><label for="payNowPrintCheckbox">Print Invoice</label></div>
+    <div style="display:flex; gap:10px; margin-top:20px;">
+      <button class="btn btn-gold" id="payNowConfirmBtn">Generate Invoice</button>
+      <button class="btn btn-ghost" id="payNowCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <script>
 /* ===== Storage keys ===== */
@@ -521,6 +590,7 @@ function generateTimestampCode(){
   return dd+mm+yy+hh+mi;
 }
 function isValidProductCode(code){ return /^\d{20}$/.test(String(code||'')); }
+function capitalizeMode(m){ return m==='upi' ? 'UPI' : (m==='loan' ? 'Loan' : 'Cash'); }
 
 let salesUnmasked = false;
 let catalogUnmasked = false;
@@ -551,13 +621,18 @@ let editingSaleIds = new Set();
     const mpct = s.price>0 ? ((s.price-s.cost)/s.price)*100 : 0;
     if(s.marginPerPiece !== mpp){ s.marginPerPiece = mpp; touched = true; }
     if(s.marginPercent !== mpct){ s.marginPercent = mpct; touched = true; }
+    // Pre-existing sale records predate payment tracking — assume already fully paid via Cash.
+    if(s.paymentMode===undefined){ s.paymentMode='cash'; touched = true; }
+    if(s.paymentStatus===undefined){ s.paymentStatus='Done'; touched = true; }
+    if(s.pendingAmount===undefined){ s.pendingAmount=0; touched = true; }
+    if(s.amountPaid===undefined){ s.amountPaid=s.revenue; touched = true; }
   });
   if(touched){ save(LS_PRODUCTS, products); save(LS_SALES, sales); }
 })();
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 17; // v17: uniform-font unit summary, restore now includes primary phone/address selection
+const DATA_VERSION = 18; // v18: payment mode/status/pending tracking, Pay Now flow, Sales Book search
 
 /* ===== Product code categories ===== */
 const BLANK_CODE = '00';
@@ -1151,12 +1226,6 @@ function productMatchesFilters(p){
   }
   return true;
 }
-/* Label + count both depend on the active Stock Filter, and both always
-   respect the current search query (via `visible`, already filtered
-   upstream). Out-of-stock items are 0 by definition, so "Unavailable Units"
-   counts out-of-stock PRODUCTS rather than a meaningless sum of zeroes.
-   Rendered as one flat string of uniform font (see .catalog-total-qty CSS —
-   label, number, suffix and filter note now all share the same typeface). */
 function renderCatalogUnitSummary(visible){
   let label, value, suffix;
   if(stockFilter === 'out'){
@@ -1210,6 +1279,37 @@ function validateCustNumber(){
   return !tooLong;
 }
 custNumberEl.addEventListener('input', ()=>{ validateCustNumber(); renderCart(); });
+
+/* ===== Payment mode UI (New Bill) ===== */
+function updatePaymentModeUI(){
+  const mode = document.getElementById('paymentModeSelect').value;
+  const loanRow = document.getElementById('loanOptionsRow');
+  const printRow = document.getElementById('printCheckboxRow');
+  const printCb = document.getElementById('printInvoiceCheckbox');
+  const partialField = document.getElementById('partialAmountField');
+  if(mode==='loan'){
+    loanRow.style.display='flex';
+    printRow.style.display='none';
+    printCb.checked=false;
+    const loanTypeEl = document.querySelector('input[name=loanType]:checked');
+    const loanType = loanTypeEl ? loanTypeEl.value : 'full';
+    partialField.style.display = loanType==='partial' ? 'block':'none';
+  } else {
+    loanRow.style.display='none';
+    printRow.style.display='flex';
+    partialField.style.display='none';
+  }
+}
+document.getElementById('paymentModeSelect').addEventListener('change', updatePaymentModeUI);
+document.querySelectorAll('input[name=loanType]').forEach(r=>r.addEventListener('change', updatePaymentModeUI));
+function resetPaymentModeUI(){
+  document.getElementById('paymentModeSelect').value = 'cash';
+  const fullRadio = document.querySelector('input[name=loanType][value=full]');
+  if(fullRadio) fullRadio.checked = true;
+  document.getElementById('partialAmountInput').value = '';
+  updatePaymentModeUI();
+}
+updatePaymentModeUI();
 
 const itemCode=document.getElementById('itemCode'), itemName=document.getElementById('itemName'), lookupHint=document.getElementById('lookupHint');
 const itemSellPrice = document.getElementById('itemSellPrice');
@@ -1312,9 +1412,28 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
     return;
   }
 
+  const grandTotal = cartTotal();
+  const paymentMode = document.getElementById('paymentModeSelect').value; // 'cash' | 'upi' | 'loan'
+  let amountPaid, pendingAmount, paymentStatus;
+  if(paymentMode==='loan'){
+    const loanTypeEl = document.querySelector('input[name=loanType]:checked');
+    const loanType = loanTypeEl ? loanTypeEl.value : 'full';
+    if(loanType==='partial'){
+      amountPaid = parseFloat(document.getElementById('partialAmountInput').value);
+      if(isNaN(amountPaid) || amountPaid<0){ toast('Enter a valid amount paid now', true); return; }
+      if(amountPaid > grandTotal){ toast('Amount paid cannot exceed the bill total', true); return; }
+    }else{
+      amountPaid = 0;
+    }
+    pendingAmount = Math.max(0, grandTotal - amountPaid);
+    paymentStatus = pendingAmount > 0.004 ? 'Pending' : 'Done';
+  }else{
+    amountPaid = grandTotal; pendingAmount = 0; paymentStatus = 'Done';
+  }
+
   const invoiceNo = nextInvoiceNo();
   const date = todayStr();
-  const printChecked = document.getElementById('printInvoiceCheckbox').checked;
+  const printChecked = paymentMode==='loan' ? false : document.getElementById('printInvoiceCheckbox').checked;
   const itemsForPdf = cart.map(c=>({code:c.code, name:c.name, qty:c.qty, price:c.price}));
 
   cart.forEach(c=>{
@@ -1323,7 +1442,9 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
     const marginPercent = c.price>0 ? ((c.price-c.cost)/c.price)*100 : 0;
     sales.push({id:uuid(), invoice:invoiceNo, date, customer:name, number, code:c.code, product:c.name,
       qty:c.qty, cost:c.cost, expectedPrice:c.expectedPrice, price:c.price, revenue, profit:revenue-costTotal,
-      marginPerPiece, marginPercent, updatedAt: Date.now()});
+      marginPerPiece, marginPercent,
+      paymentMode, paymentStatus, pendingAmount, amountPaid,
+      updatedAt: Date.now()});
     const p = findProduct(c.code);
     if(p){ p.stock = Math.max(0, (p.stock||0) - c.qty); p.updatedAt = Date.now(); }
   });
@@ -1333,11 +1454,12 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
   toast(`Invoice ${invoiceNo} generated and saved`);
   cart=[]; document.getElementById('custName').value=''; custNumberEl.value=''; validateCustNumber();
   document.getElementById('printInvoiceCheckbox').checked = false;
+  resetPaymentModeUI();
   renderCart(); hideStockWarning();
   pushChange();
 
   if(printChecked){
-    await generateInvoicePDF(invoiceNo, date, name||'—', number||'—', itemsForPdf);
+    await generateInvoicePDF(invoiceNo, date, name||'—', number||'—', itemsForPdf, capitalizeMode(paymentMode));
   }
 });
 
@@ -1345,8 +1467,9 @@ async function printInvoiceFromSales(invoiceNo){
   const rows = sales.filter(s=>s.invoice===invoiceNo);
   if(rows.length===0){ toast('No records found for this invoice'); return; }
   const first = rows[0];
+  if(first.paymentStatus === 'Pending'){ toast('This invoice has a pending payment — settle it via Pay Now before printing.', true); return; }
   const items = rows.map(r=>({code:r.code, name:r.product, qty:r.qty, price:r.price}));
-  await generateInvoicePDF(invoiceNo, first.date, first.customer||'—', first.number||'—', items);
+  await generateInvoicePDF(invoiceNo, first.date, first.customer||'—', first.number||'—', items, capitalizeMode(first.paymentMode));
 }
 
 function loadImageDataUrl(src){
@@ -1390,7 +1513,7 @@ function getSecondaryPhone(){
 function getPrimaryAddress(){ return contactAddresses.find(a=>a.id===contactMeta.primaryAddressId) || null; }
 
 /* ===== Thermal (88mm) receipt-style invoice PDF ===== */
-async function generateInvoicePDF(invoiceNo, date, name, number, items){
+async function generateInvoicePDF(invoiceNo, date, name, number, items, paymentLabel){
   const { jsPDF } = window.jspdf;
   const PAGE_W = 88;
   const MARGIN = 3;
@@ -1417,6 +1540,7 @@ async function generateInvoicePDF(invoiceNo, date, name, number, items){
   heightMM += 3;
   heightMM += 4*2;
   heightMM += 4*((name&&name!=='—')?1:0) + 4*((number&&number!=='—')?1:0);
+  heightMM += 4; // payment mode line
   heightMM += 3;
   heightMM += 4;
   heightMM += 2;
@@ -1453,6 +1577,7 @@ async function generateInvoicePDF(invoiceNo, date, name, number, items){
   doc.text(`Date: ${date}`, MARGIN, y); y += 4;
   if(name && name!=='—'){ doc.text(`Customer: ${name}`, MARGIN, y); y += 4; }
   if(number && number!=='—'){ doc.text(`Phone: ${number}`, MARGIN, y); y += 4; }
+  doc.text(`Payment: ${paymentLabel || 'Cash'}`, MARGIN, y); y += 4;
 
   doc.line(MARGIN, y, PAGE_W-MARGIN, y); y += 3;
 
@@ -1557,6 +1682,36 @@ function matchesFilter(sale){
   return true;
 }
 
+/* ===== Sales Book search ===== */
+let salesSearchField = 'code';
+let salesSearchQuery = '';
+document.getElementById('salesSearchField').addEventListener('change', e=>{ salesSearchField=e.target.value; updateSalesSearchSuggestions(); renderHistory(); });
+document.getElementById('salesSearchInput').addEventListener('input', e=>{ salesSearchQuery=e.target.value.trim().toLowerCase(); renderHistory(); });
+function updateSalesSearchSuggestions(){
+  const dl = document.getElementById('salesSearchSuggestions');
+  let values;
+  if(salesSearchField==='code') values = sales.map(s=>formatCode(s.code));
+  else if(salesSearchField==='desc') values = sales.map(s=>s.product);
+  else if(salesSearchField==='paymentStatus') values = ['Done','Pending'];
+  else if(salesSearchField==='paymentMode') values = ['Cash','UPI','Loan'];
+  else if(salesSearchField==='customer') values = sales.map(s=>s.customer||'');
+  else values = sales.map(s=>s.number||'');
+  dl.innerHTML = Array.from(new Set(values.filter(Boolean))).map(v=>`<option value="${esc(v)}">`).join('');
+}
+function matchesSalesSearch(s){
+  if(!salesSearchQuery) return true;
+  const q = salesSearchQuery;
+  switch(salesSearchField){
+    case 'code': return formatCode(s.code).toLowerCase().includes(q) || s.code.toLowerCase().includes(q);
+    case 'desc': return (s.product||'').toLowerCase().includes(q);
+    case 'paymentStatus': return (s.paymentStatus||'').toLowerCase().includes(q);
+    case 'paymentMode': return capitalizeMode(s.paymentMode).toLowerCase().includes(q);
+    case 'customer': return (s.customer||'').toLowerCase().includes(q);
+    case 'number': return (s.number||'').toLowerCase().includes(q);
+    default: return true;
+  }
+}
+
 function groupSalesByInvoice(rows){
   const map = new Map();
   rows.forEach(s=>{
@@ -1566,7 +1721,7 @@ function groupSalesByInvoice(rows){
   return Array.from(map.values());
 }
 
-/* ===== Sales Book: mask toggle + merged invoice rows ===== */
+/* ===== Sales Book: mask toggle + merged invoice rows + payment tracking ===== */
 document.getElementById('salesUnmaskBtn').addEventListener('click', (e)=>{
   salesUnmasked = !salesUnmasked;
   e.currentTarget.textContent = salesUnmasked ? 'Mask Data' : 'Unmask Data';
@@ -1582,11 +1737,11 @@ function toggleInvoiceEdit(invoiceNo){
 }
 const CELL_STYLE_ATTR = `style="color:#2B2620 !important;-webkit-text-fill-color:#2B2620 !important;background:#ffffff !important;background-color:#ffffff !important;caret-color:#2B2620 !important;"`;
 function renderHistory(){
-  const visible = activeFilter ? sales.filter(matchesFilter) : sales;
+  const visible = sales.filter(matchesFilter).filter(matchesSalesSearch);
   const body=document.getElementById('historyBody');
 
   if(visible.length===0){
-    body.innerHTML = '<tr class="empty-row"><td colspan="16">No sales recorded yet</td></tr>';
+    body.innerHTML = '<tr class="empty-row"><td colspan="19">No sales recorded yet</td></tr>';
   }else{
     const groups = groupSalesByInvoice(visible);
     let html = '';
@@ -1602,7 +1757,23 @@ function renderHistory(){
       const numCell = allEditing
         ? `<input type="tel" class="cell-input-text" ${CELL_STYLE_ATTR} autocomplete="off" value="${esc(first.number||'')}" onchange="updateInvoiceNumber('${esc(invoiceNo)}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
         : (salesUnmasked ? esc(first.number||'—') : maskText(first.number));
-      const invoiceActionsCell = `<button class="btn btn-ghost btn-sm" onclick="printInvoiceFromSales('${esc(invoiceNo)}')">Print</button>
+
+      const paymentModeCell = allEditing
+        ? `<select class="cell-input-text" ${CELL_STYLE_ATTR} onchange="updateInvoicePaymentMode('${esc(invoiceNo)}', this.value)">
+             <option value="cash" ${first.paymentMode==='cash'?'selected':''}>Cash</option>
+             <option value="upi" ${first.paymentMode==='upi'?'selected':''}>UPI</option>
+             <option value="loan" ${first.paymentMode==='loan'?'selected':''}>Loan</option>
+           </select>`
+        : capitalizeMode(first.paymentMode);
+      const paymentStatusCell = first.paymentStatus==='Pending'
+        ? `<span class="pay-pending">Pending</span>`
+        : `<span class="pay-done">Done</span>`;
+      const pendingAmountCell = first.paymentStatus==='Pending'
+        ? `<span class="pay-pending">${money(first.pendingAmount)}</span> <button class="btn btn-gold btn-sm" onclick="openPayNow('${esc(invoiceNo)}')">Pay Now</button>`
+        : `<span class="pay-na">N/A</span>`;
+
+      const canPrint = first.paymentStatus !== 'Pending';
+      const invoiceActionsCell = `${canPrint ? `<button class="btn btn-ghost btn-sm" onclick="printInvoiceFromSales('${esc(invoiceNo)}')">Print</button>` : ''}
           <button class="btn ${allEditing?'btn-primary':'btn-ghost'} btn-sm" onclick="toggleInvoiceEdit('${esc(invoiceNo)}')">${allEditing?'Done':'Edit'}</button>`;
 
       group.forEach((s,idx)=>{
@@ -1621,6 +1792,9 @@ function renderHistory(){
           html += `<td class="merged-cell" rowspan="${rowspan}">${esc(first.date)}</td>`;
           html += `<td class="merged-cell" rowspan="${rowspan}">${custCell}</td>`;
           html += `<td class="mono merged-cell" rowspan="${rowspan}">${numCell}</td>`;
+          html += `<td class="merged-cell" rowspan="${rowspan}">${paymentModeCell}</td>`;
+          html += `<td class="merged-cell" rowspan="${rowspan}">${paymentStatusCell}</td>`;
+          html += `<td class="merged-cell" rowspan="${rowspan}">${pendingAmountCell}</td>`;
         }
         html += `<td class="mono">${esc(formatCode(s.code))}</td><td>${esc(s.product)}</td>`;
         html += `<td class="num">${qtyCell}</td>`;
@@ -1646,6 +1820,11 @@ function renderHistory(){
   const totalQty = visible.reduce((a,s)=>a+s.qty,0);
   const avgMarginValue = totalQty ? profit/totalQty : 0;
   const avgMarginPercent = revenue ? (profit/revenue)*100 : 0;
+
+  const uniquePending = new Map();
+  visible.forEach(s=>{ if(!uniquePending.has(s.invoice)) uniquePending.set(s.invoice, s.pendingAmount||0); });
+  const totalPending = Array.from(uniquePending.values()).reduce((a,b)=>a+b,0);
+
   document.getElementById('statBills').textContent=bills;
   document.getElementById('statTotalQty').textContent=totalQty;
   document.getElementById('statRevenue').textContent= salesUnmasked ? money(revenue) : maskMoney();
@@ -1653,9 +1832,14 @@ function renderHistory(){
   document.getElementById('statProfit').textContent= salesUnmasked ? money(profit) : maskMoney();
   document.getElementById('statAvgMargin').textContent= salesUnmasked ? money(avgMarginValue) : maskMoney();
   document.getElementById('statAvgMarginPct').textContent= salesUnmasked ? avgMarginPercent.toFixed(1)+'%' : '••%';
+  document.getElementById('statPending').textContent = money(totalPending);
 
   const fs = document.getElementById('filterStatus');
-  fs.textContent = activeFilter ? `Showing ${visible.length} of ${sales.length} record(s) within the selected date range.` : '';
+  const parts = [];
+  if(activeFilter) parts.push(`date range applied (${visible.length} of ${sales.length} record(s))`);
+  if(salesSearchQuery) parts.push(`search "${salesSearchQuery}" applied`);
+  fs.textContent = parts.length ? `Showing results — ${parts.join(', ')}.` : '';
+  updateSalesSearchSuggestions();
 }
 function recalcSaleRow(s){
   s.revenue = s.qty * s.price;
@@ -1663,6 +1847,20 @@ function recalcSaleRow(s){
   s.marginPerPiece = s.price - s.cost;
   s.marginPercent = s.price>0 ? ((s.price-s.cost)/s.price)*100 : 0;
   s.updatedAt = Date.now();
+}
+/* Keeps an invoice's Pending Amount accurate if a line's qty/price is edited
+   after the fact. Only relevant for Loan invoices still showing Pending —
+   Cash/UPI invoices are always fully paid and untouched by this. */
+function recalcInvoicePaymentTotals(invoiceNo){
+  const group = sales.filter(s=>s.invoice===invoiceNo);
+  if(group.length===0) return;
+  if(group[0].paymentMode !== 'loan') return;
+  const invoiceTotal = group.reduce((a,s)=>a+s.revenue,0);
+  const amountPaid = group[0].amountPaid || 0;
+  const pendingAmount = Math.max(0, invoiceTotal - amountPaid);
+  const paymentStatus = pendingAmount > 0.004 ? 'Pending' : 'Done';
+  const now = Date.now();
+  group.forEach(s=>{ s.pendingAmount = pendingAmount; s.paymentStatus = paymentStatus; s.updatedAt = now; });
 }
 function updateInvoiceCustomer(invoiceNo, val){
   const trimmed = val.trim();
@@ -1678,6 +1876,26 @@ function updateInvoiceNumber(invoiceNo, val){
   sales.forEach(s=>{ if(s.invoice===invoiceNo){ s.number = trimmed; s.updatedAt = Date.now(); touched = true; } });
   if(touched){ save(LS_SALES, sales); renderHistory(); toast('Customer number updated'); pushChange(); }
 }
+/* Manual Payment Mode edit. Switching to Cash/UPI marks the invoice fully
+   paid. Switching to Loan resets it to fully pending — since editing a mode
+   dropdown doesn't ask full/partial again, this is the safest default
+   (an operator would use Pay Now to record a partial settlement instead). */
+function updateInvoicePaymentMode(invoiceNo, newMode){
+  const group = sales.filter(s=>s.invoice===invoiceNo);
+  if(group.length===0) return;
+  const invoiceTotal = group.reduce((a,s)=>a+s.revenue,0);
+  let paymentStatus, pendingAmount, amountPaid;
+  if(newMode==='cash' || newMode==='upi'){
+    paymentStatus='Done'; pendingAmount=0; amountPaid=invoiceTotal;
+  }else{
+    paymentStatus='Pending'; pendingAmount=invoiceTotal; amountPaid=0;
+  }
+  const now = Date.now();
+  group.forEach(s=>{ s.paymentMode=newMode; s.paymentStatus=paymentStatus; s.pendingAmount=pendingAmount; s.amountPaid=amountPaid; s.updatedAt=now; });
+  save(LS_SALES, sales); renderHistory();
+  toast('Payment mode updated');
+  pushChange();
+}
 function updateSaleQty(id, val){
   const s = sales.find(x=>x.id===id); if(!s) return;
   const newQty = parseInt(val,10);
@@ -1687,6 +1905,7 @@ function updateSaleQty(id, val){
   if(p && diff>0 && diff > p.stock){ toast(`Only ${p.stock} more unit(s) of this product are available`, true); renderHistory(); return; }
   if(p){ p.stock = Math.max(0, (p.stock||0) - diff); p.updatedAt = Date.now(); save(LS_PRODUCTS, products); renderProducts(); }
   s.qty = newQty; recalcSaleRow(s);
+  recalcInvoicePaymentTotals(s.invoice);
   save(LS_SALES, sales); renderHistory();
   toast('Quantity updated');
   pushChange();
@@ -1696,6 +1915,7 @@ function updateSalePrice(id, val){
   const newPrice = parseFloat(val);
   if(isNaN(newPrice) || newPrice<0){ toast('Enter a valid price', true); renderHistory(); return; }
   s.price = newPrice; recalcSaleRow(s);
+  recalcInvoicePaymentTotals(s.invoice);
   save(LS_SALES, sales); renderHistory();
   toast('Selling price updated');
   pushChange();
@@ -1705,11 +1925,13 @@ function deleteSaleRow(id){
   const idx = sales.findIndex(x=>x.id===id);
   if(idx<0) return;
   const s = sales[idx];
+  const invoiceNo = s.invoice;
   const p = findProduct(s.code);
   if(p){ p.stock = (p.stock||0) + s.qty; p.updatedAt = Date.now(); }
   saleTombstones.push({id:s.id, deletedAt: Date.now()});
   sales.splice(idx,1);
   editingSaleIds.delete(id);
+  recalcInvoicePaymentTotals(invoiceNo);
   save(LS_SALES,sales); save(LS_PRODUCTS, products); save(LS_SALE_TOMB, saleTombstones);
   renderHistory(); renderProducts();
   pushChange();
@@ -1726,23 +1948,53 @@ document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{
 });
 document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   if(sales.length===0){ toast('No sales to export yet'); return; }
-  let exportSet = sales;
-  if(activeFilter){
-    const wantFiltered = confirm('A date filter is active.\n\nOK = export only the filtered records\nCancel = export the complete Sales Book');
-    exportSet = wantFiltered ? sales.filter(matchesFilter) : sales;
+  let exportSet = sales.filter(matchesFilter).filter(matchesSalesSearch);
+  if(activeFilter || salesSearchQuery){
+    const wantFiltered = confirm('A filter or search is active.\n\nOK = export only the filtered/searched records\nCancel = export the complete Sales Book');
+    exportSet = wantFiltered ? exportSet : sales;
   }
   if(exportSet.length===0){ toast('No records to export for that selection'); return; }
-  const rows = exportSet.map(s=>({'Invoice No':s.invoice,'Date':s.date,'Customer Name':s.customer||'','Customer Number':s.number||'','Product Code':formatCode(s.code),'Description':s.product,'Qty':s.qty,'Cost Price':s.cost,'MRP':s.expectedPrice??s.price,'Selling Price':s.price,'Margin per Piece':s.marginPerPiece??(s.price-s.cost),'Margin %':(s.marginPercent??0).toFixed(1),'Revenue':s.revenue,'Profit':s.profit}));
+  const rows = exportSet.map(s=>({'Invoice No':s.invoice,'Date':s.date,'Customer Name':s.customer||'','Customer Number':s.number||'','Payment Mode':capitalizeMode(s.paymentMode),'Payment Status':s.paymentStatus,'Pending Amount':s.pendingAmount||0,'Product Code':formatCode(s.code),'Description':s.product,'Qty':s.qty,'Cost Price':s.cost,'MRP':s.expectedPrice??s.price,'Selling Price':s.price,'Margin per Piece':s.marginPerPiece??(s.price-s.cost),'Margin %':(s.marginPercent??0).toFixed(1),'Revenue':s.revenue,'Profit':s.profit}));
   const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols']=[{wch:16},{wch:12},{wch:18},{wch:14},{wch:24},{wch:24},{wch:6},{wch:10},{wch:10},{wch:12},{wch:12},{wch:10},{wch:10},{wch:10}];
+  ws['!cols']=[{wch:16},{wch:12},{wch:18},{wch:14},{wch:10},{wch:10},{wch:12},{wch:24},{wch:24},{wch:6},{wch:10},{wch:10},{wch:12},{wch:12},{wch:10},{wch:10},{wch:10}];
   const bills=new Set(exportSet.map(s=>s.invoice)).size, revenue=exportSet.reduce((a,s)=>a+s.revenue,0), cost=exportSet.reduce((a,s)=>a+s.cost*s.qty,0), profit=exportSet.reduce((a,s)=>a+s.profit,0);
   const totalQty = exportSet.reduce((a,s)=>a+s.qty,0);
-  const summary = XLSX.utils.aoa_to_sheet([['Nagmeena — Sales Summary'],[],['Bills Raised',bills],['Total Qty Sold',totalQty],['Total Revenue',revenue],['Total Cost of Goods',cost],['Total Profit',profit],['Avg Margin/Pc', totalQty?profit/totalQty:0],['Avg Margin %', revenue?((profit/revenue)*100).toFixed(1)+'%':'0%']]);
+  const uniquePendingExport = new Map();
+  exportSet.forEach(s=>{ if(!uniquePendingExport.has(s.invoice)) uniquePendingExport.set(s.invoice, s.pendingAmount||0); });
+  const totalPendingExport = Array.from(uniquePendingExport.values()).reduce((a,b)=>a+b,0);
+  const summary = XLSX.utils.aoa_to_sheet([['Nagmeena — Sales Summary'],[],['Bills Raised',bills],['Total Qty Sold',totalQty],['Total Revenue',revenue],['Total Cost of Goods',cost],['Total Profit',profit],['Avg Margin/Pc', totalQty?profit/totalQty:0],['Avg Margin %', revenue?((profit/revenue)*100).toFixed(1)+'%':'0%'],['Total Pending Payments', totalPendingExport]]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, summary, 'Summary');
   XLSX.utils.book_append_sheet(wb, ws, 'Sales Record');
   XLSX.writeFile(wb, `Nagmeena_Sales_${todayStr()}.xlsx`);
   toast('Excel file downloaded');
+});
+
+/* ===== Pay Now modal ===== */
+let payNowInvoiceNo = null;
+function openPayNow(invoiceNo){
+  payNowInvoiceNo = invoiceNo;
+  document.getElementById('payNowInvoiceLabel').textContent = `Invoice ${invoiceNo}`;
+  const cashRadio = document.querySelector('input[name=payNowMode][value=cash]');
+  if(cashRadio) cashRadio.checked = true;
+  document.getElementById('payNowPrintCheckbox').checked = false;
+  document.getElementById('payNowOverlay').classList.add('show');
+}
+function closePayNow(){
+  document.getElementById('payNowOverlay').classList.remove('show');
+  payNowInvoiceNo = null;
+}
+document.getElementById('payNowCancelBtn').addEventListener('click', closePayNow);
+document.getElementById('payNowOverlay').addEventListener('click', (e)=>{ if(e.target.id==='payNowOverlay') closePayNow(); });
+document.getElementById('payNowConfirmBtn').addEventListener('click', async ()=>{
+  if(!payNowInvoiceNo) return;
+  const modeEl = document.querySelector('input[name=payNowMode]:checked');
+  const mode = modeEl ? modeEl.value : 'cash';
+  const printChecked = document.getElementById('payNowPrintCheckbox').checked;
+  const invNo = payNowInvoiceNo;
+  updateInvoicePaymentMode(invNo, mode);
+  closePayNow();
+  if(printChecked){ await printInvoiceFromSales(invNo); }
 });
 
 /* ===== Contact Us ===== */
@@ -1845,16 +2097,7 @@ document.getElementById('clientIdInput').addEventListener('change', e=>{
   if(e.target.value.trim()) initTokenClient(e.target.value.trim());
 });
 
-/* =========================================================================
-   Backup & Restore — additive-only, un-deletes correctly.
-   buildBackupPayload() below intentionally mirrors buildLocalPayload() (used
-   for Google Drive sync) field-for-field: products/productTombstones,
-   sales/saleTombstones, cats, contactPhones/contactAddresses + their
-   tombstones, contactMeta (which phone/address is Primary), and the invoice
-   sequence counter. This is "the same image" the user asked for — Local
-   backup and Drive sync always capture identical, complete state across all
-   three tabs (Product Catalog, Sales Book, Contact Us).
-   ========================================================================= */
+/* ===== Backup & Restore — additive-only, un-deletes correctly ===== */
 document.getElementById('backupBtn').addEventListener('click', (e)=>{
   e.stopPropagation();
   document.getElementById('backupChoice').classList.toggle('show');
@@ -1956,7 +2199,7 @@ function applyBackupDataAdditive(data){
   const pRes = restoreRowsAdditive(products, data.products||[], productTombstones);
   products = pRes.merged; addedCount += pRes.addedCount;
 
-  const sRes = restoreRowsAdditive(sales, data.sales||[], saleTombstones);
+  const sRes = restoreRowsAdditive(sales, (data.sales||[]).map(s=> s.paymentMode!==undefined ? s : {...s, paymentMode:'cash', paymentStatus:'Done', pendingAmount:0, amountPaid:s.revenue}), saleTombstones);
   sales = sRes.merged; addedCount += sRes.addedCount;
 
   const phRes = restoreRowsAdditive(contactPhones, data.contactPhones||[], contactPhoneTombstones);
@@ -1977,11 +2220,6 @@ function applyBackupDataAdditive(data){
     });
   }
 
-  /* Additive restore of the Contact Us "Primary" selection: only fills in a
-     primary phone/address if the current app doesn't already have one set
-     (never overwrites an existing choice), and only if that entry actually
-     exists locally after the merge above. This was the one piece of Contact
-     Us data that previously wasn't restored — now it is. */
   if(data.contactMeta){
     if(!contactMeta.primaryPhoneId && data.contactMeta.primaryPhoneId && contactPhones.some(p=>p.id===data.contactMeta.primaryPhoneId)){
       contactMeta.primaryPhoneId = data.contactMeta.primaryPhoneId; contactMeta.updatedAt = Date.now();
@@ -2210,6 +2448,9 @@ function applyRemoteData(data){
   cats = ensureCatsShape(data.cats || JSON.parse(JSON.stringify(defaultCats)));
   ensureBlankEntries(cats);
   CAT_KEYS.forEach(key=>{ normalizeSeedIdsForCategory(key, cats[key]); recomputeFreeCodes(cats[key]); });
+  sales.forEach(s=>{
+    if(s.paymentMode===undefined){ s.paymentMode='cash'; s.paymentStatus='Done'; s.pendingAmount=0; s.amountPaid=s.revenue; }
+  });
   localStorage.setItem(LS_SEQ, String(data.seq || 0));
   save(LS_PRODUCTS, products); save(LS_SALES, sales);
   save(LS_PROD_TOMB, productTombstones); save(LS_SALE_TOMB, saleTombstones); save(LS_CATS, cats);
