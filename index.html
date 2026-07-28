@@ -144,6 +144,25 @@
   .pay-pending{ color:var(--burgundy); font-weight:700; }
   .pay-na{ color:var(--grey-soft); }
 
+  /* Catalog table gets its own scrollable frame, sized to match the Add
+     Product card beside it, so the page doesn't grow endlessly as products
+     are added. The header row stays pinned (sticky) while scrolling so
+     column labels remain visible. Nothing else about the table changes. */
+  .catalog-scroll-frame{
+    max-height:900px;
+    overflow-y:auto;
+    overflow-x:auto;
+    border-radius:var(--radius-sm);
+    border:1px solid var(--line);
+  }
+  .catalog-scroll-frame table{ border-radius:0; }
+  .catalog-scroll-frame thead th{
+    position:sticky; top:0; z-index:5;
+    box-shadow:0 1px 0 var(--gold-line);
+  }
+  .catalog-scroll-frame th:first-child{ border-top-left-radius:0; }
+  .catalog-scroll-frame th:last-child{ border-top-right-radius:0; }
+
   .totals{ margin-top:16px; padding-top:16px; border-top:1px dashed var(--gold-line); }
   .totals .line{ display:flex; justify-content:space-between; font-size:13.5px; padding:4px 0; color:var(--charcoal-muted); }
   .totals .line.grand{ color:var(--teal); font-weight:700; font-size:19px; font-family:'Cormorant Garamond',serif; padding-top:8px; letter-spacing:0.3px; }
@@ -212,7 +231,6 @@
   .modal-box{ background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:26px; width:360px; max-width:100%; }
   .modal-box h3{ font-family:'Cormorant Garamond',serif; font-size:19px; color:var(--teal); margin:0 0 4px 0; }
 
-  /* Print preview popup: wider box, fixed-height iframe holding the rendered PDF */
   .preview-box{ background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px; width:480px; max-width:96vw; }
   .preview-box h3{ font-family:'Cormorant Garamond',serif; font-size:19px; color:var(--teal); margin:0 0 14px 0; }
   .preview-frame-wrap{ border:1px solid var(--line); border-radius:var(--radius-sm); overflow:hidden; background:#5a5a5a; height:60vh; min-height:340px; }
@@ -451,9 +469,11 @@
           </div>
         </div>
         <div class="catalog-total-qty" id="catalogTotalQty">All Units: <b>0</b> unit(s)</div>
+        <div class="catalog-scroll-frame">
         <div class="table-scroll">
         <table><thead><tr><th>Code</th><th>Description</th><th class="num">Stock</th><th class="num">Cost</th><th class="num">MRP</th><th class="num">Margin</th><th></th></tr></thead>
           <tbody id="productBody"><tr class="empty-row"><td colspan="7">No products yet</td></tr></tbody></table>
+        </div>
         </div>
       </div>
     </div>
@@ -650,7 +670,7 @@ let editingSaleIds = new Set();
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 19; // v19: print preview popup for Sales Book invoice printing
+const DATA_VERSION = 20; // v20: catalog table scrollable within a fixed-height frame (visual/layout only)
 
 /* ===== Product code categories ===== */
 const BLANK_CODE = '00';
@@ -1476,14 +1496,12 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
   renderCart(); hideStockWarning();
   pushChange();
 
-  // New Bill's "Print Invoice" checkbox still auto-downloads immediately — unchanged.
   if(printChecked){
-    const doc = buildInvoiceDoc(invoiceNo, date, name||'—', number||'—', itemsForPdf, capitalizeMode(paymentMode));
+    const doc = await buildInvoiceDocAsync(invoiceNo, date, name||'—', number||'—', itemsForPdf, capitalizeMode(paymentMode));
     doc.save(`${invoiceNo}.pdf`);
   }
 });
 
-/* Sales Book "Print" now opens a preview popup instead of downloading directly. */
 async function printInvoiceFromSales(invoiceNo){
   const rows = sales.filter(s=>s.invoice===invoiceNo);
   if(rows.length===0){ toast('No records found for this invoice'); return; }
@@ -1534,11 +1552,7 @@ function getSecondaryPhone(){
 }
 function getPrimaryAddress(){ return contactAddresses.find(a=>a.id===contactMeta.primaryAddressId) || null; }
 
-/* ===== Thermal (88mm) receipt-style invoice PDF — builds and returns the doc; caller decides what to do with it =====
-   Split into a sync/async pair: buildInvoiceDocAsync awaits the logo/QR fetches (used by Sales Book preview,
-   which needs the finished doc before showing it); buildInvoiceDoc is a thin sync wrapper kept for the one
-   remaining immediate-download call site (New Bill checkbox) — it just calls the async version and blocks
-   via await at the call site instead. Kept as two names for clarity at each call site. */
+/* ===== Thermal (88mm) receipt-style invoice PDF — builds and returns the doc ===== */
 async function buildInvoiceDocAsync(invoiceNo, date, name, number, items, paymentLabel){
   const { jsPDF } = window.jspdf;
   const PAGE_W = 88;
@@ -1669,16 +1683,11 @@ async function buildInvoiceDocAsync(invoiceNo, date, name, number, items, paymen
 
   return doc;
 }
-function buildInvoiceDoc(invoiceNo, date, name, number, items, paymentLabel){
-  // Sync-looking wrapper used only by the New Bill immediate-download path — the
-  // async work has already resolved by the time this is awaited at the call site.
-  return buildInvoiceDocAsync(invoiceNo, date, name, number, items, paymentLabel);
-}
 
 /* ===== Print Preview popup (Sales Book) ===== */
 let currentPreviewBlobUrl = null;
 function showInvoicePreview(doc, invoiceNo){
-  closeInvoicePreview(); // clean up any stale blob URL first
+  closeInvoicePreview();
   const blobUrl = doc.output('bloburl');
   currentPreviewBlobUrl = blobUrl;
   document.getElementById('printPreviewTitle').textContent = `Invoice Preview — ${invoiceNo}`;
@@ -1698,7 +1707,6 @@ document.getElementById('printPreviewOverlay').addEventListener('click', (e)=>{ 
 document.getElementById('printPreviewPrintBtn').addEventListener('click', ()=>{
   const frame = document.getElementById('printPreviewFrame');
   const invoiceNo = frame.dataset.invoiceNo || 'invoice';
-  // Generates the actual PDF file the person can send to a printer.
   if(currentPreviewBlobUrl){
     const a = document.createElement('a');
     a.href = currentPreviewBlobUrl;
@@ -2051,7 +2059,6 @@ document.getElementById('payNowConfirmBtn').addEventListener('click', async ()=>
   const invNo = payNowInvoiceNo;
   updateInvoicePaymentMode(invNo, mode);
   closePayNow();
-  // Now goes through the same preview popup as any other Sales Book print.
   if(printChecked){ await printInvoiceFromSales(invNo); }
 });
 
