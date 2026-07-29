@@ -150,22 +150,23 @@
   .pay-pending{ color:var(--burgundy); font-weight:700; }
   .pay-na{ color:var(--grey-soft); }
 
-  /* Catalog scroll frame — reverted to a fixed-height scrollable frame
-     (no more flexbox height-matching with the Add Product card). */
-  .catalog-scroll-frame{
-    max-height:700px;
+  /* Shared fixed-height, sticky-header scrollable frame pattern — used by both
+     the Product Catalog table and, as of this update, the Sales Book table. */
+  .catalog-scroll-frame, .sales-scroll-frame{
     overflow-y:auto;
     overflow-x:auto;
     border-radius:var(--radius-sm);
     border:1px solid var(--line);
   }
-  .catalog-scroll-frame table{ border-radius:0; }
-  .catalog-scroll-frame thead th{
+  .catalog-scroll-frame{ max-height:850px; }
+  .sales-scroll-frame{ max-height:700px; }
+  .catalog-scroll-frame table, .sales-scroll-frame table{ border-radius:0; }
+  .catalog-scroll-frame thead th, .sales-scroll-frame thead th{
     position:sticky; top:0; z-index:5;
     box-shadow:0 1px 0 var(--gold-line);
   }
-  .catalog-scroll-frame th:first-child{ border-top-left-radius:0; }
-  .catalog-scroll-frame th:last-child{ border-top-right-radius:0; }
+  .catalog-scroll-frame th:first-child, .sales-scroll-frame th:first-child{ border-top-left-radius:0; }
+  .catalog-scroll-frame th:last-child, .sales-scroll-frame th:last-child{ border-top-right-radius:0; }
 
   .totals{ margin-top:16px; padding-top:16px; border-top:1px dashed var(--gold-line); }
   .totals .line{ display:flex; justify-content:space-between; font-size:13.5px; padding:4px 0; color:var(--charcoal-muted); }
@@ -194,7 +195,7 @@
   .toolbar .title{ font-family:'Cormorant Garamond',serif; font-size:20px; font-weight:700; color:var(--teal); letter-spacing:0.3px; }
   .toolbar .actions{ display:flex; gap:10px; flex-wrap:wrap; }
 
-  .toast{ position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--teal); color:var(--ivory); padding:13px 22px; border-radius:999px; font-size:13px; letter-spacing:0.2px; box-shadow:0 14px 30px -10px rgba(18,56,50,0.5); opacity:0; pointer-events:none; transition:all .3s ease; z-index:200; max-width:90vw; }
+  .toast{ position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--teal); color:var(--ivory); padding:13px 22px; border-radius:999px; font-size:13px; letter-spacing:0.2px; box-shadow:0 14px 30px -10px rgba(18,56,50,0.5); opacity:0; pointer-events:none; transition:all .3s ease; z-index:400; max-width:90vw; }
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); } .toast.err{ background:var(--burgundy); }
 
   .codebuilder{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:8px; }
@@ -230,7 +231,11 @@
   .radio-row label{ display:flex; align-items:center; gap:7px; text-transform:none; font-size:13.5px; font-weight:500; color:var(--charcoal); letter-spacing:0; margin:0; }
   .radio-row input[type=radio]{ width:auto; accent-color:var(--teal); }
 
-  .modal-overlay{ display:none; position:fixed; inset:0; background:rgba(18,56,50,0.45); z-index:100; align-items:center; justify-content:center; padding:20px; }
+  /* Modal / settings z-index raised above the login overlay (300) so Forgot
+     Password and Google Sync Settings are visible ON TOP of the login screen
+     when opened from there — previously they opened correctly but rendered
+     underneath the full-screen login overlay, making them invisible. */
+  .modal-overlay{ display:none; position:fixed; inset:0; background:rgba(18,56,50,0.45); z-index:320; align-items:center; justify-content:center; padding:20px; }
   .modal-overlay.show{ display:flex; }
   .modal-box{ background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:26px; width:360px; max-width:100%; }
   .modal-box h3{ font-family:'Cormorant Garamond',serif; font-size:19px; color:var(--teal); margin:0 0 4px 0; }
@@ -243,7 +248,7 @@
   .preview-actions{ display:flex; gap:10px; margin-top:16px; }
   .preview-actions .btn{ flex:1; }
 
-  .settings-panel{ display:none; position:fixed; top:78px; right:30px; width:380px; max-width:90vw; background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px; z-index:160; max-height:80vh; overflow-y:auto; }
+  .settings-panel{ display:none; position:fixed; top:78px; right:30px; width:380px; max-width:90vw; background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px; z-index:310; max-height:80vh; overflow-y:auto; }
   .settings-panel.show{ display:block; animation:fadeIn .2s ease; }
   .settings-panel h3{ font-family:'Cormorant Garamond',serif; font-size:18px; margin:0 0 6px 0; color:var(--teal); }
   .settings-panel h4{ font-family:'Cormorant Garamond',serif; font-size:15px; margin:0 0 4px 0; color:var(--teal); }
@@ -311,7 +316,10 @@
       <div class="wordmark">NAGMEENA</div>
       <div class="tagline">Billing &amp; Sales Book</div>
     </div>
-    <div class="field-hint-error show login-error" id="loginError">Incorrect username or password.</div>
+    <!-- "show" class removed from here — this box must start hidden. Previously
+         it was hard-coded visible, so the error text appeared before any login
+         attempt was even made. -->
+    <div class="field-hint-error login-error" id="loginError">Incorrect username or password.</div>
     <div class="field"><label for="loginUsername">Username</label><input type="text" id="loginUsername" autocomplete="username" placeholder="Enter username"></div>
     <div class="field"><label for="loginPassword">Password</label><input type="password" id="loginPassword" autocomplete="current-password" placeholder="Enter password"></div>
     <button class="btn btn-gold btn-full" id="loginBtn">Login</button>
@@ -507,6 +515,7 @@
         <div class="toolbar">
           <div class="title">Catalog</div>
           <div class="actions">
+            <button class="btn btn-gold btn-sm" id="exportCatalogBtn">Export .xlsx</button>
             <button class="btn btn-ghost btn-sm btn-toggle" id="catalogUnmaskBtn">Unmask Cost &amp; Margin</button>
             <button class="btn btn-danger btn-sm" id="deleteOutOfStockBtn">Delete All Out of Stock</button>
           </div>
@@ -521,6 +530,9 @@
           <div class="field" style="flex:1.4;"><label for="catalogSearchInput">Search</label>
             <input type="text" id="catalogSearchInput" list="catalogSearchSuggestions" placeholder="Start typing…">
             <datalist id="catalogSearchSuggestions"></datalist>
+          </div>
+          <div class="field" style="flex:0.4;">
+            <button class="btn btn-ghost btn-sm" id="clearCatalogSearchBtn" style="width:100%;">Clear Search</button>
           </div>
         </div>
         <div class="catalog-total-qty" id="catalogTotalQty">All Units: <b>0</b> unit(s)</div>
@@ -597,9 +609,11 @@
       </div>
       <div class="filter-status" id="filterStatus"></div>
 
+      <div class="sales-scroll-frame">
       <div class="table-scroll">
       <table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Number</th><th>Payment Mode</th><th>Payment Status</th><th>Pending Amount</th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">MRP</th><th class="num">Selling</th><th class="num">Margin/Pc</th><th class="num">Margin %</th><th class="num">Revenue</th><th class="num">Profit</th><th></th><th></th></tr></thead>
         <tbody id="historyBody"><tr class="empty-row"><td colspan="19">No sales recorded yet</td></tr></tbody></table>
+      </div>
       </div>
     </div>
   </section>
@@ -797,8 +811,8 @@ let userTombstones = load(LS_USER_TOMB, []);
 let cart = [];
 let editingProductId = null;
 let editingSaleIds = new Set();
-let revealedUserIds = new Set(); // session-only reveal state
-let currentSession = null; // {id, username, role} — memory only, not persisted
+let revealedUserIds = new Set();
+let currentSession = null;
 
 (function migrate(){
   let touched = false;
@@ -821,7 +835,7 @@ let currentSession = null; // {id, username, role} — memory only, not persiste
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 22; // v22: Login system + Profile/user management module, catalog height reverted to fixed scroll frame
+const DATA_VERSION = 23; // v23: catalog frame 850px + Clear Search + Export .xlsx, login error fix, popup z-index fix, Sales Book scroll frame
 
 /* =========================================================================
    PROFILE / USER MANAGEMENT
@@ -833,8 +847,6 @@ function ensureDefaultUser(){
   users.forEach(u=>{ if(!u.id) { u.id = uuid(); touched=true; } if(!u.updatedAt){ u.updatedAt = Date.now(); touched=true; } });
   const hasAnyAdmin = users.some(u=>u.role==='Admin');
   if(!hasAnyAdmin){
-    // Default admin recreated if no admin exists at all — "must always remain
-    // available unless another admin exists" per the spec.
     const existing = users.find(u=>u.username.toLowerCase()==='sahilkhan');
     if(existing){ existing.role='Admin'; existing.password='Sidwal@123'; existing.updatedAt=Date.now(); }
     else{ users.push({id:uuid(), username:'Sahilkhan', password:'Sidwal@123', role:'Admin', updatedAt:Date.now()}); }
@@ -1024,8 +1036,6 @@ function requestDeleteUser(userId){
   toast('User deleted');
 }
 
-/* Renders the Profile page's user table. Admin sees full controls; Guest sees
-   a read-only list (view-only, per Role Permissions). */
 function renderUserProfileList(){
   const body = document.getElementById('userBody');
   const isAdmin = currentSession && currentSession.role==='Admin';
@@ -1614,6 +1624,13 @@ let searchQuery = '';
 document.getElementById('stockFilterSelect').addEventListener('change', e=>{ stockFilter=e.target.value; renderProducts(); });
 document.getElementById('searchFieldSelect').addEventListener('change', e=>{ searchField=e.target.value; updateCatalogSuggestions(); renderProducts(); });
 document.getElementById('catalogSearchInput').addEventListener('input', e=>{ searchQuery = e.target.value.trim().toLowerCase(); renderProducts(); });
+document.getElementById('clearCatalogSearchBtn').addEventListener('click', ()=>{
+  document.getElementById('catalogSearchInput').value = '';
+  document.getElementById('searchFieldSelect').value = 'code';
+  searchField = 'code';
+  searchQuery = '';
+  renderProducts();
+});
 
 function updateCatalogSuggestions(){
   const dl = document.getElementById('catalogSearchSuggestions');
@@ -1684,6 +1701,36 @@ function renderProducts(){
   updateItemCodeSuggestions(document.getElementById('itemCode').value);
   renderCatalogUnitSummary(visible);
 }
+
+/* Export the currently visible (filtered/searched) catalog rows to .xlsx.
+   If no filter/search is active, this is simply the whole catalog. */
+document.getElementById('exportCatalogBtn').addEventListener('click', ()=>{
+  if(products.length===0){ toast('No products to export yet'); return; }
+  let exportSet = products.filter(productMatchesFilters);
+  if(stockFilter!=='all' || searchQuery){
+    const wantFiltered = confirm('A filter or search is active on the Catalog.\n\nOK = export only the filtered/searched products\nCancel = export the complete Catalog');
+    exportSet = wantFiltered ? exportSet : products;
+  }
+  if(exportSet.length===0){ toast('No products to export for that selection'); return; }
+  const rows = exportSet.map(p=>({
+    'Product Code': formatCode(p.code),
+    'Description': p.name,
+    'Stock': p.stock||0,
+    'Cost Price': p.cost,
+    'MRP': p.price,
+    'Margin per Piece': p.price - p.cost,
+    'Margin %': p.price>0 ? (((p.price-p.cost)/p.price)*100).toFixed(1) : '0.0'
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=[{wch:24},{wch:30},{wch:10},{wch:12},{wch:12},{wch:14},{wch:10}];
+  const totalUnits = exportSet.reduce((a,p)=>a+(p.stock||0),0);
+  const summary = XLSX.utils.aoa_to_sheet([['Nagmeena — Catalog Export'],[],['Total Products',exportSet.length],['Total Units',totalUnits]]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, summary, 'Summary');
+  XLSX.utils.book_append_sheet(wb, ws, 'Catalog');
+  XLSX.writeFile(wb, `Nagmeena_Catalog_${todayStr()}.xlsx`);
+  toast('Catalog Excel file downloaded');
+});
 
 /* ===== Billing ===== */
 const custNumberEl = document.getElementById('custNumber');
