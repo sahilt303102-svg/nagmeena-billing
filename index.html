@@ -72,6 +72,14 @@
   .grid-2{ display:grid; grid-template-columns:1.3fr 1fr; gap:26px; align-items:start; }
   @media (max-width:860px){ .grid-2{ grid-template-columns:1fr; } }
 
+  /* Product Catalog panel specifically: both cards stretch to match the taller
+     one's natural height, instead of each sizing to its own content. This is
+     what fixes the visual mismatch between the Add Product card and the
+     Catalog card. */
+  #panel-products .grid-2{ align-items:stretch; }
+  #panel-products .grid-2 > div,
+  #panel-products .card{ display:flex; flex-direction:column; height:100%; }
+
   .card{
     background:linear-gradient(160deg, #FFFFFF 0%, var(--cream) 100%);
     border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow);
@@ -144,12 +152,12 @@
   .pay-pending{ color:var(--burgundy); font-weight:700; }
   .pay-na{ color:var(--grey-soft); }
 
-  /* Catalog table gets its own scrollable frame, sized to match the Add
-     Product card beside it, so the page doesn't grow endlessly as products
-     are added. The header row stays pinned (sticky) while scrolling so
-     column labels remain visible. Nothing else about the table changes. */
+  /* Catalog table's scroll frame now fills whatever vertical space the
+     stretched card gives it (instead of a fixed pixel height), so it always
+     ends flush with the bottom of the Add Product card beside it. */
   .catalog-scroll-frame{
-    max-height:900px;
+    flex:1;
+    min-height:220px;
     overflow-y:auto;
     overflow-x:auto;
     border-radius:var(--radius-sm);
@@ -536,6 +544,9 @@
           <input type="text" id="salesSearchInput" list="salesSearchSuggestions" placeholder="Start typing…">
           <datalist id="salesSearchSuggestions"></datalist>
         </div>
+        <div class="field" style="flex:0.4; margin-bottom:16px;">
+          <button class="btn btn-ghost btn-sm" id="clearSalesSearchBtn" style="width:100%;">Clear Search</button>
+        </div>
       </div>
       <div class="filter-status" id="filterStatus"></div>
 
@@ -670,7 +681,7 @@ let editingSaleIds = new Set();
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 20; // v20: catalog table scrollable within a fixed-height frame (visual/layout only)
+const DATA_VERSION = 21; // v21: print preview auto-closes after Print, Clear Search button in Sales Book, catalog/add-product card heights matched
 
 /* ===== Product code categories ===== */
 const BLANK_CODE = '00';
@@ -1704,6 +1715,9 @@ function closeInvoicePreview(){
 }
 document.getElementById('printPreviewCloseBtn').addEventListener('click', closeInvoicePreview);
 document.getElementById('printPreviewOverlay').addEventListener('click', (e)=>{ if(e.target.id==='printPreviewOverlay') closeInvoicePreview(); });
+/* Print button now downloads the PDF, then closes the popup automatically —
+   previously the popup stayed open after downloading, requiring a separate
+   Close click. */
 document.getElementById('printPreviewPrintBtn').addEventListener('click', ()=>{
   const frame = document.getElementById('printPreviewFrame');
   const invoiceNo = frame.dataset.invoiceNo || 'invoice';
@@ -1714,6 +1728,7 @@ document.getElementById('printPreviewPrintBtn').addEventListener('click', ()=>{
     document.body.appendChild(a); a.click(); a.remove();
   }
   toast(`Invoice ${invoiceNo} PDF generated`);
+  closeInvoicePreview();
 });
 
 let activeFilter = null;
@@ -1759,6 +1774,16 @@ let salesSearchField = 'code';
 let salesSearchQuery = '';
 document.getElementById('salesSearchField').addEventListener('change', e=>{ salesSearchField=e.target.value; updateSalesSearchSuggestions(); renderHistory(); });
 document.getElementById('salesSearchInput').addEventListener('input', e=>{ salesSearchQuery=e.target.value.trim().toLowerCase(); renderHistory(); });
+/* Clears both the search text and resets the field selector to its default
+   (Product Code), then re-renders — every record becomes visible again
+   (subject only to the separate date filter, which is untouched by this). */
+document.getElementById('clearSalesSearchBtn').addEventListener('click', ()=>{
+  document.getElementById('salesSearchInput').value = '';
+  document.getElementById('salesSearchField').value = 'code';
+  salesSearchField = 'code';
+  salesSearchQuery = '';
+  renderHistory();
+});
 function updateSalesSearchSuggestions(){
   const dl = document.getElementById('salesSearchSuggestions');
   let values;
