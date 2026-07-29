@@ -48,13 +48,18 @@
   .brand img{ height:73px; width:73px; object-fit:contain; filter:drop-shadow(0 4px 10px rgba(18,56,50,0.12)); }
   .brand .wordmark{ font-family:'Cormorant Garamond',serif; font-weight:600; font-size:29px; letter-spacing:4px; color:var(--teal); }
   .brand .tagline{ font-size:10.5px; color:var(--gold); letter-spacing:2.5px; margin-top:3px; text-transform:uppercase; }
-  .headright{ display:flex; align-items:center; gap:14px; }
+  .headright{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
   .drive-status{ font-size:12px; color:var(--charcoal-muted); display:flex; align-items:center; gap:7px; letter-spacing:0.2px; }
   .dot{ width:8px; height:8px; border-radius:50%; background:#D8CFB8; transition:background .2s ease; box-shadow:0 0 0 3px rgba(0,0,0,0.03); }
   .dot.ok{ background:var(--green); } .dot.busy{ background:var(--gold); animation:pulse 1.1s infinite ease-in-out; } .dot.err{ background:var(--burgundy); }
   @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
   .icon-btn{ background:var(--ivory); border:1px solid var(--gold-line); border-radius:999px; padding:9px 16px; font-size:12.5px; color:var(--teal); letter-spacing:0.4px; transition:all .2s ease; }
   .icon-btn:hover{ background:var(--gold-soft); border-color:var(--gold); transform:translateY(-1px); }
+  .session-chip{ font-size:12px; color:var(--charcoal-muted); background:var(--beige-soft); border:1px solid var(--line); border-radius:999px; padding:8px 14px; display:flex; align-items:center; gap:6px; }
+  .session-chip b{ color:var(--teal); font-weight:700; }
+  .role-badge{ font-size:9.5px; text-transform:uppercase; letter-spacing:0.6px; font-weight:700; padding:2px 7px; border-radius:999px; }
+  .role-badge.admin{ background:var(--teal); color:var(--ivory); }
+  .role-badge.guest{ background:var(--gold-soft); color:var(--teal); }
 
   nav.tabs{ max-width:1220px; margin:0 auto; display:flex; gap:8px; padding:0 30px 22px 30px; flex-wrap:wrap; }
   nav.tabs button{
@@ -72,14 +77,6 @@
   .grid-2{ display:grid; grid-template-columns:1.3fr 1fr; gap:26px; align-items:start; }
   @media (max-width:860px){ .grid-2{ grid-template-columns:1fr; } }
 
-  /* Product Catalog panel specifically: both cards stretch to match the taller
-     one's natural height, instead of each sizing to its own content. This is
-     what fixes the visual mismatch between the Add Product card and the
-     Catalog card. */
-  #panel-products .grid-2{ align-items:stretch; }
-  #panel-products .grid-2 > div,
-  #panel-products .card{ display:flex; flex-direction:column; height:100%; }
-
   .card{
     background:linear-gradient(160deg, #FFFFFF 0%, var(--cream) 100%);
     border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow);
@@ -91,7 +88,7 @@
   .card .sub{ color:var(--grey-soft); font-size:12.5px; margin:0 0 18px 0; line-height:1.5; }
 
   label{ display:block; font-size:10.5px; font-weight:600; color:var(--muted-teal); margin-bottom:6px; text-transform:uppercase; letter-spacing:1px; }
-  input[type=text], input[type=number], input[type=tel], select, textarea{
+  input[type=text], input[type=number], input[type=tel], input[type=password], select, textarea{
     width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:var(--radius-sm);
     font-size:14px; background:#FFFEFB; color:var(--charcoal); transition:border-color .2s ease, box-shadow .2s ease;
   }
@@ -124,6 +121,7 @@
   .btn-danger:hover{ background:var(--burgundy-soft); transform:translateY(-1px); }
   .btn-sm{ padding:7px 14px; font-size:11.5px; border-radius:999px; } .btn[disabled]{ opacity:.4; cursor:not-allowed; transform:none !important; }
   .btn-toggle.active{ background:var(--teal); color:var(--ivory); border-color:var(--teal); }
+  .btn-full{ width:100%; }
 
   .table-scroll{ overflow-x:auto; border-radius:var(--radius-sm); }
   table{ width:100%; border-collapse:separate; border-spacing:0; font-size:13px; }
@@ -152,12 +150,10 @@
   .pay-pending{ color:var(--burgundy); font-weight:700; }
   .pay-na{ color:var(--grey-soft); }
 
-  /* Catalog table's scroll frame now fills whatever vertical space the
-     stretched card gives it (instead of a fixed pixel height), so it always
-     ends flush with the bottom of the Add Product card beside it. */
+  /* Catalog scroll frame — reverted to a fixed-height scrollable frame
+     (no more flexbox height-matching with the Add Product card). */
   .catalog-scroll-frame{
-    flex:1;
-    min-height:220px;
+    max-height:700px;
     overflow-y:auto;
     overflow-x:auto;
     border-radius:var(--radius-sm);
@@ -198,7 +194,7 @@
   .toolbar .title{ font-family:'Cormorant Garamond',serif; font-size:20px; font-weight:700; color:var(--teal); letter-spacing:0.3px; }
   .toolbar .actions{ display:flex; gap:10px; flex-wrap:wrap; }
 
-  .toast{ position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--teal); color:var(--ivory); padding:13px 22px; border-radius:999px; font-size:13px; letter-spacing:0.2px; box-shadow:0 14px 30px -10px rgba(18,56,50,0.5); opacity:0; pointer-events:none; transition:all .3s ease; z-index:50; max-width:90vw; }
+  .toast{ position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--teal); color:var(--ivory); padding:13px 22px; border-radius:999px; font-size:13px; letter-spacing:0.2px; box-shadow:0 14px 30px -10px rgba(18,56,50,0.5); opacity:0; pointer-events:none; transition:all .3s ease; z-index:200; max-width:90vw; }
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); } .toast.err{ background:var(--burgundy); }
 
   .codebuilder{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:8px; }
@@ -238,6 +234,7 @@
   .modal-overlay.show{ display:flex; }
   .modal-box{ background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:26px; width:360px; max-width:100%; }
   .modal-box h3{ font-family:'Cormorant Garamond',serif; font-size:19px; color:var(--teal); margin:0 0 4px 0; }
+  .modal-box p.help{ font-size:11.5px; color:var(--charcoal-muted); margin:2px 0 14px 0; line-height:1.5; }
 
   .preview-box{ background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px; width:480px; max-width:96vw; }
   .preview-box h3{ font-family:'Cormorant Garamond',serif; font-size:19px; color:var(--teal); margin:0 0 14px 0; }
@@ -246,7 +243,7 @@
   .preview-actions{ display:flex; gap:10px; margin-top:16px; }
   .preview-actions .btn{ flex:1; }
 
-  .settings-panel{ display:none; position:fixed; top:78px; right:30px; width:380px; max-width:90vw; background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px; z-index:60; max-height:80vh; overflow-y:auto; }
+  .settings-panel{ display:none; position:fixed; top:78px; right:30px; width:380px; max-width:90vw; background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:22px; z-index:160; max-height:80vh; overflow-y:auto; }
   .settings-panel.show{ display:block; animation:fadeIn .2s ease; }
   .settings-panel h3{ font-family:'Cormorant Garamond',serif; font-size:18px; margin:0 0 6px 0; color:var(--teal); }
   .settings-panel h4{ font-family:'Cormorant Garamond',serif; font-size:15px; margin:0 0 4px 0; color:var(--teal); }
@@ -275,10 +272,57 @@
   .contact-item .val{ flex:1; font-size:13.5px; }
   .contact-item .primary-tag{ font-size:10px; color:var(--gold); text-transform:uppercase; letter-spacing:0.6px; font-weight:700; }
 
+  /* Profile module */
+  .user-row-actions{ display:flex; gap:6px; flex-wrap:wrap; }
+  .pw-cell{ display:flex; align-items:center; gap:8px; font-family:'IBM Plex Mono',monospace; }
+  .eye-btn{ background:none; border:none; padding:2px; font-size:15px; line-height:1; color:var(--muted-teal); }
+  .eye-btn:hover{ color:var(--teal); }
+
+  /* Login page */
+  .login-overlay{ display:flex; position:fixed; inset:0; z-index:300;
+    background:
+      radial-gradient(ellipse 900px 700px at 12% 8%, rgba(172,138,78,0.09), transparent 58%),
+      radial-gradient(ellipse 900px 700px at 88% 95%, rgba(18,56,50,0.08), transparent 58%),
+      var(--ivory);
+    align-items:center; justify-content:center; padding:20px; }
+  .login-overlay.hide{ display:none; }
+  .login-card{ width:400px; max-width:100%; background:linear-gradient(160deg, #FFFFFF 0%, var(--cream) 100%);
+    border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:36px 34px; }
+  .login-brand{ text-align:center; margin-bottom:22px; }
+  .login-brand img{ height:64px; width:64px; object-fit:contain; margin-bottom:10px; filter:drop-shadow(0 4px 10px rgba(18,56,50,0.12)); }
+  .login-brand .wordmark{ font-family:'Cormorant Garamond',serif; font-weight:600; font-size:26px; letter-spacing:4px; color:var(--teal); }
+  .login-brand .tagline{ font-size:10.5px; color:var(--gold); letter-spacing:2.5px; margin-top:3px; text-transform:uppercase; }
+  .login-footer-links{ display:flex; justify-content:space-between; align-items:center; margin-top:14px; }
+  .login-link{ background:none; border:none; color:var(--muted-teal); font-size:12px; text-decoration:underline; padding:0; }
+  .login-link:hover{ color:var(--teal); }
+  .login-error{ font-size:12px; color:var(--burgundy); margin:-8px 0 14px 0; display:none; }
+  .login-error.show{ display:block; }
+
   footer.hint{ text-align:center; color:var(--grey-soft); font-size:11.5px; padding:16px 30px 36px; max-width:1220px; margin:0 auto; letter-spacing:0.2px; }
 </style>
 </head>
 <body>
+
+<!-- ===== Login Page ===== -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <div class="login-brand">
+      <img src="nagmeena-logo.png" alt="Nagmeena" onerror="this.style.display='none'">
+      <div class="wordmark">NAGMEENA</div>
+      <div class="tagline">Billing &amp; Sales Book</div>
+    </div>
+    <div class="field-hint-error show login-error" id="loginError">Incorrect username or password.</div>
+    <div class="field"><label for="loginUsername">Username</label><input type="text" id="loginUsername" autocomplete="username" placeholder="Enter username"></div>
+    <div class="field"><label for="loginPassword">Password</label><input type="password" id="loginPassword" autocomplete="current-password" placeholder="Enter password"></div>
+    <button class="btn btn-gold btn-full" id="loginBtn">Login</button>
+    <div class="login-footer-links">
+      <button class="login-link" id="forgotPasswordLink">Forgot Password?</button>
+      <button class="login-link" id="loginSettingsLink">⚙ Google Sync Settings</button>
+    </div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
 
 <header class="top">
   <div class="brandrow">
@@ -287,8 +331,10 @@
       <div><div class="wordmark">NAGMEENA</div><div class="tagline">Billing &amp; Sales Book</div></div>
     </div>
     <div class="headright">
+      <div class="session-chip" id="sessionChip">—</div>
       <div class="drive-status"><span class="dot" id="driveDot"></span><span id="driveStatusText">Checking…</span></div>
       <button class="icon-btn" id="settingsBtn">⚙ Settings</button>
+      <button class="icon-btn" id="logoutBtn">Logout</button>
     </div>
   </div>
   <nav class="tabs">
@@ -296,6 +342,7 @@
     <button class="tab-btn" data-tab="products">Product Catalog</button>
     <button class="tab-btn" data-tab="history">Sales Book</button>
     <button class="tab-btn" data-tab="contact">Contact Us</button>
+    <button class="tab-btn" data-tab="profile">Profile</button>
   </nav>
 </header>
 
@@ -312,7 +359,7 @@
 
   <div class="divider"></div>
   <h4>Backup &amp; Restore</h4>
-  <p class="help">Backup captures the exact same full data set that syncs to Drive — Product Catalog, Sales Book (including payment info), and Contact Us. Restore is additive-only and correctly un-deletes anything removed.</p>
+  <p class="help">Backup captures the exact same full data set that syncs to Drive — Product Catalog, Sales Book, Contact Us, and the Profile (user) database. Restore is additive-only and correctly un-deletes anything removed.</p>
   <div style="display:flex; gap:8px; flex-wrap:wrap;">
     <button class="btn btn-ghost btn-sm" id="backupBtn">Backup Data</button>
     <button class="btn btn-ghost btn-sm" id="restoreBtn">Restore Data</button>
@@ -573,9 +620,27 @@
       </div>
     </div>
   </section>
+
+  <section id="panel-profile" class="panel">
+    <div class="card">
+      <div class="toolbar">
+        <div class="title">Profile — User Management</div>
+        <div class="actions">
+          <button class="btn btn-gold btn-sm" id="addUserBtn">+ Add User</button>
+        </div>
+      </div>
+      <p class="sub" style="margin-top:-8px;">Up to 3 Admins and 3 Guests (6 users total). Guests can view this list only.</p>
+      <div class="table-scroll">
+      <table><thead><tr><th>Username</th><th>Role</th><th>Password</th><th></th></tr></thead>
+        <tbody id="userBody"><tr class="empty-row"><td colspan="4">No users yet</td></tr></tbody></table>
+      </div>
+    </div>
+  </section>
 </main>
 
 <footer class="hint">Data is stored in this browser and synced to your own Google Drive when connected. Export .xlsx regularly as a backup.</footer>
+</div><!-- /appRoot -->
+
 <div class="toast" id="toast"></div>
 
 <div class="modal-overlay" id="payNowOverlay">
@@ -608,6 +673,76 @@
   </div>
 </div>
 
+<!-- ===== Profile module modals ===== -->
+<div class="modal-overlay" id="addUserOverlay">
+  <div class="modal-box">
+    <h3>Add User</h3>
+    <div class="field"><label for="newUserUsername">Username</label><input type="text" id="newUserUsername" autocomplete="off"></div>
+    <div class="field"><label for="newUserPassword">Password</label><input type="password" id="newUserPassword" autocomplete="new-password"></div>
+    <div class="field"><label for="newUserRole">Role</label>
+      <select id="newUserRole"><option value="Admin">Admin</option><option value="Guest">Guest</option></select>
+    </div>
+    <div class="field-hint-error" id="addUserError">Please check the details entered.</div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-gold" id="addUserSaveBtn">Save</button>
+      <button class="btn btn-ghost" id="addUserCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="revealPwOverlay">
+  <div class="modal-box">
+    <h3>Reveal Password</h3>
+    <p class="help">Enter any Admin's password to reveal this user's password.</p>
+    <div class="field"><label for="revealPwAdminPassword">Admin Password</label><input type="password" id="revealPwAdminPassword" autocomplete="off"></div>
+    <div class="field-hint-error" id="revealPwError">Invalid admin password.</div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-gold" id="revealPwOkBtn">OK</button>
+      <button class="btn btn-ghost" id="revealPwCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="changePwOverlay">
+  <div class="modal-box">
+    <h3>Change Password</h3>
+    <p class="help" id="changePwUserLabel">User</p>
+    <div class="field"><label for="changePwOldOrAdmin">Old Password (or any Admin Password)</label><input type="password" id="changePwOldOrAdmin" autocomplete="off"></div>
+    <div class="field"><label for="changePwNew">New Password</label><input type="password" id="changePwNew" autocomplete="new-password"></div>
+    <div class="field"><label for="changePwConfirm">Confirm Password</label><input type="password" id="changePwConfirm" autocomplete="new-password"></div>
+    <div class="field-hint-error" id="changePwError">Please check the details entered.</div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-gold" id="changePwSaveBtn">Save</button>
+      <button class="btn btn-ghost" id="changePwCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="forgotPwAuthOverlay">
+  <div class="modal-box">
+    <h3>Forgot Password</h3>
+    <p class="help">Enter the username you want to recover, then any Admin's password to authorize.</p>
+    <div class="field"><label for="forgotPwUsername">Username to Recover</label><input type="text" id="forgotPwUsername" autocomplete="off"></div>
+    <div class="field"><label for="forgotPwAdminPassword">Admin Password</label><input type="password" id="forgotPwAdminPassword" autocomplete="off"></div>
+    <div class="field-hint-error" id="forgotPwError">Invalid username or admin password.</div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-gold" id="forgotPwOkBtn">OK</button>
+      <button class="btn btn-ghost" id="forgotPwCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="forgotPwRevealOverlay">
+  <div class="modal-box">
+    <h3>Account Recovered</h3>
+    <div class="field"><label>Username</label><input type="text" id="forgotRevealUsername" disabled></div>
+    <div class="field"><label>Password</label><input type="text" id="forgotRevealPassword" disabled></div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-ghost btn-full" id="forgotPwRevealCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ===== Storage keys ===== */
 const LS_PRODUCTS='ledger_products', LS_SALES='ledger_sales', LS_SEQ='ledger_invoice_seq',
@@ -616,7 +751,8 @@ const LS_PRODUCTS='ledger_products', LS_SALES='ledger_sales', LS_SEQ='ledger_inv
       LS_PROD_TOMB='ledger_product_tombstones', LS_SALE_TOMB='ledger_sale_tombstones',
       LS_PHONES='ledger_contact_phones', LS_ADDRS='ledger_contact_addresses',
       LS_PHONE_TOMB='ledger_contact_phone_tomb', LS_ADDR_TOMB='ledger_contact_addr_tomb',
-      LS_CONTACT_META='ledger_contact_meta';
+      LS_CONTACT_META='ledger_contact_meta',
+      LS_USERS='ledger_users', LS_USER_TOMB='ledger_user_tombstones';
 
 const INSTAGRAM_URL = 'https://www.instagram.com/thenagmeena?igsh=MXMxM2lrb2N2YTZocg==';
 
@@ -656,9 +792,13 @@ let contactAddresses = load(LS_ADDRS, []);
 let contactPhoneTombstones = load(LS_PHONE_TOMB, []);
 let contactAddressTombstones = load(LS_ADDR_TOMB, []);
 let contactMeta = load(LS_CONTACT_META, {primaryPhoneId:null, primaryAddressId:null, updatedAt:0});
+let users = load(LS_USERS, []);
+let userTombstones = load(LS_USER_TOMB, []);
 let cart = [];
 let editingProductId = null;
 let editingSaleIds = new Set();
+let revealedUserIds = new Set(); // session-only reveal state
+let currentSession = null; // {id, username, role} — memory only, not persisted
 
 (function migrate(){
   let touched = false;
@@ -681,7 +821,235 @@ let editingSaleIds = new Set();
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 21; // v21: print preview auto-closes after Print, Clear Search button in Sales Book, catalog/add-product card heights matched
+const DATA_VERSION = 22; // v22: Login system + Profile/user management module, catalog height reverted to fixed scroll frame
+
+/* =========================================================================
+   PROFILE / USER MANAGEMENT
+   ========================================================================= */
+const MAX_ADMIN=3, MAX_GUEST=3, MAX_TOTAL=6;
+
+function ensureDefaultUser(){
+  let touched = false;
+  users.forEach(u=>{ if(!u.id) { u.id = uuid(); touched=true; } if(!u.updatedAt){ u.updatedAt = Date.now(); touched=true; } });
+  const hasAnyAdmin = users.some(u=>u.role==='Admin');
+  if(!hasAnyAdmin){
+    // Default admin recreated if no admin exists at all — "must always remain
+    // available unless another admin exists" per the spec.
+    const existing = users.find(u=>u.username.toLowerCase()==='sahilkhan');
+    if(existing){ existing.role='Admin'; existing.password='Sidwal@123'; existing.updatedAt=Date.now(); }
+    else{ users.push({id:uuid(), username:'Sahilkhan', password:'Sidwal@123', role:'Admin', updatedAt:Date.now()}); }
+    touched = true;
+  }
+  if(touched) save(LS_USERS, users);
+}
+ensureDefaultUser();
+
+function countByRole(role){ return users.filter(u=>u.role===role).length; }
+function findUserByUsername(name){ return users.find(u=>u.username.toLowerCase()===String(name||'').toLowerCase()); }
+function isValidAdminPassword(pw){ return users.some(u=>u.role==='Admin' && u.password===pw); }
+
+function addUser(username, password, role){
+  username = (username||'').trim();
+  if(!username || !password){ return {ok:false, msg:'Username and password are required.'}; }
+  if(findUserByUsername(username)){ return {ok:false, msg:'That username already exists.'}; }
+  if(role!=='Admin' && role!=='Guest'){ return {ok:false, msg:'Select a valid role.'}; }
+  if(users.length >= MAX_TOTAL){ return {ok:false, msg:'Maximum of 6 total users reached.'}; }
+  if(role==='Admin' && countByRole('Admin') >= MAX_ADMIN){ return {ok:false, msg:'Maximum of 3 Admin users reached.'}; }
+  if(role==='Guest' && countByRole('Guest') >= MAX_GUEST){ return {ok:false, msg:'Maximum of 3 Guest users reached.'}; }
+  users.push({id:uuid(), username, password, role, updatedAt:Date.now()});
+  save(LS_USERS, users);
+  pushChange();
+  return {ok:true};
+}
+function deleteUserById(id){
+  const u = users.find(x=>x.id===id);
+  if(!u) return {ok:false, msg:'User not found.'};
+  if(u.role==='Admin' && countByRole('Admin')<=1){ return {ok:false, msg:'The application must always contain at least one Admin user. This is the last Admin and cannot be deleted.'}; }
+  userTombstones.push({id:u.id, deletedAt:Date.now()});
+  users = users.filter(x=>x.id!==id);
+  revealedUserIds.delete(id);
+  save(LS_USERS, users); save(LS_USER_TOMB, userTombstones);
+  pushChange();
+  return {ok:true};
+}
+function changeUserPassword(userId, oldOrAdminPassword, newPassword, confirmPassword){
+  const u = users.find(x=>x.id===userId);
+  if(!u) return {ok:false, msg:'User not found.'};
+  if(!newPassword || newPassword.length<1){ return {ok:false, msg:'Enter a new password.'}; }
+  if(newPassword !== confirmPassword){ return {ok:false, msg:'New password and confirmation do not match.'}; }
+  const validByOwn = oldOrAdminPassword === u.password;
+  const validByAdmin = isValidAdminPassword(oldOrAdminPassword);
+  if(!validByOwn && !validByAdmin){ return {ok:false, msg:'Old password (or an Admin password) is incorrect.'}; }
+  u.password = newPassword; u.updatedAt = Date.now();
+  save(LS_USERS, users);
+  pushChange();
+  return {ok:true};
+}
+
+/* ===== Login ===== */
+function attemptLogin(username, password){
+  const u = findUserByUsername(username);
+  if(!u || u.password !== password) return null;
+  return u;
+}
+function applySessionUI(){
+  const chip = document.getElementById('sessionChip');
+  if(currentSession){
+    chip.innerHTML = `<b>${esc(currentSession.username)}</b> <span class="role-badge ${currentSession.role.toLowerCase()}">${esc(currentSession.role)}</span>`;
+  }
+  renderUserProfileList();
+}
+document.getElementById('loginBtn').addEventListener('click', ()=>{
+  const uname = document.getElementById('loginUsername').value.trim();
+  const pw = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  const u = attemptLogin(uname, pw);
+  if(!u){ errEl.classList.add('show'); return; }
+  errEl.classList.remove('show');
+  currentSession = {id:u.id, username:u.username, role:u.role};
+  document.getElementById('loginOverlay').classList.add('hide');
+  document.getElementById('appRoot').style.display = 'block';
+  document.getElementById('loginUsername').value=''; document.getElementById('loginPassword').value='';
+  applySessionUI();
+  toast(`Welcome, ${u.username}`);
+});
+document.getElementById('loginPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('loginBtn').click(); });
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  currentSession = null;
+  document.getElementById('appRoot').style.display = 'none';
+  document.getElementById('loginOverlay').classList.remove('hide');
+  toast('Logged out');
+});
+document.getElementById('loginSettingsLink').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  document.getElementById('settingsPanel').classList.toggle('show');
+});
+
+/* ===== Forgot Password ===== */
+document.getElementById('forgotPasswordLink').addEventListener('click', ()=>{
+  document.getElementById('forgotPwUsername').value='';
+  document.getElementById('forgotPwAdminPassword').value='';
+  document.getElementById('forgotPwError').classList.remove('show');
+  document.getElementById('forgotPwAuthOverlay').classList.add('show');
+});
+document.getElementById('forgotPwCloseBtn').addEventListener('click', ()=>document.getElementById('forgotPwAuthOverlay').classList.remove('show'));
+document.getElementById('forgotPwOkBtn').addEventListener('click', ()=>{
+  const uname = document.getElementById('forgotPwUsername').value.trim();
+  const adminPw = document.getElementById('forgotPwAdminPassword').value;
+  const target = findUserByUsername(uname);
+  const errEl = document.getElementById('forgotPwError');
+  if(!target || !isValidAdminPassword(adminPw)){ errEl.classList.add('show'); return; }
+  errEl.classList.remove('show');
+  document.getElementById('forgotPwAuthOverlay').classList.remove('show');
+  document.getElementById('forgotRevealUsername').value = target.username;
+  document.getElementById('forgotRevealPassword').value = target.password;
+  document.getElementById('forgotPwRevealOverlay').classList.add('show');
+});
+document.getElementById('forgotPwRevealCloseBtn').addEventListener('click', ()=>document.getElementById('forgotPwRevealOverlay').classList.remove('show'));
+
+/* ===== Profile page: Add User ===== */
+document.getElementById('addUserBtn').addEventListener('click', ()=>{
+  document.getElementById('newUserUsername').value='';
+  document.getElementById('newUserPassword').value='';
+  document.getElementById('newUserRole').value='Admin';
+  document.getElementById('addUserError').classList.remove('show');
+  document.getElementById('addUserOverlay').classList.add('show');
+});
+document.getElementById('addUserCloseBtn').addEventListener('click', ()=>document.getElementById('addUserOverlay').classList.remove('show'));
+document.getElementById('addUserSaveBtn').addEventListener('click', ()=>{
+  const username = document.getElementById('newUserUsername').value;
+  const password = document.getElementById('newUserPassword').value;
+  const role = document.getElementById('newUserRole').value;
+  const res = addUser(username, password, role);
+  const errEl = document.getElementById('addUserError');
+  if(!res.ok){ errEl.textContent = res.msg; errEl.classList.add('show'); return; }
+  errEl.classList.remove('show');
+  document.getElementById('addUserOverlay').classList.remove('show');
+  renderUserProfileList();
+  toast('User added');
+});
+
+/* ===== Profile page: Reveal Password ===== */
+let revealPwTargetId = null;
+function openRevealPw(userId){
+  revealPwTargetId = userId;
+  document.getElementById('revealPwAdminPassword').value='';
+  document.getElementById('revealPwError').classList.remove('show');
+  document.getElementById('revealPwOverlay').classList.add('show');
+}
+document.getElementById('revealPwCloseBtn').addEventListener('click', ()=>document.getElementById('revealPwOverlay').classList.remove('show'));
+document.getElementById('revealPwOkBtn').addEventListener('click', ()=>{
+  const pw = document.getElementById('revealPwAdminPassword').value;
+  const errEl = document.getElementById('revealPwError');
+  if(!isValidAdminPassword(pw)){ errEl.classList.add('show'); return; }
+  errEl.classList.remove('show');
+  revealedUserIds.add(revealPwTargetId);
+  document.getElementById('revealPwOverlay').classList.remove('show');
+  renderUserProfileList();
+});
+
+/* ===== Profile page: Change Password ===== */
+let changePwTargetId = null;
+function openChangePw(userId){
+  changePwTargetId = userId;
+  const u = users.find(x=>x.id===userId); if(!u) return;
+  document.getElementById('changePwUserLabel').textContent = `Changing password for "${u.username}"`;
+  document.getElementById('changePwOldOrAdmin').value='';
+  document.getElementById('changePwNew').value='';
+  document.getElementById('changePwConfirm').value='';
+  document.getElementById('changePwError').classList.remove('show');
+  document.getElementById('changePwOverlay').classList.add('show');
+}
+document.getElementById('changePwCloseBtn').addEventListener('click', ()=>document.getElementById('changePwOverlay').classList.remove('show'));
+document.getElementById('changePwSaveBtn').addEventListener('click', ()=>{
+  const oldOrAdmin = document.getElementById('changePwOldOrAdmin').value;
+  const newPw = document.getElementById('changePwNew').value;
+  const confirmPw = document.getElementById('changePwConfirm').value;
+  const res = changeUserPassword(changePwTargetId, oldOrAdmin, newPw, confirmPw);
+  const errEl = document.getElementById('changePwError');
+  if(!res.ok){ errEl.textContent = res.msg; errEl.classList.add('show'); return; }
+  errEl.classList.remove('show');
+  document.getElementById('changePwOverlay').classList.remove('show');
+  renderUserProfileList();
+  toast('Password updated');
+});
+
+/* ===== Profile page: Delete User ===== */
+function requestDeleteUser(userId){
+  const u = users.find(x=>x.id===userId); if(!u) return;
+  if(!confirm(`Delete user "${u.username}"? This cannot be undone.`)) return;
+  const res = deleteUserById(userId);
+  if(!res.ok){ alert(res.msg); return; }
+  renderUserProfileList();
+  toast('User deleted');
+}
+
+/* Renders the Profile page's user table. Admin sees full controls; Guest sees
+   a read-only list (view-only, per Role Permissions). */
+function renderUserProfileList(){
+  const body = document.getElementById('userBody');
+  const isAdmin = currentSession && currentSession.role==='Admin';
+  document.getElementById('addUserBtn').style.display = isAdmin ? 'inline-flex' : 'none';
+  if(users.length===0){ body.innerHTML = '<tr class="empty-row"><td colspan="4">No users yet</td></tr>'; return; }
+  body.innerHTML = users.map(u=>{
+    const revealed = revealedUserIds.has(u.id);
+    const pwDisplay = revealed ? esc(u.password) : '••••••••';
+    const eyeIcon = revealed ? '🙈' : '👁';
+    const canReveal = isAdmin;
+    const canChangePw = isAdmin || (currentSession && currentSession.id===u.id);
+    const canDelete = isAdmin;
+    let actions = '';
+    if(canReveal) actions += `<button class="eye-btn" title="${revealed?'Hide':'Reveal'} password" onclick="${revealed?`(revealedUserIds.delete('${u.id}'), renderUserProfileList())`:`openRevealPw('${u.id}')`}">${eyeIcon}</button>`;
+    if(canChangePw) actions += ` <button class="btn btn-ghost btn-sm" onclick="openChangePw('${u.id}')">Change Password</button>`;
+    if(canDelete) actions += ` <button class="btn btn-danger btn-sm" onclick="requestDeleteUser('${u.id}')">Delete</button>`;
+    return `<tr>
+      <td>${esc(u.username)}${currentSession && currentSession.id===u.id ? ' <span class="role-badge '+u.role.toLowerCase()+'">You</span>' : ''}</td>
+      <td><span class="role-badge ${u.role.toLowerCase()}">${esc(u.role)}</span></td>
+      <td class="pw-cell">${pwDisplay}</td>
+      <td class="user-row-actions">${actions || '<span style="color:var(--grey-soft); font-size:12px;">View only</span>'}</td>
+    </tr>`;
+  }).join('');
+}
 
 /* ===== Product code categories ===== */
 const BLANK_CODE = '00';
@@ -1462,7 +1830,7 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
   }
 
   const grandTotal = cartTotal();
-  const paymentMode = document.getElementById('paymentModeSelect').value; // 'cash' | 'upi' | 'loan'
+  const paymentMode = document.getElementById('paymentModeSelect').value;
   let amountPaid, pendingAmount, paymentStatus;
   if(paymentMode==='loan'){
     const loanTypeEl = document.querySelector('input[name=loanType]:checked');
@@ -1715,9 +2083,6 @@ function closeInvoicePreview(){
 }
 document.getElementById('printPreviewCloseBtn').addEventListener('click', closeInvoicePreview);
 document.getElementById('printPreviewOverlay').addEventListener('click', (e)=>{ if(e.target.id==='printPreviewOverlay') closeInvoicePreview(); });
-/* Print button now downloads the PDF, then closes the popup automatically —
-   previously the popup stayed open after downloading, requiring a separate
-   Close click. */
 document.getElementById('printPreviewPrintBtn').addEventListener('click', ()=>{
   const frame = document.getElementById('printPreviewFrame');
   const invoiceNo = frame.dataset.invoiceNo || 'invoice';
@@ -1774,9 +2139,6 @@ let salesSearchField = 'code';
 let salesSearchQuery = '';
 document.getElementById('salesSearchField').addEventListener('change', e=>{ salesSearchField=e.target.value; updateSalesSearchSuggestions(); renderHistory(); });
 document.getElementById('salesSearchInput').addEventListener('input', e=>{ salesSearchQuery=e.target.value.trim().toLowerCase(); renderHistory(); });
-/* Clears both the search text and resets the field selector to its default
-   (Product Code), then re-renders — every record becomes visible again
-   (subject only to the separate date filter, which is untouched by this). */
 document.getElementById('clearSalesSearchBtn').addEventListener('click', ()=>{
   document.getElementById('salesSearchInput').value = '';
   document.getElementById('salesSearchField').value = 'code';
@@ -2174,6 +2536,7 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
     if(btn.dataset.tab==='history') renderHistory();
     if(btn.dataset.tab==='contact') renderContacts();
+    if(btn.dataset.tab==='profile') renderUserProfileList();
   });
 });
 const settingsBtn = document.getElementById('settingsBtn');
@@ -2208,6 +2571,7 @@ async function buildBackupPayload(){
     brandLogo: logo,
     products, productTombstones, sales, saleTombstones, cats,
     contactPhones, contactAddresses, contactPhoneTombstones, contactAddressTombstones, contactMeta,
+    users, userTombstones,
     seq: parseInt(localStorage.getItem(LS_SEQ)||'0',10),
     version: DATA_VERSION, deviceId: DEVICE_ID
   };
@@ -2232,7 +2596,7 @@ async function doBackup(target){
     a.href=url; a.download = `Nagmeena_Backup_${todayStr()}.json`;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
-    toast('Local backup downloaded — includes Catalog, Sales Book & Contact Us');
+    toast('Local backup downloaded — includes Catalog, Sales Book, Contact Us & Profile');
   }
   if(target==='cloud' || target==='both'){
     if(!localStorage.getItem(LS_CLIENTID)){ toast('Add a Google Client ID and connect Drive first', true); return; }
@@ -2254,7 +2618,7 @@ document.getElementById('restoreFileInput').addEventListener('change', async (e)
     const text = await file.text();
     const data = JSON.parse(text);
     const added = applyBackupDataAdditive(data);
-    toast(`Restored from local backup — Catalog, Sales Book & Contact Us: ${added} record(s) added back, nothing removed`);
+    toast(`Restored from local backup — Catalog, Sales Book, Contact Us & Profile: ${added} record(s) added back, nothing removed`);
   }catch(err){ console.error(err); toast('Could not read that backup file — check it is a valid Nagmeena backup JSON', true); }
   e.target.value='';
 });
@@ -2298,6 +2662,9 @@ function applyBackupDataAdditive(data){
   const adRes = restoreRowsAdditive(contactAddresses, data.contactAddresses||[], contactAddressTombstones);
   contactAddresses = adRes.merged; addedCount += adRes.addedCount;
 
+  const uRes = restoreRowsAdditive(users, data.users||[], userTombstones);
+  users = uRes.merged; addedCount += uRes.addedCount;
+
   if(data.cats){
     CAT_KEYS.forEach(key=>{
       if(!data.cats[key]) return;
@@ -2323,14 +2690,17 @@ function applyBackupDataAdditive(data){
   const currentSeq = parseInt(localStorage.getItem(LS_SEQ)||'0',10);
   if(incomingSeq > currentSeq) localStorage.setItem(LS_SEQ, String(incomingSeq));
 
+  ensureDefaultUser();
+
   save(LS_PRODUCTS, products); save(LS_SALES, sales);
   save(LS_PROD_TOMB, productTombstones); save(LS_SALE_TOMB, saleTombstones);
   save(LS_PHONES, contactPhones); save(LS_ADDRS, contactAddresses);
   save(LS_PHONE_TOMB, contactPhoneTombstones); save(LS_ADDR_TOMB, contactAddressTombstones);
   save(LS_CONTACT_META, contactMeta);
+  save(LS_USERS, users); save(LS_USER_TOMB, userTombstones);
   save(LS_CATS, cats);
   CAT_KEYS.forEach(populateSelect);
-  renderProducts(); renderHistory(); renderContacts();
+  renderProducts(); renderHistory(); renderContacts(); renderUserProfileList();
   pushChange();
   return addedCount;
 }
@@ -2452,6 +2822,7 @@ function buildLocalPayload(){
   return {
     products, productTombstones, sales, saleTombstones, cats,
     contactPhones, contactAddresses, contactPhoneTombstones, contactAddressTombstones, contactMeta,
+    users, userTombstones,
     seq: parseInt(localStorage.getItem(LS_SEQ)||'0',10), timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID
   };
 }
@@ -2466,7 +2837,7 @@ function hashPayload(data){
     sales:data.sales, saleTombstones:data.saleTombstones, cats:data.cats,
     contactPhones:data.contactPhones, contactAddresses:data.contactAddresses,
     contactPhoneTombstones:data.contactPhoneTombstones, contactAddressTombstones:data.contactAddressTombstones,
-    contactMeta:data.contactMeta, seq:data.seq
+    contactMeta:data.contactMeta, users:data.users, userTombstones:data.userTombstones, seq:data.seq
   });
   let h = 0; for(let i=0;i<str.length;i++){ h = (Math.imul(31,h) + str.charCodeAt(i)) | 0; } return h;
 }
@@ -2512,11 +2883,13 @@ function mergeData(local, cloud){
   const localProducts = normalizeRows(local.products), localSales = normalizeRows(local.sales);
   const cloudPhones = normalizeRows(cloud.contactPhones), localPhones = normalizeRows(local.contactPhones);
   const cloudAddrs = normalizeRows(cloud.contactAddresses), localAddrs = normalizeRows(local.contactAddresses);
+  const cloudUsers = normalizeRows(cloud.users), localUsers = normalizeRows(local.users);
 
   const pMerge = mergeRows(localProducts, cloudProducts, local.productTombstones||[], cloud.productTombstones||[]);
   const sMerge = mergeRows(localSales, cloudSales, local.saleTombstones||[], cloud.saleTombstones||[]);
   const phMerge = mergeRows(localPhones, cloudPhones, local.contactPhoneTombstones||[], cloud.contactPhoneTombstones||[]);
   const adMerge = mergeRows(localAddrs, cloudAddrs, local.contactAddressTombstones||[], cloud.contactAddressTombstones||[]);
+  const uMerge = mergeRows(localUsers, cloudUsers, local.userTombstones||[], cloud.userTombstones||[]);
 
   return {
     products: pMerge.rows, productTombstones: pMerge.tombstones,
@@ -2524,6 +2897,7 @@ function mergeData(local, cloud){
     contactPhones: phMerge.rows, contactPhoneTombstones: phMerge.tombstones,
     contactAddresses: adMerge.rows, contactAddressTombstones: adMerge.tombstones,
     contactMeta: mergeContactMeta(local.contactMeta, cloud.contactMeta),
+    users: uMerge.rows, userTombstones: uMerge.tombstones,
     cats: mergeCategoryData(local.cats, cloud.cats),
     seq: Math.max(local.seq||0, cloud.seq||0),
     timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID
@@ -2535,19 +2909,22 @@ function applyRemoteData(data){
   contactPhones = data.contactPhones || []; contactAddresses = data.contactAddresses || [];
   contactPhoneTombstones = data.contactPhoneTombstones || []; contactAddressTombstones = data.contactAddressTombstones || [];
   contactMeta = data.contactMeta || {primaryPhoneId:null, primaryAddressId:null, updatedAt:0};
+  users = data.users || []; userTombstones = data.userTombstones || [];
   cats = ensureCatsShape(data.cats || JSON.parse(JSON.stringify(defaultCats)));
   ensureBlankEntries(cats);
   CAT_KEYS.forEach(key=>{ normalizeSeedIdsForCategory(key, cats[key]); recomputeFreeCodes(cats[key]); });
   sales.forEach(s=>{
     if(s.paymentMode===undefined){ s.paymentMode='cash'; s.paymentStatus='Done'; s.pendingAmount=0; s.amountPaid=s.revenue; }
   });
+  ensureDefaultUser();
   localStorage.setItem(LS_SEQ, String(data.seq || 0));
   save(LS_PRODUCTS, products); save(LS_SALES, sales);
   save(LS_PROD_TOMB, productTombstones); save(LS_SALE_TOMB, saleTombstones); save(LS_CATS, cats);
   save(LS_PHONES, contactPhones); save(LS_ADDRS, contactAddresses);
   save(LS_PHONE_TOMB, contactPhoneTombstones); save(LS_ADDR_TOMB, contactAddressTombstones);
   save(LS_CONTACT_META, contactMeta);
-  CAT_KEYS.forEach(populateSelect); renderProducts(); renderHistory(); renderContacts();
+  save(LS_USERS, users); save(LS_USER_TOMB, userTombstones);
+  CAT_KEYS.forEach(populateSelect); renderProducts(); renderHistory(); renderContacts(); renderUserProfileList();
 }
 function markSynced(){ localStorage.setItem(LS_SYNCED, new Date().toLocaleString()); }
 
@@ -2641,7 +3018,7 @@ function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.get
 function esc(str){ return String(str).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 function toast(msg, isErr){ const t=document.getElementById('toast'); t.textContent=msg; t.className='toast show'+(isErr?' err':''); clearTimeout(toast._h); toast._h=setTimeout(()=>t.classList.remove('show'),2600); }
 
-renderCart(); renderProducts(); renderHistory(); renderContacts();
+renderCart(); renderProducts(); renderHistory(); renderContacts(); renderUserProfileList();
 </script>
 </body>
 </html>
