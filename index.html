@@ -150,15 +150,13 @@
   .pay-pending{ color:var(--burgundy); font-weight:700; }
   .pay-na{ color:var(--grey-soft); }
 
-  /* Shared fixed-height, sticky-header scrollable frame pattern — used by both
-     the Product Catalog table and the Sales Book table. */
   .catalog-scroll-frame, .sales-scroll-frame{
     overflow-y:auto;
     overflow-x:auto;
     border-radius:var(--radius-sm);
     border:1px solid var(--line);
   }
-  .catalog-scroll-frame{ max-height:800px; } /* updated from 850px */
+  .catalog-scroll-frame{ max-height:800px; }
   .sales-scroll-frame{ max-height:700px; }
   .catalog-scroll-frame table, .sales-scroll-frame table{ border-radius:0; }
   .catalog-scroll-frame thead th, .sales-scroll-frame thead th{
@@ -197,7 +195,7 @@
   .toolbar .actions{ display:flex; gap:10px; flex-wrap:wrap; }
 
   .toast{ position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--teal); color:var(--ivory); padding:13px 22px; border-radius:999px; font-size:13px; letter-spacing:0.2px; box-shadow:0 14px 30px -10px rgba(18,56,50,0.5); opacity:0; pointer-events:none; transition:all .3s ease; z-index:400; max-width:90vw; }
-  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); } .toast.err{ background:var(--burgundy); }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); } .toast.err{ background:var(--burgundy); } .toast.success{ background:var(--green); }
 
   .codebuilder{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:8px; }
   @media (max-width:700px){ .codebuilder{ grid-template-columns:repeat(2,1fr); } }
@@ -291,7 +289,9 @@
   .login-card{ width:400px; max-width:100%; background:linear-gradient(160deg, #FFFFFF 0%, var(--cream) 100%);
     border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:36px 34px; }
   .login-brand{ text-align:center; margin-bottom:22px; }
-  .login-brand img{ height:64px; width:64px; object-fit:contain; margin-bottom:10px; filter:drop-shadow(0 4px 10px rgba(18,56,50,0.12)); }
+  /* Logo enlarged 50% on the login page only: 64px -> 96px. The header logo
+     elsewhere in the app (.brand img) is untouched at 73px. */
+  .login-brand img{ height:96px; width:96px; object-fit:contain; margin-bottom:10px; filter:drop-shadow(0 4px 10px rgba(18,56,50,0.12)); }
   .login-brand .wordmark{ font-family:'Cormorant Garamond',serif; font-weight:600; font-size:26px; letter-spacing:4px; color:var(--teal); }
   .login-brand .tagline{ font-size:10.5px; color:var(--gold); letter-spacing:2.5px; margin-top:3px; text-transform:uppercase; }
   .login-footer-links{ display:flex; justify-content:space-between; align-items:center; margin-top:14px; }
@@ -547,10 +547,6 @@
         <button class="btn btn-ghost btn-sm btn-toggle" id="salesUnmaskBtn">Unmask Data</button>
       </div>
     </div>
-    <!-- All of these cards are computed from the currently filtered/searched
-         set of records (see renderHistory()) — they already respect the date
-         filter and search box, and fall back to the full Sales Book the
-         moment both are cleared. -->
     <div class="summary-cards">
       <div class="stat"><div class="label">Bills Raised</div><div class="value" id="statBills">0</div></div>
       <div class="stat"><div class="label">Total Qty Sold</div><div class="value" id="statTotalQty">0</div></div>
@@ -834,7 +830,7 @@ let currentSession = null;
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 24; // v24: Total Profit % card (already filter/search-aware), catalog frame 800px
+const DATA_VERSION = 25; // v25: login logo +50%, explicit invoice-generated success toast
 
 /* =========================================================================
    PROFILE / USER MANAGEMENT
@@ -1912,7 +1908,10 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
   save(LS_SALES, sales); save(LS_PRODUCTS, products);
   renderProducts(); renderHistory();
 
-  toast(`Invoice ${invoiceNo} generated and saved`);
+  /* Explicit success confirmation on invoice generation, per request. Uses
+     the toast's new "success" style (green) so it visually reads as a
+     positive confirmation rather than a neutral status message. */
+  toast(`✓ Invoice ${invoiceNo} generated successfully!`, false, true);
   cart=[]; document.getElementById('custName').value=''; custNumberEl.value=''; validateCustNumber();
   document.getElementById('printInvoiceCheckbox').checked = false;
   resetPaymentModeUI();
@@ -2318,16 +2317,12 @@ function renderHistory(){
     body.innerHTML = html;
   }
 
-  /* Summary card computation — always sourced from `visible`, i.e. the
-     currently filtered/searched set. If both the date filter and search are
-     cleared, `visible` reduces to the full `sales` array, so these numbers
-     automatically reflect all-time totals with no extra logic needed. */
   const bills=new Set(visible.map(s=>s.invoice)).size;
   const revenue=visible.reduce((a,s)=>a+s.revenue,0), cost=visible.reduce((a,s)=>a+s.cost*s.qty,0), profit=visible.reduce((a,s)=>a+s.profit,0);
   const totalQty = visible.reduce((a,s)=>a+s.qty,0);
   const avgMarginValue = totalQty ? profit/totalQty : 0;
   const avgMarginPercent = revenue ? (profit/revenue)*100 : 0;
-  const totalProfitPercent = revenue ? (profit/revenue)*100 : 0; // profit as a % of revenue for the current view
+  const totalProfitPercent = revenue ? (profit/revenue)*100 : 0;
 
   const uniquePending = new Map();
   visible.forEach(s=>{ if(!uniquePending.has(s.invoice)) uniquePending.set(s.invoice, s.pendingAmount||0); });
@@ -3066,7 +3061,15 @@ setStatus(isDriveConnected() ? 'connecting' : 'disconnected');
 function money(n){ return '₹'+(Number(n)||0).toFixed(2); }
 function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function esc(str){ return String(str).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-function toast(msg, isErr){ const t=document.getElementById('toast'); t.textContent=msg; t.className='toast show'+(isErr?' err':''); clearTimeout(toast._h); toast._h=setTimeout(()=>t.classList.remove('show'),2600); }
+/* toast(msg, isErr, isSuccess) — third param picks the green "success" style
+   used specifically for the invoice-generated confirmation. */
+function toast(msg, isErr, isSuccess){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast show'+(isErr?' err':(isSuccess?' success':''));
+  clearTimeout(toast._h);
+  toast._h=setTimeout(()=>t.classList.remove('show'),2600);
+}
 
 renderCart(); renderProducts(); renderHistory(); renderContacts(); renderUserProfileList();
 </script>
