@@ -151,14 +151,14 @@
   .pay-na{ color:var(--grey-soft); }
 
   /* Shared fixed-height, sticky-header scrollable frame pattern — used by both
-     the Product Catalog table and, as of this update, the Sales Book table. */
+     the Product Catalog table and the Sales Book table. */
   .catalog-scroll-frame, .sales-scroll-frame{
     overflow-y:auto;
     overflow-x:auto;
     border-radius:var(--radius-sm);
     border:1px solid var(--line);
   }
-  .catalog-scroll-frame{ max-height:850px; }
+  .catalog-scroll-frame{ max-height:800px; } /* updated from 850px */
   .sales-scroll-frame{ max-height:700px; }
   .catalog-scroll-frame table, .sales-scroll-frame table{ border-radius:0; }
   .catalog-scroll-frame thead th, .sales-scroll-frame thead th{
@@ -182,8 +182,9 @@
   .receipt tbody tr:nth-child(even) td, .receipt tbody tr:hover td{ background:transparent; }
   .receipt .foot{ text-align:center; color:var(--gold); font-size:11px; margin-top:18px; letter-spacing:1px; text-transform:uppercase; }
 
-  .summary-cards{ display:grid; grid-template-columns:repeat(8,1fr); gap:16px; margin-bottom:20px; }
-  @media (max-width:1200px){ .summary-cards{ grid-template-columns:repeat(4,1fr); } }
+  .summary-cards{ display:grid; grid-template-columns:repeat(9,1fr); gap:16px; margin-bottom:20px; }
+  @media (max-width:1300px){ .summary-cards{ grid-template-columns:repeat(5,1fr); } }
+  @media (max-width:900px){ .summary-cards{ grid-template-columns:repeat(3,1fr); } }
   @media (max-width:600px){ .summary-cards{ grid-template-columns:repeat(2,1fr); } }
   .stat{ background:linear-gradient(160deg, #FFFFFF, var(--beige-soft)); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px; box-shadow:var(--shadow-soft); transition:transform .25s ease, box-shadow .25s ease; }
   .stat:hover{ transform:translateY(-2px); box-shadow:var(--shadow); }
@@ -231,10 +232,6 @@
   .radio-row label{ display:flex; align-items:center; gap:7px; text-transform:none; font-size:13.5px; font-weight:500; color:var(--charcoal); letter-spacing:0; margin:0; }
   .radio-row input[type=radio]{ width:auto; accent-color:var(--teal); }
 
-  /* Modal / settings z-index raised above the login overlay (300) so Forgot
-     Password and Google Sync Settings are visible ON TOP of the login screen
-     when opened from there — previously they opened correctly but rendered
-     underneath the full-screen login overlay, making them invisible. */
   .modal-overlay{ display:none; position:fixed; inset:0; background:rgba(18,56,50,0.45); z-index:320; align-items:center; justify-content:center; padding:20px; }
   .modal-overlay.show{ display:flex; }
   .modal-box{ background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:26px; width:360px; max-width:100%; }
@@ -316,9 +313,6 @@
       <div class="wordmark">NAGMEENA</div>
       <div class="tagline">Billing &amp; Sales Book</div>
     </div>
-    <!-- "show" class removed from here — this box must start hidden. Previously
-         it was hard-coded visible, so the error text appeared before any login
-         attempt was even made. -->
     <div class="field-hint-error login-error" id="loginError">Incorrect username or password.</div>
     <div class="field"><label for="loginUsername">Username</label><input type="text" id="loginUsername" autocomplete="username" placeholder="Enter username"></div>
     <div class="field"><label for="loginPassword">Password</label><input type="password" id="loginPassword" autocomplete="current-password" placeholder="Enter password"></div>
@@ -553,12 +547,17 @@
         <button class="btn btn-ghost btn-sm btn-toggle" id="salesUnmaskBtn">Unmask Data</button>
       </div>
     </div>
+    <!-- All of these cards are computed from the currently filtered/searched
+         set of records (see renderHistory()) — they already respect the date
+         filter and search box, and fall back to the full Sales Book the
+         moment both are cleared. -->
     <div class="summary-cards">
       <div class="stat"><div class="label">Bills Raised</div><div class="value" id="statBills">0</div></div>
       <div class="stat"><div class="label">Total Qty Sold</div><div class="value" id="statTotalQty">0</div></div>
       <div class="stat"><div class="label">Revenue</div><div class="value" id="statRevenue">₹0.00</div></div>
       <div class="stat cost"><div class="label">Cost of Goods</div><div class="value" id="statCost">₹0.00</div></div>
       <div class="stat profit"><div class="label">Total Profit</div><div class="value" id="statProfit">₹0.00</div></div>
+      <div class="stat profit"><div class="label">Total Profit %</div><div class="value" id="statProfitPct">0%</div></div>
       <div class="stat"><div class="label">Avg Margin/Pc</div><div class="value" id="statAvgMargin">₹0.00</div></div>
       <div class="stat"><div class="label">Avg Margin %</div><div class="value" id="statAvgMarginPct">0%</div></div>
       <div class="stat pending"><div class="label">Pending Payments</div><div class="value" id="statPending">₹0.00</div></div>
@@ -571,7 +570,7 @@
           <button class="btn btn-danger btn-sm" id="clearHistoryBtn">Clear All Records</button>
         </div>
       </div>
-      <p class="sub" style="margin-top:-8px;">Rows sharing an invoice number are merged. Click Edit once per invoice to unlock Customer, Number, Payment Mode, Qty, and Selling Price for every item in it. Print opens a preview before generating the PDF.</p>
+      <p class="sub" style="margin-top:-8px;">Rows sharing an invoice number are merged. Click Edit once per invoice to unlock Customer, Number, Payment Mode, Qty, and Selling Price for every item in it. The summary cards above always reflect the current filter/search — clear both to see totals for the entire Sales Book.</p>
 
       <div class="filter-bar">
         <div class="filter-group">
@@ -835,7 +834,7 @@ let currentSession = null;
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 23; // v23: catalog frame 850px + Clear Search + Export .xlsx, login error fix, popup z-index fix, Sales Book scroll frame
+const DATA_VERSION = 24; // v24: Total Profit % card (already filter/search-aware), catalog frame 800px
 
 /* =========================================================================
    PROFILE / USER MANAGEMENT
@@ -1702,8 +1701,6 @@ function renderProducts(){
   renderCatalogUnitSummary(visible);
 }
 
-/* Export the currently visible (filtered/searched) catalog rows to .xlsx.
-   If no filter/search is active, this is simply the whole catalog. */
 document.getElementById('exportCatalogBtn').addEventListener('click', ()=>{
   if(products.length===0){ toast('No products to export yet'); return; }
   let exportSet = products.filter(productMatchesFilters);
@@ -2321,11 +2318,16 @@ function renderHistory(){
     body.innerHTML = html;
   }
 
+  /* Summary card computation — always sourced from `visible`, i.e. the
+     currently filtered/searched set. If both the date filter and search are
+     cleared, `visible` reduces to the full `sales` array, so these numbers
+     automatically reflect all-time totals with no extra logic needed. */
   const bills=new Set(visible.map(s=>s.invoice)).size;
   const revenue=visible.reduce((a,s)=>a+s.revenue,0), cost=visible.reduce((a,s)=>a+s.cost*s.qty,0), profit=visible.reduce((a,s)=>a+s.profit,0);
   const totalQty = visible.reduce((a,s)=>a+s.qty,0);
   const avgMarginValue = totalQty ? profit/totalQty : 0;
   const avgMarginPercent = revenue ? (profit/revenue)*100 : 0;
+  const totalProfitPercent = revenue ? (profit/revenue)*100 : 0; // profit as a % of revenue for the current view
 
   const uniquePending = new Map();
   visible.forEach(s=>{ if(!uniquePending.has(s.invoice)) uniquePending.set(s.invoice, s.pendingAmount||0); });
@@ -2336,6 +2338,7 @@ function renderHistory(){
   document.getElementById('statRevenue').textContent= salesUnmasked ? money(revenue) : maskMoney();
   document.getElementById('statCost').textContent= salesUnmasked ? money(cost) : maskMoney();
   document.getElementById('statProfit').textContent= salesUnmasked ? money(profit) : maskMoney();
+  document.getElementById('statProfitPct').textContent= salesUnmasked ? totalProfitPercent.toFixed(1)+'%' : '••%';
   document.getElementById('statAvgMargin').textContent= salesUnmasked ? money(avgMarginValue) : maskMoney();
   document.getElementById('statAvgMarginPct').textContent= salesUnmasked ? avgMarginPercent.toFixed(1)+'%' : '••%';
   document.getElementById('statPending').textContent = money(totalPending);
@@ -2344,7 +2347,7 @@ function renderHistory(){
   const parts = [];
   if(activeFilter) parts.push(`date range applied (${visible.length} of ${sales.length} record(s))`);
   if(salesSearchQuery) parts.push(`search "${salesSearchQuery}" applied`);
-  fs.textContent = parts.length ? `Showing results — ${parts.join(', ')}.` : '';
+  fs.textContent = parts.length ? `Showing results — ${parts.join(', ')}. Summary cards above reflect this filtered view.` : '';
   updateSalesSearchSuggestions();
 }
 function recalcSaleRow(s){
@@ -2461,7 +2464,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   const uniquePendingExport = new Map();
   exportSet.forEach(s=>{ if(!uniquePendingExport.has(s.invoice)) uniquePendingExport.set(s.invoice, s.pendingAmount||0); });
   const totalPendingExport = Array.from(uniquePendingExport.values()).reduce((a,b)=>a+b,0);
-  const summary = XLSX.utils.aoa_to_sheet([['Nagmeena — Sales Summary'],[],['Bills Raised',bills],['Total Qty Sold',totalQty],['Total Revenue',revenue],['Total Cost of Goods',cost],['Total Profit',profit],['Avg Margin/Pc', totalQty?profit/totalQty:0],['Avg Margin %', revenue?((profit/revenue)*100).toFixed(1)+'%':'0%'],['Total Pending Payments', totalPendingExport]]);
+  const summary = XLSX.utils.aoa_to_sheet([['Nagmeena — Sales Summary'],[],['Bills Raised',bills],['Total Qty Sold',totalQty],['Total Revenue',revenue],['Total Cost of Goods',cost],['Total Profit',profit],['Total Profit %', revenue?((profit/revenue)*100).toFixed(1)+'%':'0%'],['Avg Margin/Pc', totalQty?profit/totalQty:0],['Avg Margin %', revenue?((profit/revenue)*100).toFixed(1)+'%':'0%'],['Total Pending Payments', totalPendingExport]]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, summary, 'Summary');
   XLSX.utils.book_append_sheet(wb, ws, 'Sales Record');
