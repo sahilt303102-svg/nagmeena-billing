@@ -289,8 +289,6 @@
   .login-card{ width:400px; max-width:100%; background:linear-gradient(160deg, #FFFFFF 0%, var(--cream) 100%);
     border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:36px 34px; }
   .login-brand{ text-align:center; margin-bottom:22px; }
-  /* Logo enlarged 50% on the login page only: 64px -> 96px. The header logo
-     elsewhere in the app (.brand img) is untouched at 73px. */
   .login-brand img{ height:96px; width:96px; object-fit:contain; margin-bottom:10px; filter:drop-shadow(0 4px 10px rgba(18,56,50,0.12)); }
   .login-brand .wordmark{ font-family:'Cormorant Garamond',serif; font-weight:600; font-size:26px; letter-spacing:4px; color:var(--teal); }
   .login-brand .tagline{ font-size:10.5px; color:var(--gold); letter-spacing:2.5px; margin-top:3px; text-transform:uppercase; }
@@ -830,7 +828,7 @@ let currentSession = null;
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 25; // v25: login logo +50%, explicit invoice-generated success toast
+const DATA_VERSION = 26; // v26: catalog "All" unit summary now correctly includes out-of-stock listings, not just in-stock quantities
 
 /* =========================================================================
    PROFILE / USER MANAGEMENT
@@ -1655,6 +1653,14 @@ function productMatchesFilters(p){
   }
   return true;
 }
+
+/* Catalog unit summary — the value/label shown next to the search bar.
+   - All: sum of in-stock quantities PLUS a count of 1 per out-of-stock
+     listing (out-of-stock items have 0 physical units, but each is still a
+     distinct catalog entry, so it's counted toward the "All" total the same
+     way it's counted in the "Out of Stock" view below).
+   - In Stock: sum of in-stock quantities only.
+   - Out of Stock: count of out-of-stock listings only (no physical units to sum). */
 function renderCatalogUnitSummary(visible){
   let label, value, suffix;
   if(stockFilter === 'out'){
@@ -1667,7 +1673,7 @@ function renderCatalogUnitSummary(visible){
     suffix = ' unit(s)';
   }else{
     label = 'All Units';
-    value = visible.reduce((sum,p)=> sum + (p.stock||0), 0);
+    value = visible.reduce((sum,p)=> sum + (inStock(p) ? (p.stock||0) : 1), 0);
     suffix = ' unit(s)';
   }
   const filterNote = (stockFilter!=='all' || searchQuery) ? ' <span class="filter-note">(filtered)</span>' : '';
@@ -1908,9 +1914,6 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
   save(LS_SALES, sales); save(LS_PRODUCTS, products);
   renderProducts(); renderHistory();
 
-  /* Explicit success confirmation on invoice generation, per request. Uses
-     the toast's new "success" style (green) so it visually reads as a
-     positive confirmation rather than a neutral status message. */
   toast(`✓ Invoice ${invoiceNo} generated successfully!`, false, true);
   cart=[]; document.getElementById('custName').value=''; custNumberEl.value=''; validateCustNumber();
   document.getElementById('printInvoiceCheckbox').checked = false;
@@ -3061,8 +3064,6 @@ setStatus(isDriveConnected() ? 'connecting' : 'disconnected');
 function money(n){ return '₹'+(Number(n)||0).toFixed(2); }
 function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function esc(str){ return String(str).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-/* toast(msg, isErr, isSuccess) — third param picks the green "success" style
-   used specifically for the invoice-generated confirmation. */
 function toast(msg, isErr, isSuccess){
   const t=document.getElementById('toast');
   t.textContent=msg;
