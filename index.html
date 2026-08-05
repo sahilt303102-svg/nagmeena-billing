@@ -384,7 +384,11 @@
           <h2>Customer</h2>
           <p class="sub">At least one of name or number is required.</p>
           <div class="row">
-            <div class="field"><label for="custName">Customer Name</label><input type="text" id="custName" placeholder="e.g. Ramesh Kumar"></div>
+            <div class="field">
+              <label for="custName">Customer Name</label>
+              <input type="text" id="custName" list="custNameSuggestions" autocomplete="off" placeholder="e.g. Ramesh Kumar">
+              <datalist id="custNameSuggestions"></datalist>
+            </div>
             <div class="field"><label for="custNumber">Customer Number</label><input type="tel" id="custNumber" inputmode="numeric" maxlength="15" placeholder="e.g. 9876543210"></div>
           </div>
           <div class="field-hint-error" id="custNumberError">Mobile number cannot exceed 10 digits.</div>
@@ -680,6 +684,19 @@
   </div>
 </div>
 
+<!-- ===== Generic Yes/No confirmation modal — used by Clear All Records and
+     Delete All Out of Stock instead of the browser's native confirm(). ===== -->
+<div class="modal-overlay" id="genericConfirmOverlay">
+  <div class="modal-box">
+    <h3 id="genericConfirmTitle">Are you sure?</h3>
+    <p class="help" id="genericConfirmMessage">This action cannot be undone.</p>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-danger" id="genericConfirmYesBtn" style="flex:1;">Yes</button>
+      <button class="btn btn-ghost" id="genericConfirmNoBtn" style="flex:1;">No</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== Profile module modals ===== -->
 <div class="modal-overlay" id="addUserOverlay">
   <div class="modal-box">
@@ -785,6 +802,21 @@ function generateTimestampCode(){
 function isValidProductCode(code){ return /^\d{20}$/.test(String(code||'')); }
 function capitalizeMode(m){ return m==='upi' ? 'UPI' : (m==='loan' ? 'Loan' : 'Cash'); }
 
+/* Masks a phone number for print, showing only the first 2 and last 4 digits
+   (e.g. "9876543210" -> "98xxxx3210"). Non-digit characters are preserved
+   positionally is NOT attempted — this operates on the digit string only,
+   which matches how numbers are stored/entered throughout the app. Numbers
+   too short to mask meaningfully (<=6 digits) are returned unmasked, since
+   masking them would either reveal everything anyway or mask everything. */
+function maskPhoneForPrint(number){
+  const digits = String(number||'').replace(/\D/g,'');
+  if(digits.length <= 6) return number || '';
+  const first = digits.slice(0,2);
+  const last = digits.slice(-4);
+  const middleLen = digits.length - 6;
+  return first + 'x'.repeat(middleLen) + last;
+}
+
 let salesUnmasked = false;
 let catalogUnmasked = false;
 function maskText(v){ return v ? '••••••••' : '—'; }
@@ -828,7 +860,32 @@ let currentSession = null;
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 26; // v26: catalog "All" unit summary now correctly includes out-of-stock listings, not just in-stock quantities
+const DATA_VERSION = 27; // v27: Yes/No confirm modals for Clear All Records & Delete Out of Stock, customer name autosuggest on New Bill, masked phone numbers on printed PDFs
+
+/* =========================================================================
+   Generic Yes/No confirmation modal (replaces window.confirm for the two
+   destructive bulk-delete actions specified). Usage:
+   showConfirmModal({title, message, onYes}) — onYes runs only if the user
+   presses Yes; pressing No or closing does nothing.
+   ========================================================================= */
+let _pendingConfirmYes = null;
+function showConfirmModal({title, message, onYes}){
+  document.getElementById('genericConfirmTitle').textContent = title || 'Are you sure?';
+  document.getElementById('genericConfirmMessage').textContent = message || 'This action cannot be undone.';
+  _pendingConfirmYes = onYes || null;
+  document.getElementById('genericConfirmOverlay').classList.add('show');
+}
+function closeConfirmModal(){
+  document.getElementById('genericConfirmOverlay').classList.remove('show');
+  _pendingConfirmYes = null;
+}
+document.getElementById('genericConfirmYesBtn').addEventListener('click', ()=>{
+  const cb = _pendingConfirmYes;
+  closeConfirmModal();
+  if(cb) cb();
+});
+document.getElementById('genericConfirmNoBtn').addEventListener('click', closeConfirmModal);
+document.getElementById('genericConfirmOverlay').addEventListener('click', (e)=>{ if(e.target.id==='genericConfirmOverlay') closeConfirmModal(); });
 
 /* =========================================================================
    PROFILE / USER MANAGEMENT
@@ -1022,11 +1079,16 @@ document.getElementById('changePwSaveBtn').addEventListener('click', ()=>{
 /* ===== Profile page: Delete User ===== */
 function requestDeleteUser(userId){
   const u = users.find(x=>x.id===userId); if(!u) return;
-  if(!confirm(`Delete user "${u.username}"? This cannot be undone.`)) return;
-  const res = deleteUserById(userId);
-  if(!res.ok){ alert(res.msg); return; }
-  renderUserProfileList();
-  toast('User deleted');
+  showConfirmModal({
+    title:'Delete User',
+    message:`Delete user "${u.username}"? This cannot be undone.`,
+    onYes: ()=>{
+      const res = deleteUserById(userId);
+      if(!res.ok){ toast(res.msg, true); return; }
+      renderUserProfileList();
+      toast('User deleted');
+    }
+  });
 }
 
 function renderUserProfileList(){
@@ -1591,17 +1653,23 @@ function editProduct(code){
   document.getElementById('panel-products').scrollIntoView({behavior:'smooth', block:'start'});
 }
 
+/* Delete All Out of Stock — now uses the Yes/No modal instead of confirm(). */
 document.getElementById('deleteOutOfStockBtn').addEventListener('click', ()=>{
   const outOfStock = products.filter(p=>!inStock(p));
   if(outOfStock.length===0){ toast('No out-of-stock products to delete'); return; }
-  if(!confirm(`Delete all ${outOfStock.length} out-of-stock product(s) from the catalog? Past sales records are unaffected.`)) return;
-  const now = Date.now();
-  outOfStock.forEach(p=> productTombstones.push({id:p.id, deletedAt: now}));
-  products = products.filter(p=>inStock(p));
-  save(LS_PRODUCTS, products); save(LS_PROD_TOMB, productTombstones);
-  renderProducts();
-  toast(`Deleted ${outOfStock.length} out-of-stock product(s)`);
-  pushChange();
+  showConfirmModal({
+    title:'Delete All Out of Stock',
+    message:`Delete all ${outOfStock.length} out-of-stock product(s) from the catalog? Past sales records are unaffected.`,
+    onYes: ()=>{
+      const now = Date.now();
+      outOfStock.forEach(p=> productTombstones.push({id:p.id, deletedAt: now}));
+      products = products.filter(p=>inStock(p));
+      save(LS_PRODUCTS, products); save(LS_PROD_TOMB, productTombstones);
+      renderProducts();
+      toast(`Deleted ${outOfStock.length} out-of-stock product(s)`);
+      pushChange();
+    }
+  });
 });
 
 /* ===== Catalog: mask toggle, stock filter, live partial search, unit label/count ===== */
@@ -1653,14 +1721,6 @@ function productMatchesFilters(p){
   }
   return true;
 }
-
-/* Catalog unit summary — the value/label shown next to the search bar.
-   - All: sum of in-stock quantities PLUS a count of 1 per out-of-stock
-     listing (out-of-stock items have 0 physical units, but each is still a
-     distinct catalog entry, so it's counted toward the "All" total the same
-     way it's counted in the "Out of Stock" view below).
-   - In Stock: sum of in-stock quantities only.
-   - Out of Stock: count of out-of-stock listings only (no physical units to sum). */
 function renderCatalogUnitSummary(visible){
   let label, value, suffix;
   if(stockFilter === 'out'){
@@ -1742,6 +1802,16 @@ function validateCustNumber(){
   return !tooLong;
 }
 custNumberEl.addEventListener('input', ()=>{ validateCustNumber(); renderCart(); });
+
+/* Customer name suggestions on New Bill — sourced from unique customer names
+   already present in the Sales Book. Refreshed on focus so it's always
+   current even as new invoices are generated during the session. */
+function updateCustNameSuggestions(){
+  const dl = document.getElementById('custNameSuggestions');
+  const names = Array.from(new Set(sales.map(s=>s.customer).filter(Boolean)));
+  dl.innerHTML = names.map(n=>`<option value="${esc(n)}">`).join('');
+}
+document.getElementById('custName').addEventListener('focus', updateCustNameSuggestions);
 
 /* ===== Payment mode UI (New Bill) ===== */
 function updatePaymentModeUI(){
@@ -1977,7 +2047,11 @@ function getSecondaryPhone(){
 }
 function getPrimaryAddress(){ return contactAddresses.find(a=>a.id===contactMeta.primaryAddressId) || null; }
 
-/* ===== Thermal (88mm) receipt-style invoice PDF — builds and returns the doc ===== */
+/* ===== Thermal (88mm) receipt-style invoice PDF — builds and returns the doc =====
+   The customer's phone number is masked here (first 2 + last 4 digits only)
+   before being printed on the invoice — applies whether printed from New Bill
+   or from the Sales Book. The shop's own contact numbers (footer) are NOT
+   masked, since those are meant to be publicly dialable. */
 async function buildInvoiceDocAsync(invoiceNo, date, name, number, items, paymentLabel){
   const { jsPDF } = window.jspdf;
   const PAGE_W = 88;
@@ -1991,6 +2065,7 @@ async function buildInvoiceDocAsync(invoiceNo, date, name, number, items, paymen
   const secondaryPhone = getSecondaryPhone();
   const primaryAddress = getPrimaryAddress();
   const contactLine = [primaryPhone?.value, secondaryPhone?.value].filter(Boolean).join(' / ');
+  const displayNumber = (number && number!=='—') ? maskPhoneForPrint(number) : number;
 
   const nameColChars = 16;
   const wrappedItems = items.map(it=>({ ...it, lines: wrapPlain(it.name.replace(/\s*Unstiched Suit\s*$/i,'').trim()+' Suit', nameColChars) }));
@@ -2041,7 +2116,7 @@ async function buildInvoiceDocAsync(invoiceNo, date, name, number, items, paymen
   doc.text(`Invoice: ${invoiceNo}`, MARGIN, y); y += 4;
   doc.text(`Date: ${date}`, MARGIN, y); y += 4;
   if(name && name!=='—'){ doc.text(`Customer: ${name}`, MARGIN, y); y += 4; }
-  if(number && number!=='—'){ doc.text(`Phone: ${number}`, MARGIN, y); y += 4; }
+  if(number && number!=='—'){ doc.text(`Phone: ${displayNumber}`, MARGIN, y); y += 4; }
   doc.text(`Payment: ${paymentLabel || 'Cash'}`, MARGIN, y); y += 4;
 
   doc.line(MARGIN, y, PAGE_W-MARGIN, y); y += 3;
@@ -2347,6 +2422,7 @@ function renderHistory(){
   if(salesSearchQuery) parts.push(`search "${salesSearchQuery}" applied`);
   fs.textContent = parts.length ? `Showing results — ${parts.join(', ')}. Summary cards above reflect this filtered view.` : '';
   updateSalesSearchSuggestions();
+  updateCustNameSuggestions();
 }
 function recalcSaleRow(s){
   s.revenue = s.qty * s.price;
@@ -2436,15 +2512,22 @@ function deleteSaleRow(id){
   renderHistory(); renderProducts();
   pushChange();
 }
+
+/* Clear All Records — now uses the Yes/No modal instead of confirm(). */
 document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{
   if(sales.length===0) return;
-  if(!confirm('Clear ALL sales records? Export a backup first if needed. Stock quantities will not be restored.')) return;
-  const now = Date.now();
-  sales.forEach(s=> saleTombstones.push({id:s.id, deletedAt: now}));
-  sales=[]; editingSaleIds.clear();
-  save(LS_SALES,sales); save(LS_SALE_TOMB, saleTombstones);
-  renderHistory(); toast('Sales Book cleared');
-  pushChange();
+  showConfirmModal({
+    title:'Clear All Sales Records',
+    message:'Are you sure you want to delete all sales records? Export a backup first if needed. Stock quantities will not be restored.',
+    onYes: ()=>{
+      const now = Date.now();
+      sales.forEach(s=> saleTombstones.push({id:s.id, deletedAt: now}));
+      sales=[]; editingSaleIds.clear();
+      save(LS_SALES,sales); save(LS_SALE_TOMB, saleTombstones);
+      renderHistory(); toast('Sales Book cleared');
+      pushChange();
+    }
+  });
 });
 document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   if(sales.length===0){ toast('No sales to export yet'); return; }
@@ -3073,6 +3156,7 @@ function toast(msg, isErr, isSuccess){
 }
 
 renderCart(); renderProducts(); renderHistory(); renderContacts(); renderUserProfileList();
+updateCustNameSuggestions();
 </script>
 </body>
 </html>
