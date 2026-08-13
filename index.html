@@ -180,7 +180,8 @@
   .receipt tbody tr:nth-child(even) td, .receipt tbody tr:hover td{ background:transparent; }
   .receipt .foot{ text-align:center; color:var(--gold); font-size:11px; margin-top:18px; letter-spacing:1px; text-transform:uppercase; }
 
-  .summary-cards{ display:grid; grid-template-columns:repeat(9,1fr); gap:16px; margin-bottom:20px; }
+  /* Summary cards — now 10 metrics (added Actual Revenue) */
+  .summary-cards{ display:grid; grid-template-columns:repeat(5,1fr); gap:16px; margin-bottom:20px; }
   @media (max-width:1300px){ .summary-cards{ grid-template-columns:repeat(5,1fr); } }
   @media (max-width:900px){ .summary-cards{ grid-template-columns:repeat(3,1fr); } }
   @media (max-width:600px){ .summary-cards{ grid-template-columns:repeat(2,1fr); } }
@@ -189,6 +190,7 @@
   .stat .label{ font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--muted-teal); margin-bottom:8px; }
   .stat .value{ font-family:'Cormorant Garamond',serif; font-size:24px; font-weight:700; color:var(--teal); }
   .stat.profit .value{ color:var(--green); } .stat.cost .value{ color:var(--burgundy); } .stat.pending .value{ color:var(--burgundy); }
+  .stat.actual-revenue .value{ color:var(--green); }
 
   .toolbar{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px; }
   .toolbar .title{ font-family:'Cormorant Garamond',serif; font-size:20px; font-weight:700; color:var(--teal); letter-spacing:0.3px; }
@@ -549,10 +551,15 @@
         <button class="btn btn-ghost btn-sm btn-toggle" id="salesUnmaskBtn">Unmask Data</button>
       </div>
     </div>
+    <!-- Summary cards: all computed from the currently filtered/searched set
+         (see renderHistory()) — Expected Revenue is the full billed amount;
+         Actual Revenue subtracts whatever is still pending, so it only
+         reflects money that has actually been collected. -->
     <div class="summary-cards">
       <div class="stat"><div class="label">Bills Raised</div><div class="value" id="statBills">0</div></div>
       <div class="stat"><div class="label">Total Qty Sold</div><div class="value" id="statTotalQty">0</div></div>
-      <div class="stat"><div class="label">Revenue</div><div class="value" id="statRevenue">₹0.00</div></div>
+      <div class="stat"><div class="label">Expected Revenue</div><div class="value" id="statRevenue">₹0.00</div></div>
+      <div class="stat actual-revenue"><div class="label">Actual Revenue</div><div class="value" id="statActualRevenue">₹0.00</div></div>
       <div class="stat cost"><div class="label">Cost of Goods</div><div class="value" id="statCost">₹0.00</div></div>
       <div class="stat profit"><div class="label">Total Profit</div><div class="value" id="statProfit">₹0.00</div></div>
       <div class="stat profit"><div class="label">Total Profit %</div><div class="value" id="statProfitPct">0%</div></div>
@@ -654,18 +661,40 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- ===== Pay Now modal — redesigned with Complete Payment / Partial Payment toggle ===== -->
 <div class="modal-overlay" id="payNowOverlay">
   <div class="modal-box">
     <h3>Complete Payment</h3>
     <p class="sub" id="payNowInvoiceLabel">Invoice</p>
+    <p class="sub" id="payNowPendingLabel" style="margin-top:-14px;">Pending: ₹0.00</p>
+
     <div class="field">
-      <label>Payment Mode</label>
+      <label>Payment Type</label>
       <div class="radio-row">
-        <label><input type="radio" name="payNowMode" value="cash" checked> Cash</label>
-        <label><input type="radio" name="payNowMode" value="upi"> UPI</label>
+        <label><input type="radio" name="payNowType" value="complete" checked> Complete Payment</label>
+        <label><input type="radio" name="payNowType" value="partial"> Partial Payment</label>
       </div>
     </div>
-    <div class="checkbox-row" style="margin-top:6px;"><input type="checkbox" id="payNowPrintCheckbox"><label for="payNowPrintCheckbox">Print Invoice</label></div>
+
+    <div id="payNowCompleteSection">
+      <div class="field">
+        <label>Payment Mode</label>
+        <div class="radio-row">
+          <label><input type="radio" name="payNowMode" value="cash" checked> Cash</label>
+          <label><input type="radio" name="payNowMode" value="upi"> UPI</label>
+        </div>
+      </div>
+      <div class="checkbox-row" style="margin-top:6px;"><input type="checkbox" id="payNowPrintCheckbox"><label for="payNowPrintCheckbox">Print Invoice</label></div>
+    </div>
+
+    <div id="payNowPartialSection" style="display:none;">
+      <div class="field">
+        <label for="payNowPartialInput">Amount Paid Now (₹)</label>
+        <input type="number" id="payNowPartialInput" min="0" step="0.01" placeholder="0.00">
+      </div>
+      <p class="sub" id="payNowPartialRemaining" style="margin-top:-8px;">Remaining after this payment: ₹0.00</p>
+    </div>
+
     <div style="display:flex; gap:10px; margin-top:20px;">
       <button class="btn btn-gold" id="payNowConfirmBtn">Generate Invoice</button>
       <button class="btn btn-ghost" id="payNowCancelBtn">Cancel</button>
@@ -684,8 +713,7 @@
   </div>
 </div>
 
-<!-- ===== Generic Yes/No confirmation modal — used by Clear All Records and
-     Delete All Out of Stock instead of the browser's native confirm(). ===== -->
+<!-- ===== Generic Yes/No confirmation modal ===== -->
 <div class="modal-overlay" id="genericConfirmOverlay">
   <div class="modal-box">
     <h3 id="genericConfirmTitle">Are you sure?</h3>
@@ -802,12 +830,6 @@ function generateTimestampCode(){
 function isValidProductCode(code){ return /^\d{20}$/.test(String(code||'')); }
 function capitalizeMode(m){ return m==='upi' ? 'UPI' : (m==='loan' ? 'Loan' : 'Cash'); }
 
-/* Masks a phone number for print, showing only the first 2 and last 4 digits
-   (e.g. "9876543210" -> "98xxxx3210"). Non-digit characters are preserved
-   positionally is NOT attempted — this operates on the digit string only,
-   which matches how numbers are stored/entered throughout the app. Numbers
-   too short to mask meaningfully (<=6 digits) are returned unmasked, since
-   masking them would either reveal everything anyway or mask everything. */
 function maskPhoneForPrint(number){
   const digits = String(number||'').replace(/\D/g,'');
   if(digits.length <= 6) return number || '';
@@ -860,13 +882,10 @@ let currentSession = null;
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 27; // v27: Yes/No confirm modals for Clear All Records & Delete Out of Stock, customer name autosuggest on New Bill, masked phone numbers on printed PDFs
+const DATA_VERSION = 28; // v28: Pay Now redesigned with Complete/Partial Payment options; Expected vs Actual Revenue summary cards
 
 /* =========================================================================
-   Generic Yes/No confirmation modal (replaces window.confirm for the two
-   destructive bulk-delete actions specified). Usage:
-   showConfirmModal({title, message, onYes}) — onYes runs only if the user
-   presses Yes; pressing No or closing does nothing.
+   Generic Yes/No confirmation modal
    ========================================================================= */
 let _pendingConfirmYes = null;
 function showConfirmModal({title, message, onYes}){
@@ -1653,7 +1672,6 @@ function editProduct(code){
   document.getElementById('panel-products').scrollIntoView({behavior:'smooth', block:'start'});
 }
 
-/* Delete All Out of Stock — now uses the Yes/No modal instead of confirm(). */
 document.getElementById('deleteOutOfStockBtn').addEventListener('click', ()=>{
   const outOfStock = products.filter(p=>!inStock(p));
   if(outOfStock.length===0){ toast('No out-of-stock products to delete'); return; }
@@ -1803,9 +1821,6 @@ function validateCustNumber(){
 }
 custNumberEl.addEventListener('input', ()=>{ validateCustNumber(); renderCart(); });
 
-/* Customer name suggestions on New Bill — sourced from unique customer names
-   already present in the Sales Book. Refreshed on focus so it's always
-   current even as new invoices are generated during the session. */
 function updateCustNameSuggestions(){
   const dl = document.getElementById('custNameSuggestions');
   const names = Array.from(new Set(sales.map(s=>s.customer).filter(Boolean)));
@@ -2047,11 +2062,6 @@ function getSecondaryPhone(){
 }
 function getPrimaryAddress(){ return contactAddresses.find(a=>a.id===contactMeta.primaryAddressId) || null; }
 
-/* ===== Thermal (88mm) receipt-style invoice PDF — builds and returns the doc =====
-   The customer's phone number is masked here (first 2 + last 4 digits only)
-   before being printed on the invoice — applies whether printed from New Bill
-   or from the Sales Book. The shop's own contact numbers (footer) are NOT
-   masked, since those are meant to be publicly dialable. */
 async function buildInvoiceDocAsync(invoiceNo, date, name, number, items, paymentLabel){
   const { jsPDF } = window.jspdf;
   const PAGE_W = 88;
@@ -2395,6 +2405,12 @@ function renderHistory(){
     body.innerHTML = html;
   }
 
+  /* Summary calculations — always sourced from `visible` (the filtered/
+     searched set), so clearing filters/search automatically reverts to
+     all-time totals with no extra logic needed.
+     Expected Revenue = full billed amount for every visible line.
+     Actual Revenue = Expected Revenue minus whatever is still pending on
+     visible invoices — i.e. only money that has genuinely been collected. */
   const bills=new Set(visible.map(s=>s.invoice)).size;
   const revenue=visible.reduce((a,s)=>a+s.revenue,0), cost=visible.reduce((a,s)=>a+s.cost*s.qty,0), profit=visible.reduce((a,s)=>a+s.profit,0);
   const totalQty = visible.reduce((a,s)=>a+s.qty,0);
@@ -2405,10 +2421,12 @@ function renderHistory(){
   const uniquePending = new Map();
   visible.forEach(s=>{ if(!uniquePending.has(s.invoice)) uniquePending.set(s.invoice, s.pendingAmount||0); });
   const totalPending = Array.from(uniquePending.values()).reduce((a,b)=>a+b,0);
+  const actualRevenue = Math.max(0, revenue - totalPending);
 
   document.getElementById('statBills').textContent=bills;
   document.getElementById('statTotalQty').textContent=totalQty;
   document.getElementById('statRevenue').textContent= salesUnmasked ? money(revenue) : maskMoney();
+  document.getElementById('statActualRevenue').textContent= salesUnmasked ? money(actualRevenue) : maskMoney();
   document.getElementById('statCost').textContent= salesUnmasked ? money(cost) : maskMoney();
   document.getElementById('statProfit').textContent= salesUnmasked ? money(profit) : maskMoney();
   document.getElementById('statProfitPct').textContent= salesUnmasked ? totalProfitPercent.toFixed(1)+'%' : '••%';
@@ -2456,6 +2474,10 @@ function updateInvoiceNumber(invoiceNo, val){
   sales.forEach(s=>{ if(s.invoice===invoiceNo){ s.number = trimmed; s.updatedAt = Date.now(); touched = true; } });
   if(touched){ save(LS_SALES, sales); renderHistory(); toast('Customer number updated'); pushChange(); }
 }
+/* Manual Payment Mode edit (row-level, always available). Switching to
+   Cash/UPI marks the invoice fully paid; switching to Loan resets it to
+   fully pending. This is also used internally by the Pay Now "Complete
+   Payment" flow below. */
 function updateInvoicePaymentMode(invoiceNo, newMode){
   const group = sales.filter(s=>s.invoice===invoiceNo);
   if(group.length===0) return;
@@ -2470,6 +2492,22 @@ function updateInvoicePaymentMode(invoiceNo, newMode){
   group.forEach(s=>{ s.paymentMode=newMode; s.paymentStatus=paymentStatus; s.pendingAmount=pendingAmount; s.amountPaid=amountPaid; s.updatedAt=now; });
   save(LS_SALES, sales); renderHistory();
   toast('Payment mode updated');
+  pushChange();
+}
+/* New: applies a partial payment against an invoice's outstanding pending
+   amount via the Pay Now popup. Payment mode is left as 'loan' (it's still
+   not fully settled) — only amountPaid/pendingAmount/paymentStatus change. */
+function applyPartialPaymentToInvoice(invoiceNo, additionalAmount){
+  const group = sales.filter(s=>s.invoice===invoiceNo);
+  if(group.length===0) return;
+  const invoiceTotal = group.reduce((a,s)=>a+s.revenue,0);
+  const currentPaid = group[0].amountPaid || 0;
+  const newPaid = Math.min(invoiceTotal, currentPaid + additionalAmount);
+  const pendingAmount = Math.max(0, invoiceTotal - newPaid);
+  const paymentStatus = pendingAmount > 0.004 ? 'Pending' : 'Done';
+  const now = Date.now();
+  group.forEach(s=>{ s.amountPaid = newPaid; s.pendingAmount = pendingAmount; s.paymentStatus = paymentStatus; s.updatedAt = now; });
+  save(LS_SALES, sales); renderHistory();
   pushChange();
 }
 function updateSaleQty(id, val){
@@ -2512,8 +2550,6 @@ function deleteSaleRow(id){
   renderHistory(); renderProducts();
   pushChange();
 }
-
-/* Clear All Records — now uses the Yes/No modal instead of confirm(). */
 document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{
   if(sales.length===0) return;
   showConfirmModal({
@@ -2545,7 +2581,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   const uniquePendingExport = new Map();
   exportSet.forEach(s=>{ if(!uniquePendingExport.has(s.invoice)) uniquePendingExport.set(s.invoice, s.pendingAmount||0); });
   const totalPendingExport = Array.from(uniquePendingExport.values()).reduce((a,b)=>a+b,0);
-  const summary = XLSX.utils.aoa_to_sheet([['Nagmeena — Sales Summary'],[],['Bills Raised',bills],['Total Qty Sold',totalQty],['Total Revenue',revenue],['Total Cost of Goods',cost],['Total Profit',profit],['Total Profit %', revenue?((profit/revenue)*100).toFixed(1)+'%':'0%'],['Avg Margin/Pc', totalQty?profit/totalQty:0],['Avg Margin %', revenue?((profit/revenue)*100).toFixed(1)+'%':'0%'],['Total Pending Payments', totalPendingExport]]);
+  const summary = XLSX.utils.aoa_to_sheet([['Nagmeena — Sales Summary'],[],['Bills Raised',bills],['Total Qty Sold',totalQty],['Expected Revenue',revenue],['Actual Revenue',Math.max(0,revenue-totalPendingExport)],['Total Cost of Goods',cost],['Total Profit',profit],['Total Profit %', revenue?((profit/revenue)*100).toFixed(1)+'%':'0%'],['Avg Margin/Pc', totalQty?profit/totalQty:0],['Avg Margin %', revenue?((profit/revenue)*100).toFixed(1)+'%':'0%'],['Total Pending Payments', totalPendingExport]]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, summary, 'Summary');
   XLSX.utils.book_append_sheet(wb, ws, 'Sales Record');
@@ -2553,31 +2589,90 @@ document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   toast('Excel file downloaded');
 });
 
-/* ===== Pay Now modal ===== */
+/* =========================================================================
+   Pay Now modal — redesigned with Complete Payment / Partial Payment
+   ========================================================================= */
 let payNowInvoiceNo = null;
+let payNowInvoiceTotal = 0;
+let payNowCurrentPending = 0;
+
 function openPayNow(invoiceNo){
   payNowInvoiceNo = invoiceNo;
+  const group = sales.filter(s=>s.invoice===invoiceNo);
+  payNowInvoiceTotal = group.reduce((a,s)=>a+s.revenue,0);
+  payNowCurrentPending = group[0] ? (group[0].pendingAmount||0) : 0;
+
   document.getElementById('payNowInvoiceLabel').textContent = `Invoice ${invoiceNo}`;
+  document.getElementById('payNowPendingLabel').textContent = `Pending: ${money(payNowCurrentPending)}`;
+
+  const completeType = document.querySelector('input[name=payNowType][value=complete]');
+  if(completeType) completeType.checked = true;
   const cashRadio = document.querySelector('input[name=payNowMode][value=cash]');
   if(cashRadio) cashRadio.checked = true;
   document.getElementById('payNowPrintCheckbox').checked = false;
+  document.getElementById('payNowPartialInput').value = '';
+
+  updatePayNowSections();
   document.getElementById('payNowOverlay').classList.add('show');
 }
+function updatePayNowSections(){
+  const typeEl = document.querySelector('input[name=payNowType]:checked');
+  const type = typeEl ? typeEl.value : 'complete';
+  const completeSection = document.getElementById('payNowCompleteSection');
+  const partialSection = document.getElementById('payNowPartialSection');
+  const confirmBtn = document.getElementById('payNowConfirmBtn');
+  if(type==='partial'){
+    completeSection.style.display='none';
+    partialSection.style.display='block';
+    confirmBtn.textContent='Save';
+  }else{
+    completeSection.style.display='block';
+    partialSection.style.display='none';
+    confirmBtn.textContent='Generate Invoice';
+  }
+  updatePayNowPartialRemaining();
+}
+document.querySelectorAll('input[name=payNowType]').forEach(r=>r.addEventListener('change', updatePayNowSections));
+function updatePayNowPartialRemaining(){
+  const input = document.getElementById('payNowPartialInput');
+  const amt = parseFloat(input.value);
+  const remaining = isNaN(amt) || amt<0 ? payNowCurrentPending : Math.max(0, payNowCurrentPending - amt);
+  document.getElementById('payNowPartialRemaining').textContent = `Remaining after this payment: ${money(remaining)}`;
+}
+document.getElementById('payNowPartialInput').addEventListener('input', updatePayNowPartialRemaining);
+
 function closePayNow(){
   document.getElementById('payNowOverlay').classList.remove('show');
   payNowInvoiceNo = null;
 }
 document.getElementById('payNowCancelBtn').addEventListener('click', closePayNow);
 document.getElementById('payNowOverlay').addEventListener('click', (e)=>{ if(e.target.id==='payNowOverlay') closePayNow(); });
+
 document.getElementById('payNowConfirmBtn').addEventListener('click', async ()=>{
   if(!payNowInvoiceNo) return;
-  const modeEl = document.querySelector('input[name=payNowMode]:checked');
-  const mode = modeEl ? modeEl.value : 'cash';
-  const printChecked = document.getElementById('payNowPrintCheckbox').checked;
   const invNo = payNowInvoiceNo;
-  updateInvoicePaymentMode(invNo, mode);
-  closePayNow();
-  if(printChecked){ await printInvoiceFromSales(invNo); }
+  const typeEl = document.querySelector('input[name=payNowType]:checked');
+  const type = typeEl ? typeEl.value : 'complete';
+
+  if(type==='partial'){
+    const input = document.getElementById('payNowPartialInput');
+    const amt = parseFloat(input.value);
+    if(isNaN(amt) || amt<=0){ toast('Enter a valid amount paid now', true); return; }
+    if(amt > payNowCurrentPending + 0.004){ toast('Amount cannot exceed the pending amount', true); return; }
+    applyPartialPaymentToInvoice(invNo, amt);
+    closePayNow();
+    toast('Partial payment saved');
+  }else{
+    // Complete Payment — settles the bill at the recorded selling price,
+    // i.e. pays off the full remaining pending amount. Unchanged behaviour
+    // from before, just reached through the new toggle.
+    const modeEl = document.querySelector('input[name=payNowMode]:checked');
+    const mode = modeEl ? modeEl.value : 'cash';
+    const printChecked = document.getElementById('payNowPrintCheckbox').checked;
+    updateInvoicePaymentMode(invNo, mode);
+    closePayNow();
+    if(printChecked){ await printInvoiceFromSales(invNo); }
+  }
 });
 
 /* ===== Contact Us ===== */
