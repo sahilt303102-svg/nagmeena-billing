@@ -6,11 +6,12 @@
 <meta name="color-scheme" content="light">
 <title>Nagmeena — Billing &amp; Sales Book</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://accounts.google.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://accounts.google.com/gsi/client" async defer onload="onGisLoaded()"></script>
+<script src="https://accounts.google.com/gsi/client" async onload="onGisLoaded()"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <style>
   :root{
     --ivory:#FBF7EE; --cream:#F7F1E2; --beige:#F1E8D3; --beige-soft:#F5EEDD;
@@ -709,9 +710,9 @@
 
       <div class="card" style="margin-top:0;">
         <h2>Stock Return</h2>
-        <p class="sub">Record suits returned to a merchant against an existing stock code.</p>
+        <p class="sub">Record suits returned to a merchant. Select a merchant in the Purchase Intake form first — only that merchant's stock codes appear here.</p>
         <div class="field">
-          <label>Stock Code</label>
+          <label>Stock Code (from selected merchant)</label>
           <div class="cat-suggest-wrap">
             <input type="text" class="cat-search" id="returnCodeSearch" autocomplete="off" placeholder="Search stock code…">
             <div class="cat-suggest-list" id="returnCodeSuggestList"></div>
@@ -730,11 +731,28 @@
 
     <div class="card" style="margin-top:22px;">
       <div class="toolbar"><div class="title">Purchase Ledger</div></div>
-      <p class="sub" style="margin-top:-8px;">Record of all stock purchases entered above.</p>
+      <p class="sub" style="margin-top:-8px;">Complete record of all stock purchases with returns, costs, and sales performance.</p>
+      <div class="form-row" style="flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+        <div class="field" style="flex:1; min-width:130px;">
+          <label for="plFromDate">From Date</label>
+          <input type="date" id="plFromDate">
+        </div>
+        <div class="field" style="flex:1; min-width:130px;">
+          <label for="plToDate">To Date</label>
+          <input type="date" id="plToDate">
+        </div>
+        <div class="field" style="flex:1.5; min-width:160px;">
+          <label for="plSearchInput">Search</label>
+          <input type="text" id="plSearchInput" placeholder="Merchant or stock code…">
+        </div>
+        <div class="field" style="flex:0.5; min-width:80px; align-self:flex-end;">
+          <button class="btn btn-ghost btn-sm" id="plClearFiltersBtn" style="width:100%;">Clear</button>
+        </div>
+      </div>
       <div class="catalog-scroll-frame">
       <div class="table-scroll">
-      <table><thead><tr><th>Stock Code</th><th>Category</th><th>Date</th><th>Merchant</th><th class="num">Qty</th><th>Description</th><th class="num">Capital Investment</th><th class="num">Cash In</th><th class="num">UPI In</th></tr></thead>
-        <tbody id="purchaseLedgerBody"><tr class="empty-row"><td colspan="9">No purchases recorded yet</td></tr></tbody></table>
+      <table><thead><tr><th>Merchant</th><th>Date</th><th class="mono">Stock Code</th><th class="num">Qty Bought</th><th class="num">Qty Returned</th><th class="num">Net Qty</th><th class="num">Capital Inv.</th><th class="num">Reinvestment</th><th class="num">Stock Cost</th><th class="num">Returned Cost</th><th class="num">Net Stock Cost</th><th class="num">Revenue</th><th class="num">Profit</th><th></th></tr></thead>
+        <tbody id="purchaseLedgerBody"><tr class="empty-row"><td colspan="14">No purchases recorded yet</td></tr></tbody></table>
       </div>
       </div>
     </div>
@@ -922,7 +940,7 @@
 /* ===== Storage keys ===== */
 const LS_PRODUCTS='ledger_products', LS_SALES='ledger_sales', LS_SEQ='ledger_invoice_seq',
       LS_CATS='ledger_categories', LS_CLIENTID='ledger_drive_client_id', LS_SYNCED='ledger_last_sync',
-      LS_CONNECTED='ledger_drive_connected', LS_DEVICE='ledger_device_id', LS_TOKEN_EXP='ledger_token_expiry',
+      LS_CONNECTED='ledger_drive_connected', LS_DEVICE='ledger_device_id', LS_TOKEN_EXP='ledger_token_expiry', LS_DRIVE_FID='ledger_drive_file_id',
       LS_PROD_TOMB='ledger_product_tombstones', LS_SALE_TOMB='ledger_sale_tombstones',
       LS_PHONES='ledger_contact_phones', LS_ADDRS='ledger_contact_addresses',
       LS_PHONE_TOMB='ledger_contact_phone_tomb', LS_ADDR_TOMB='ledger_contact_addr_tomb',
@@ -1044,7 +1062,7 @@ let currentSession = null;
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 30;
+const DATA_VERSION = 31;
 
 /* =========================================================================
    Generic Yes/No confirmation modal
@@ -1894,6 +1912,7 @@ function onMerchantSelectChange(){
   else if(sel.value===''){ addBox.classList.remove('show'); hint.textContent=''; }
   else{ addBox.classList.remove('show'); const m = merchants[parseInt(sel.value,10)]; hint.textContent = `${m.name} · Code ${m.code}`; }
   updateStockPurchaseCodePreview();
+  populateReturnCodeSelect();
 }
 function addMerchant(){
   const name = document.getElementById('merchNewName').value.trim();
@@ -2074,20 +2093,50 @@ document.getElementById('saveStockPurchaseBtn').addEventListener('click', ()=>{
   pushChange();
 });
 
-/* --- Stock Return form (select-only stock code, no add/edit/delete) --- */
+/* --- Stock Return form (linked to PIF merchant — only shows that merchant's codes) --- */
+function getSelectedMerchantForReturn(){
+  const merchSel = document.getElementById('merchSelect');
+  if(!merchSel || !merchSel.value || merchSel.value==='__custom__') return null;
+  return merchants[parseInt(merchSel.value,10)] || null;
+}
+function merchantStockPurchases(merchant){
+  if(!merchant) return [];
+  return stockPurchases.filter(sp=> !sp.isSeed && sp.merchantId===merchant.id).sort((a,b)=> a.stockCode.localeCompare(b.stockCode));
+}
 function populateReturnCodeSelect(){
   const searchInput = document.getElementById('returnCodeSearch');
   if(searchInput) searchInput.value='';
   const listEl = document.getElementById('returnCodeSuggestList');
   if(listEl){ listEl.classList.remove('show'); listEl.innerHTML=''; }
   filterReturnCodeSelect('');
+  updateReturnFormState();
+}
+function updateReturnFormState(){
+  const m = getSelectedMerchantForReturn();
+  const hint = document.getElementById('returnMerchantHint');
+  const sel = document.getElementById('returnCodeSelect');
+  if(!m){
+    hint.textContent = 'Select a merchant in the Purchase Intake form above first.';
+    hint.style.color = 'var(--burgundy)';
+    sel.disabled = true;
+    document.getElementById('returnCodeSearch').disabled = true;
+  } else {
+    const codes = merchantStockPurchases(m);
+    hint.textContent = codes.length > 0
+      ? `Showing stock codes for: ${m.name} (${m.code})`
+      : `No stock purchases found for ${m.name}`;
+    hint.style.color = '';
+    sel.disabled = codes.length === 0;
+    document.getElementById('returnCodeSearch').disabled = codes.length === 0;
+  }
 }
 function filterReturnCodeSelect(query){
   const sel = document.getElementById('returnCodeSelect');
   const q = (query||'').trim().toLowerCase();
   const prevValue = sel.value;
-  const list = distinctStockPurchases();
-  const matches = list.filter(sp=> !q || sp.stockCode.toLowerCase().includes(q) || (sp.merchantName||'').toLowerCase().includes(q));
+  const m = getSelectedMerchantForReturn();
+  const list = m ? merchantStockPurchases(m) : [];
+  const matches = list.filter(sp=> !q || sp.stockCode.toLowerCase().includes(q));
   sel.innerHTML = '<option value="">Select…</option>' + matches.map(sp=>`<option value="${esc(sp.stockCode)}">${esc(sp.stockCode)}</option>`).join('');
   if(prevValue && matches.some(sp=>sp.stockCode===prevValue)) sel.value = prevValue;
   else if(q && matches.length===1){ sel.value = matches[0].stockCode; onReturnCodeChange(); }
@@ -2096,13 +2145,15 @@ function renderReturnCodeSuggestions(query){
   const listEl = document.getElementById('returnCodeSuggestList');
   const q = (query||'').trim().toLowerCase();
   if(!q){ listEl.classList.remove('show'); listEl.innerHTML=''; return; }
-  const matches = distinctStockPurchases().filter(sp=> sp.stockCode.toLowerCase().includes(q) || (sp.merchantName||'').toLowerCase().includes(q)).slice(0,8);
+  const m = getSelectedMerchantForReturn();
+  const list = m ? merchantStockPurchases(m) : [];
+  const matches = list.filter(sp=> sp.stockCode.toLowerCase().includes(q)).slice(0,8);
   if(matches.length===0){
     listEl.innerHTML = `<div class="cat-suggest-item" style="color:var(--grey-soft); cursor:default;">No matches</div>`;
     listEl.classList.add('show');
     return;
   }
-  listEl.innerHTML = matches.map(sp=>`<div class="cat-suggest-item" onmousedown="selectReturnCodeSuggestion('${esc(sp.stockCode)}')"><span>${esc(sp.stockCode)}</span><span class="code-tag">${esc(sp.merchantName||'')}</span></div>`).join('');
+  listEl.innerHTML = matches.map(sp=>`<div class="cat-suggest-item" onmousedown="selectReturnCodeSuggestion('${esc(sp.stockCode)}')"><span>${esc(sp.stockCode)}</span></div>`).join('');
   listEl.classList.add('show');
 }
 function selectReturnCodeSuggestion(code){
@@ -2115,43 +2166,135 @@ function selectReturnCodeSuggestion(code){
 }
 function onReturnCodeChange(){
   const sel = document.getElementById('returnCodeSelect');
-  const hint = document.getElementById('returnMerchantHint');
   const sp = stockPurchases.find(x=>x.stockCode===sel.value);
-  hint.textContent = sp ? `Merchant: ${sp.merchantName} (${sp.merchantCode})` : '';
+  if(sp){
+    const hint = document.getElementById('returnMerchantHint');
+    hint.textContent = `Merchant: ${sp.merchantName} (${sp.merchantCode})`;
+    hint.style.color = '';
+  }
 }
 function resetStockReturnForm(){
   document.getElementById('stockReturnQty').value='';
   document.getElementById('stockReturnAmount').value='';
   populateReturnCodeSelect();
-  document.getElementById('returnMerchantHint').textContent='';
 }
 document.getElementById('cancelStockReturnBtn').addEventListener('click', resetStockReturnForm);
 document.getElementById('saveStockReturnBtn').addEventListener('click', ()=>{
+  const m = getSelectedMerchantForReturn();
+  if(!m){ toast('Select a merchant in the Purchase Intake form first', true); return; }
   const sel = document.getElementById('returnCodeSelect');
   const qty = parseInt(document.getElementById('stockReturnQty').value,10);
   const amount = parseFloat(document.getElementById('stockReturnAmount').value);
   if(!sel.value){ toast('Select a Stock Code'); return; }
   if(isNaN(qty) || qty<1){ toast('Enter a valid return quantity'); return; }
   if(isNaN(amount) || amount<0){ toast('Enter a valid return amount'); return; }
-  stockReturns.push({id:uuid(), stockCode:sel.value, qty, amount, date:todayStr(), updatedAt:Date.now()});
+  const sp = stockPurchases.find(x=>x.stockCode===sel.value);
+  if(sp && sp.merchantId !== m.id){ toast('Stock code does not belong to the selected merchant', true); return; }
+  const totalReturned = stockReturns.filter(r=>r.stockCode===sel.value).reduce((s,r)=>s+r.qty,0);
+  const purchased = sp ? sp.qty : 0;
+  if(totalReturned + qty > purchased){ toast(`Cannot return more than purchased (${purchased} bought, ${totalReturned} already returned)`, true); return; }
+  stockReturns.push({id:uuid(), stockCode:sel.value, qty, amount, merchantId:m.id, merchantName:m.name, merchantCode:m.code, date:todayStr(), updatedAt:Date.now()});
   save(LS_STOCK_RETURNS, stockReturns);
   resetStockReturnForm();
+  renderPurchaseLedger();
   toast('Stock return recorded');
   pushChange();
 });
 
-/* --- Purchase Ledger (Part 2 — functional record view; seed row hidden) --- */
+/* --- Purchase Ledger (full columns A–M with filters, search, delete) --- */
+function getReturnedForStock(stockCode){
+  return stockReturns.filter(r=>r.stockCode===stockCode);
+}
+function getSalesForStock(stockCode){
+  return sales.filter(s=>s.stockCode===stockCode);
+}
 function renderPurchaseLedger(){
   const body = document.getElementById('purchaseLedgerBody');
-  const visible = stockPurchases.filter(sp=>!sp.isSeed).sort((a,b)=> (b.updatedAt||0)-(a.updatedAt||0));
-  body.innerHTML = visible.length===0
-    ? '<tr class="empty-row"><td colspan="9">No purchases recorded yet</td></tr>'
-    : visible.map(sp=>`<tr>
-        <td class="mono">${esc(sp.stockCode)}</td><td>${esc(sp.category)}</td><td>${esc(sp.date)}</td>
-        <td>${esc(sp.merchantName)} (${esc(sp.merchantCode)})</td><td class="num">${sp.qty}</td><td>${esc(sp.description)}</td>
-        <td class="num">${money(sp.capitalInvestment)}</td><td class="num">${money(sp.cashIn)}</td><td class="num">${money(sp.upiIn)}</td>
-      </tr>`).join('');
+  const fromDate = document.getElementById('plFromDate').value;
+  const toDate = document.getElementById('plToDate').value;
+  const searchQ = (document.getElementById('plSearchInput').value||'').trim().toLowerCase();
+
+  let visible = stockPurchases.filter(sp=>!sp.isSeed);
+  if(fromDate) visible = visible.filter(sp=> sp.date >= fromDate);
+  if(toDate) visible = visible.filter(sp=> sp.date <= toDate);
+  if(searchQ) visible = visible.filter(sp=>
+    (sp.merchantName||'').toLowerCase().includes(searchQ) ||
+    (sp.merchantCode||'').toLowerCase().includes(searchQ) ||
+    sp.stockCode.toLowerCase().includes(searchQ)
+  );
+  visible.sort((a,b)=> b.date.localeCompare(a.date) || (b.updatedAt||0)-(a.updatedAt||0));
+
+  if(visible.length===0){
+    body.innerHTML = `<tr class="empty-row"><td colspan="14">${stockPurchases.filter(sp=>!sp.isSeed).length===0 ? 'No purchases recorded yet' : 'No purchases match this filter/search'}</td></tr>`;
+    return;
+  }
+
+  body.innerHTML = visible.map(sp=>{
+    const returns = getReturnedForStock(sp.stockCode);
+    const qtyReturned = returns.reduce((s,r)=>s+r.qty,0);
+    const returnedCost = returns.reduce((s,r)=>s+r.amount,0);
+    const netQty = sp.qty - qtyReturned;
+    const reinvestment = (sp.cashIn||0) + (sp.upiIn||0);
+    const reinvestmentDisplay = `Cash ${money(sp.cashIn||0)}, UPI ${money(sp.upiIn||0)} = ${money(reinvestment)}`;
+    const stockCost = (sp.capitalInvestment||0) + reinvestment;
+    const netStockCost = stockCost - returnedCost;
+    const stockSales = getSalesForStock(sp.stockCode);
+    const revenue = stockSales.reduce((s,sl)=>s+sl.revenue,0);
+    const profit = stockSales.reduce((s,sl)=>s+sl.profit,0);
+
+    return `<tr>
+      <td>${esc(sp.merchantName)} (${esc(sp.merchantCode)})</td>
+      <td>${esc(sp.date)}</td>
+      <td class="mono">${esc(sp.stockCode)}</td>
+      <td class="num">${sp.qty}</td>
+      <td class="num" style="color:var(--burgundy); font-weight:600;">${qtyReturned > 0 ? '-'+qtyReturned : '0'}</td>
+      <td class="num" style="color:var(--green); font-weight:600;">${netQty}</td>
+      <td class="num">${money(sp.capitalInvestment||0)}</td>
+      <td class="num" style="font-size:11px;">${reinvestmentDisplay}</td>
+      <td class="num">${money(stockCost)}</td>
+      <td class="num" style="color:var(--burgundy); font-weight:600;">${returnedCost > 0 ? '-'+money(returnedCost) : money(0)}</td>
+      <td class="num" style="color:var(--green); font-weight:600;">${money(netStockCost)}</td>
+      <td class="num">${money(revenue)}</td>
+      <td class="num" style="color:${profit>=0?'var(--green)':'var(--burgundy)'}; font-weight:600;">${money(profit)}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deletePurchaseLedgerEntry('${sp.id}')">Del</button></td>
+    </tr>`;
+  }).join('');
 }
+function deletePurchaseLedgerEntry(id){
+  const sp = stockPurchases.find(x=>x.id===id);
+  if(!sp) return;
+  const returns = getReturnedForStock(sp.stockCode);
+  if(returns.length > 0){
+    if(!confirm(`This stock code "${sp.stockCode}" has ${returns.length} return(s) recorded against it. Deleting will also remove those returns. Continue?`)) return;
+    const now = Date.now();
+    returns.forEach(r=>{
+      stockReturnTombstones.push({id:r.id, deletedAt:now});
+      const idx = stockReturns.findIndex(x=>x.id===r.id);
+      if(idx>=0) stockReturns.splice(idx,1);
+    });
+    save(LS_STOCK_RETURNS, stockReturns); save(LS_STOCK_RETURN_TOMB, stockReturnTombstones);
+  } else {
+    if(!confirm(`Delete purchase entry "${sp.stockCode}" (${sp.merchantName})?`)) return;
+  }
+  stockPurchaseTombstones.push({id:sp.id, deletedAt:Date.now()});
+  const idx = stockPurchases.findIndex(x=>x.id===id);
+  if(idx>=0) stockPurchases.splice(idx,1);
+  save(LS_STOCK_PURCHASES, stockPurchases); save(LS_STOCK_PURCHASE_TOMB, stockPurchaseTombstones);
+  renderPurchaseLedger();
+  populateReturnCodeSelect();
+  populateProductStockCodeSelect();
+  toast('Purchase entry deleted');
+  pushChange();
+}
+document.getElementById('plFromDate').addEventListener('change', renderPurchaseLedger);
+document.getElementById('plToDate').addEventListener('change', renderPurchaseLedger);
+document.getElementById('plSearchInput').addEventListener('input', renderPurchaseLedger);
+document.getElementById('plClearFiltersBtn').addEventListener('click', ()=>{
+  document.getElementById('plFromDate').value='';
+  document.getElementById('plToDate').value='';
+  document.getElementById('plSearchInput').value='';
+  renderPurchaseLedger();
+});
 
 /* --- Wire up the widgets --- */
 document.getElementById('pcatSelect').addEventListener('change', onPurchaseCatSelectChange);
@@ -2600,7 +2743,7 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
     if(p){ p.stock = Math.max(0, (p.stock||0) - c.qty); p.updatedAt = Date.now(); }
   });
   save(LS_SALES, sales); save(LS_PRODUCTS, products);
-  renderProducts(); renderHistory();
+  renderProducts(); renderHistory(); renderPurchaseLedger();
 
   toast(`✓ Invoice ${invoiceNo} generated successfully!`, false, true);
   cart=[]; document.getElementById('custName').value=''; custNumberEl.value=''; validateCustNumber();
@@ -3163,7 +3306,7 @@ function deleteSaleRow(id){
   editingSaleIds.delete(id);
   recalcInvoicePaymentTotals(invoiceNo);
   save(LS_SALES,sales); save(LS_PRODUCTS, products); save(LS_SALE_TOMB, saleTombstones);
-  renderHistory(); renderProducts();
+  renderHistory(); renderProducts(); renderPurchaseLedger();
   pushChange();
 }
 document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{
@@ -3575,7 +3718,9 @@ const DRIVE_FILENAME = 'nagmeena_ledger_data.json';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const TOMBSTONE_RETENTION_MS = 90*24*60*60*1000;
 
-let gisReady = false, tokenClient = null, accessToken = null, driveFileId = null;
+let gisReady = false, tokenClient = null, driveFileId = null;
+let accessToken = (()=>{ try{ return sessionStorage.getItem('nagmeena_access_token')||null; }catch(e){ return null; } })();
+driveFileId = localStorage.getItem(LS_DRIVE_FID) || null;
 let syncInProgress = false, syncQueued = false;
 
 const STATUS = {
@@ -3636,6 +3781,7 @@ function requestToken(interactive){
       if(settled) return; settled = true; clearTimeout(timer);
       if(resp.error){ reject({code:resp.error}); return; }
       accessToken = resp.access_token;
+      try{ sessionStorage.setItem('nagmeena_access_token', accessToken); }catch(e){}
       localStorage.setItem(LS_TOKEN_EXP, String(Date.now() + (resp.expires_in||3600)*1000));
       resolve(accessToken);
     };
@@ -3824,9 +3970,15 @@ function applyRemoteData(data){
 }
 function markSynced(){ localStorage.setItem(LS_SYNCED, new Date().toLocaleString()); }
 
+let lastSyncEpoch = 0;
+const SYNC_COOLDOWN_MS = 30000;
 async function performSync(trigger){
   if(!navigator.onLine){ setStatus('offline'); return; }
   if(!isDriveConnected() && trigger!=='connect'){ if(trigger==='manual') setStatus('failed', mapError({code:'no_client'})); return; }
+  if(trigger==='startup' && (Date.now() - lastSyncEpoch) < SYNC_COOLDOWN_MS){
+    setStatus('success', 'Sync skipped — recently synced');
+    return;
+  }
   if(syncInProgress){ syncQueued = true; return; }
   syncInProgress = true; setButtonsBusy(true);
   try{
@@ -3835,47 +3987,59 @@ async function performSync(trigger){
 
     setStatus('downloading');
     if(!driveFileId) driveFileId = await driveFindFile();
+    if(driveFileId) localStorage.setItem(LS_DRIVE_FID, driveFileId);
     const cloudData = driveFileId ? await driveDownloadFile(driveFileId) : null;
 
     const localData = buildLocalPayload();
     let finalData;
 
     if(cloudData){
+      const cloudHash = hashPayload(cloudData);
+      const localHash = hashPayload(localData);
+
       if(isFreshLocalState(localData) && !isFreshLocalState(cloudData)){
         applyRemoteData(cloudData);
         localStorage.setItem(LS_CONNECTED,'1');
         setStatus('success', 'Restored from cloud backup');
-        markSynced();
+        markSynced(); lastSyncEpoch = Date.now();
         return;
       }
+
+      if(localHash === cloudHash){
+        localStorage.setItem(LS_CONNECTED,'1');
+        setStatus('success', trigger==='manual' ? 'Already up to date' : 'Sync successful');
+        markSynced(); lastSyncEpoch = Date.now();
+        return;
+      }
+
       finalData = mergeData(localData, cloudData);
+      const finalHash = hashPayload(finalData);
+
+      if(finalHash === cloudHash){
+        applyRemoteData(finalData);
+        localStorage.setItem(LS_CONNECTED,'1');
+        setStatus('success', 'Sync successful');
+        markSynced(); lastSyncEpoch = Date.now();
+        return;
+      }
+
       applyRemoteData(finalData);
     }else{
       finalData = localData;
     }
 
-    const cloudHash = cloudData ? hashPayload(cloudData) : null;
-    const finalHash = hashPayload(finalData);
-
-    if(driveFileId && finalHash === cloudHash){
-      localStorage.setItem(LS_CONNECTED,'1');
-      setStatus('success', trigger==='manual' ? 'Already up to date' : 'Sync successful');
-      markSynced();
-      return;
-    }
-
     setStatus('uploading');
     const savedId = await driveSaveFile(driveFileId, finalData);
-    const verifyData = await driveDownloadFile(savedId);
-    if(hashPayload(verifyData) !== finalHash) throw {code:'verify_failed'};
 
     driveFileId = savedId;
+    localStorage.setItem(LS_DRIVE_FID, savedId);
     localStorage.setItem(LS_CONNECTED,'1');
     setStatus('success', 'Sync successful');
-    markSynced();
+    markSynced(); lastSyncEpoch = Date.now();
 
   }catch(err){
     console.error('Drive sync error:', err);
+    if(err && err.status === 404 && driveFileId){ driveFileId = null; localStorage.removeItem(LS_DRIVE_FID); }
     if(trigger==='startup') setStatus('disconnected', 'Working offline — reconnect Drive to sync');
     else{ setStatus('failed', mapError(err)); toast(mapError(err), true); }
   }finally{
@@ -3897,7 +4061,8 @@ document.getElementById('connectDriveBtn').addEventListener('click', async (e)=>
 document.getElementById('disconnectDriveBtn').addEventListener('click', (e)=>{
   e.stopPropagation();
   accessToken = null; driveFileId = null;
-  localStorage.removeItem(LS_CONNECTED); localStorage.removeItem(LS_TOKEN_EXP);
+  localStorage.removeItem(LS_CONNECTED); localStorage.removeItem(LS_TOKEN_EXP); localStorage.removeItem(LS_DRIVE_FID);
+  try{ sessionStorage.removeItem('nagmeena_access_token'); }catch(e){}
   setStatus('disconnected'); toast('Disconnected from Google Drive');
 });
 document.getElementById('syncNowBtn').addEventListener('click', (e)=>{ e.stopPropagation(); performSync('manual'); });
