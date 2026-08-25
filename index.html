@@ -2091,6 +2091,15 @@ document.getElementById('saveStockPurchaseBtn').addEventListener('click', ()=>{
   renderProducts(); renderHistory();
   toast(`Stock purchase saved — code ${stockCode}`);
   pushChange();
+  const seed = seedItemCounts();
+  if(seed.total > 0){
+    setTimeout(()=>{
+      if(confirm(`You have ${seed.prods} product(s) and ${seed.saleRecs} sale record(s) still on the default seed stock code.\n\nRetrofit them to "${stockCode}" so this purchase entry's Revenue and Profit reflect your actual sales?`)){
+        const sp = stockPurchases.find(x=>x.stockCode===stockCode);
+        if(sp) retrofitStockCode(sp.id);
+      }
+    }, 600);
+  }
 });
 
 /* --- Stock Return form (linked to PIF merchant — only shows that merchant's codes) --- */
@@ -2256,7 +2265,7 @@ function renderPurchaseLedger(){
       <td class="num" style="color:var(--green); font-weight:600;">${money(netStockCost)}</td>
       <td class="num">${money(revenue)}</td>
       <td class="num" style="color:${profit>=0?'var(--green)':'var(--burgundy)'}; font-weight:600;">${money(profit)}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="deletePurchaseLedgerEntry('${sp.id}')">Del</button></td>
+      <td><button class="btn btn-danger btn-sm" onclick="deletePurchaseLedgerEntry('${sp.id}')">Del</button>${seedItemCounts().total>0 ? ` <button class="btn btn-gold btn-sm" onclick="retrofitStockCode('${sp.id}')" title="Assign existing catalog &amp; sales data to this stock code">Retrofit</button>` : ''}</td>
     </tr>`;
   }).join('');
 }
@@ -2284,6 +2293,25 @@ function deletePurchaseLedgerEntry(id){
   populateReturnCodeSelect();
   populateProductStockCodeSelect();
   toast('Purchase entry deleted');
+  pushChange();
+}
+function seedItemCounts(){
+  const prods = products.filter(p=>p.stockCode===SEED_STOCK_CODE).length;
+  const saleRecs = sales.filter(s=>s.stockCode===SEED_STOCK_CODE).length;
+  return {prods, saleRecs, total: prods+saleRecs};
+}
+function retrofitStockCode(id){
+  const sp = stockPurchases.find(x=>x.id===id);
+  if(!sp) return;
+  const counts = seedItemCounts();
+  if(counts.total===0){ toast('Nothing to retrofit — no products or sales on the seed stock code'); return; }
+  if(!confirm(`Retrofit ${counts.prods} product(s) and ${counts.saleRecs} sale record(s) from seed code "${SEED_STOCK_CODE}" → "${sp.stockCode}"?\n\nThis assigns your existing catalog and sales data to this purchase entry so its Revenue and Profit columns reflect your actual sales.`)) return;
+  const now = Date.now();
+  products.forEach(p=>{ if(p.stockCode===SEED_STOCK_CODE){ p.stockCode=sp.stockCode; p.updatedAt=now; } });
+  sales.forEach(s=>{ if(s.stockCode===SEED_STOCK_CODE){ s.stockCode=sp.stockCode; s.updatedAt=now; } });
+  save(LS_PRODUCTS, products); save(LS_SALES, sales);
+  renderPurchaseLedger(); renderProducts(); renderHistory();
+  toast(`Retrofitted ${counts.prods} product(s) and ${counts.saleRecs} sale(s) to ${sp.stockCode}`);
   pushChange();
 }
 document.getElementById('plFromDate').addEventListener('change', renderPurchaseLedger);
