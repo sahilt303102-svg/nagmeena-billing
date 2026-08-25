@@ -343,6 +343,7 @@
     <button class="tab-btn active" data-tab="billing">New Bill</button>
     <button class="tab-btn" data-tab="products">Product Catalog</button>
     <button class="tab-btn" data-tab="history">Sales Book</button>
+    <button class="tab-btn" data-tab="stockacct">Stock Accounting</button>
     <button class="tab-btn" data-tab="contact">Contact Us</button>
     <button class="tab-btn" data-tab="profile">Profile</button>
   </nav>
@@ -494,6 +495,11 @@
         </div>
         <div class="field"><label for="pStock">Quantity</label><input type="number" id="pStock" min="0" step="1" placeholder="e.g. 10"></div>
         <div class="field"><label for="pCost">Cost Price (₹)</label><input type="number" id="pCost" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="field">
+          <label for="pStockCode">Stock Code</label>
+          <select id="pStockCode"></select>
+          <div class="sub-hint" id="pStockCodeHint"></div>
+        </div>
 
         <div class="margin-calc">
           <p class="help">Enter Cost Price above, then any ONE of the three fields below — the other two fill in automatically (assumes selling at MRP).</p>
@@ -536,8 +542,8 @@
         <div class="catalog-total-qty" id="catalogTotalQty">All Units: <b>0</b> unit(s)</div>
         <div class="catalog-scroll-frame">
         <div class="table-scroll">
-        <table><thead><tr><th>Code</th><th>Description</th><th class="num">Stock</th><th class="num">Cost</th><th class="num">MRP</th><th class="num">Margin</th><th></th></tr></thead>
-          <tbody id="productBody"><tr class="empty-row"><td colspan="7">No products yet</td></tr></tbody></table>
+        <table><thead><tr><th>Code</th><th>Description</th><th class="num">Stock</th><th class="num">Cost</th><th class="num">MRP</th><th class="num">Margin</th><th>Stock Code</th><th></th></tr></thead>
+          <tbody id="productBody"><tr class="empty-row"><td colspan="8">No products yet</td></tr></tbody></table>
         </div>
         </div>
       </div>
@@ -615,10 +621,121 @@
 
       <div class="sales-scroll-frame">
       <div class="table-scroll">
-      <table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Number</th><th>Payment Mode</th><th>Payment Status</th><th>Pending Amount</th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">MRP</th><th class="num">Selling</th><th class="num">Margin/Pc</th><th class="num">Margin %</th><th class="num">Revenue</th><th class="num">Profit</th><th></th><th></th></tr></thead>
-        <tbody id="historyBody"><tr class="empty-row"><td colspan="19">No sales recorded yet</td></tr></tbody></table>
+      <table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Number</th><th>Payment Mode</th><th>Payment Status</th><th>Pending Amount</th><th>Code</th><th>Description</th><th>Stock Code</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">MRP</th><th class="num">Selling</th><th class="num">Margin/Pc</th><th class="num">Margin %</th><th class="num">Revenue</th><th class="num">Profit</th><th></th><th></th></tr></thead>
+        <tbody id="historyBody"><tr class="empty-row"><td colspan="20">No sales recorded yet</td></tr></tbody></table>
       </div>
       </div>
+    </div>
+  </section>
+
+  <section id="panel-stockacct" class="panel">
+    <div class="grid-2">
+      <div class="card">
+        <h2>Purchase Intake</h2>
+        <p class="sub">Record a new stock purchase. Stock Code is generated automatically from the merchant code and purchase date.</p>
+
+        <div class="field">
+          <label>Category</label>
+          <div class="cat-suggest-wrap">
+            <input type="text" class="cat-search" id="pcatSearch" autocomplete="off" placeholder="Search category…">
+            <div class="cat-suggest-list" id="pcatSuggestList"></div>
+          </div>
+          <select id="pcatSelect"></select>
+          <div class="cat-actions">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="editPurchaseCategory()">Edit</button>
+            <button type="button" class="btn btn-danger btn-sm" onclick="deletePurchaseCategory()">Delete</button>
+          </div>
+          <div class="inline-add" id="pcatAddBox">
+            <input type="text" id="pcatNewName" list="pcatDatalist" placeholder="New category name">
+            <datalist id="pcatDatalist"></datalist>
+            <button class="btn btn-gold btn-sm" onclick="addPurchaseCategory()">Add</button>
+          </div>
+        </div>
+
+        <div class="field"><label for="stockPurchaseQty">Quantity Purchased</label><input type="number" id="stockPurchaseQty" min="1" step="1" placeholder="e.g. 50"></div>
+        <div class="field"><label for="stockPurchaseDesc">Description</label><input type="text" id="stockPurchaseDesc" placeholder="e.g. Cotton unstitched suits batch"></div>
+
+        <div class="field">
+          <label for="stockPurchaseDate">Date</label>
+          <div style="display:flex; gap:8px;">
+            <input type="date" id="stockPurchaseDate" style="flex:1;">
+            <button type="button" class="btn btn-ghost btn-sm" id="stockPurchaseTodayBtn">Today</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Merchant</label>
+          <div class="cat-suggest-wrap">
+            <input type="text" class="cat-search" id="merchSearch" autocomplete="off" placeholder="Search merchant name or code…">
+            <div class="cat-suggest-list" id="merchSuggestList"></div>
+          </div>
+          <select id="merchSelect"></select>
+          <div class="sub-hint" id="merchHint"></div>
+          <div class="cat-actions">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="editMerchant()">Edit</button>
+            <button type="button" class="btn btn-danger btn-sm" onclick="deleteMerchant()">Delete</button>
+          </div>
+          <div class="inline-add" id="merchAddBox">
+            <input type="text" id="merchNewName" placeholder="Merchant name e.g. Jain Creation">
+            <input type="text" id="merchNewCode" placeholder="Code e.g. JC" maxlength="8" style="text-transform:uppercase;">
+            <button class="btn btn-gold btn-sm" onclick="addMerchant()">Add</button>
+          </div>
+        </div>
+
+        <div class="field"><label for="stockPurchaseCode">Stock Code</label><input type="text" id="stockPurchaseCode" class="mono" disabled placeholder="Select merchant &amp; date"></div>
+        <div class="field"><label for="stockCapitalInvestment">Capital Investment (₹)</label><input type="number" id="stockCapitalInvestment" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="field">
+          <label for="stockCashIn">Reinvestment — Cash In (₹)</label>
+          <input type="number" id="stockCashIn" min="0" step="0.01" placeholder="0.00">
+          <div class="sub-hint" id="stockCashInHint">Max available: ₹0.00</div>
+        </div>
+        <div class="field">
+          <label for="stockUpiIn">Reinvestment — UPI In (₹)</label>
+          <input type="number" id="stockUpiIn" min="0" step="0.01" placeholder="0.00">
+          <div class="sub-hint" id="stockUpiInHint">Max available: ₹0.00</div>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-primary" id="saveStockPurchaseBtn">Save</button>
+          <button class="btn btn-ghost" id="cancelStockPurchaseBtn">Cancel</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:0;">
+        <h2>Stock Return</h2>
+        <p class="sub">Record suits returned to a merchant against an existing stock code.</p>
+        <div class="field">
+          <label>Stock Code</label>
+          <div class="cat-suggest-wrap">
+            <input type="text" class="cat-search" id="returnCodeSearch" autocomplete="off" placeholder="Search stock code…">
+            <div class="cat-suggest-list" id="returnCodeSuggestList"></div>
+          </div>
+          <select id="returnCodeSelect"></select>
+          <div class="sub-hint" id="returnMerchantHint"></div>
+        </div>
+        <div class="field"><label for="stockReturnQty">Quantity</label><input type="number" id="stockReturnQty" min="1" step="1" placeholder="e.g. 2"></div>
+        <div class="field"><label for="stockReturnAmount">Amount (₹)</label><input type="number" id="stockReturnAmount" min="0" step="0.01" placeholder="0.00"></div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-primary" id="saveStockReturnBtn">Save</button>
+          <button class="btn btn-ghost" id="cancelStockReturnBtn">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:22px;">
+      <div class="toolbar"><div class="title">Purchase Ledger</div></div>
+      <p class="sub" style="margin-top:-8px;">Record of all stock purchases entered above.</p>
+      <div class="catalog-scroll-frame">
+      <div class="table-scroll">
+      <table><thead><tr><th>Stock Code</th><th>Category</th><th>Date</th><th>Merchant</th><th class="num">Qty</th><th>Description</th><th class="num">Capital Investment</th><th class="num">Cash In</th><th class="num">UPI In</th></tr></thead>
+        <tbody id="purchaseLedgerBody"><tr class="empty-row"><td colspan="9">No purchases recorded yet</td></tr></tbody></table>
+      </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="toolbar"><div class="title">Cash Flow Ledger</div></div>
+      <p class="sub" style="margin-top:-8px;">Cash flow computation logic will be defined in a future update — this section is a placeholder for now.</p>
     </div>
   </section>
 
@@ -804,9 +921,14 @@ const LS_PRODUCTS='ledger_products', LS_SALES='ledger_sales', LS_SEQ='ledger_inv
       LS_PHONES='ledger_contact_phones', LS_ADDRS='ledger_contact_addresses',
       LS_PHONE_TOMB='ledger_contact_phone_tomb', LS_ADDR_TOMB='ledger_contact_addr_tomb',
       LS_CONTACT_META='ledger_contact_meta',
-      LS_USERS='ledger_users', LS_USER_TOMB='ledger_user_tombstones';
+      LS_USERS='ledger_users', LS_USER_TOMB='ledger_user_tombstones',
+      LS_PURCHASE_CATS='ledger_purchase_categories', LS_PURCHASE_CAT_TOMB='ledger_purchase_category_tombstones',
+      LS_MERCHANTS='ledger_merchants', LS_MERCHANT_TOMB='ledger_merchant_tombstones',
+      LS_STOCK_PURCHASES='ledger_stock_purchases', LS_STOCK_PURCHASE_TOMB='ledger_stock_purchase_tombstones',
+      LS_STOCK_RETURNS='ledger_stock_returns', LS_STOCK_RETURN_TOMB='ledger_stock_return_tombstones';
 
 const INSTAGRAM_URL = 'https://www.instagram.com/thenagmeena?igsh=MXMxM2lrb2N2YTZocg==';
+const SEED_STOCK_CODE = 'JC-180726';
 
 function load(key,fallback){ try{ const v=JSON.parse(localStorage.getItem(key)); return v===null||v===undefined?fallback:v; }catch(e){ return fallback; } }
 function save(key,val){ localStorage.setItem(key, JSON.stringify(val)); }
@@ -855,6 +977,39 @@ let contactAddressTombstones = load(LS_ADDR_TOMB, []);
 let contactMeta = load(LS_CONTACT_META, {primaryPhoneId:null, primaryAddressId:null, updatedAt:0});
 let users = load(LS_USERS, []);
 let userTombstones = load(LS_USER_TOMB, []);
+let purchaseCategories = load(LS_PURCHASE_CATS, []);
+let purchaseCategoryTombstones = load(LS_PURCHASE_CAT_TOMB, []);
+let merchants = load(LS_MERCHANTS, []);
+let merchantTombstones = load(LS_MERCHANT_TOMB, []);
+let stockPurchases = load(LS_STOCK_PURCHASES, []);
+let stockPurchaseTombstones = load(LS_STOCK_PURCHASE_TOMB, []);
+let stockReturns = load(LS_STOCK_RETURNS, []);
+let stockReturnTombstones = load(LS_STOCK_RETURN_TOMB, []);
+function ensureSeedMerchantAndPurchase(){
+  let touched = false;
+  let jc = merchants.find(m=>m.code==='JC');
+  if(!jc){
+    jc = {id:'merchant-seed-JC', name:'Jain Creation', code:'JC', updatedAt: Date.now()};
+    merchants.push(jc); touched = true;
+  }
+  if(!stockPurchases.some(sp=>sp.stockCode===SEED_STOCK_CODE)){
+    stockPurchases.push({
+      id:'stockpurchase-seed-JC180726', isSeed:true, category:'', categoryId:null, qty:0,
+      description:'Seed entry — retrofit stock code for products/sales predating Stock Accounting',
+      date:'2026-07-18', merchantId: jc.id, merchantName: jc.name, merchantCode: jc.code,
+      stockCode: SEED_STOCK_CODE, capitalInvestment:0, cashIn:0, upiIn:0, updatedAt: Date.now()
+    });
+    touched = true;
+  }
+  if(touched){ save(LS_MERCHANTS, merchants); save(LS_STOCK_PURCHASES, stockPurchases); }
+}
+ensureSeedMerchantAndPurchase();
+function retrofitStockCodes(){
+  let touched = false;
+  products.forEach(p=>{ if(!p.stockCode){ p.stockCode = SEED_STOCK_CODE; touched = true; } });
+  sales.forEach(s=>{ if(!s.stockCode){ s.stockCode = SEED_STOCK_CODE; touched = true; } });
+  return touched;
+}
 let cart = [];
 let editingProductId = null;
 let editingSaleIds = new Set();
@@ -877,12 +1032,13 @@ let currentSession = null;
     if(s.pendingAmount===undefined){ s.pendingAmount=0; touched = true; }
     if(s.amountPaid===undefined){ s.amountPaid=s.revenue; touched = true; }
   });
+  if(retrofitStockCodes()) touched = true;
   if(touched){ save(LS_PRODUCTS, products); save(LS_SALES, sales); }
 })();
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 28; // v28: Pay Now redesigned with Complete/Partial Payment options; Expected vs Actual Revenue summary cards
+const DATA_VERSION = 29; // v29: Stock Accounting module — Purchase Intake, Stock Return, Purchase/Cash Flow ledgers, mandatory Stock Code on Catalog & Sales Book
 
 /* =========================================================================
    Generic Yes/No confirmation modal
@@ -1583,6 +1739,432 @@ pMarginPercentEl.addEventListener('input', ()=>{
 });
 pCostEl.addEventListener('input', ()=>{ if(marginDriver) recalcMargin(); });
 
+/* =========================================================================
+   STOCK ACCOUNTING — Purchase Categories, Merchants, Stock Purchases, Returns
+   Separate, standalone data structures — deliberately not entangled with
+   CAT_KEYS / normalizeSeedIdsForCategory (the 20-digit product code system).
+   ========================================================================= */
+
+/* --- Purchase Category widget (search + add/edit/delete, no code assembly) --- */
+function populatePurchaseCatSelect(){
+  const searchInput = document.getElementById('pcatSearch');
+  if(searchInput) searchInput.value = '';
+  const listEl = document.getElementById('pcatSuggestList');
+  if(listEl){ listEl.classList.remove('show'); listEl.innerHTML=''; }
+  const dl = document.getElementById('pcatDatalist');
+  if(dl) dl.innerHTML = purchaseCategories.map(c=>`<option value="${esc(c.name)}">`).join('');
+  filterPurchaseCatSelect('');
+}
+function filterPurchaseCatSelect(query){
+  const sel = document.getElementById('pcatSelect');
+  const q = (query||'').trim().toLowerCase();
+  const prevValue = sel.value;
+  const matches = purchaseCategories.map((c,i)=>({c,i})).filter(({c})=> !q || c.name.toLowerCase().includes(q));
+  sel.innerHTML = '<option value="">Select…</option>' +
+    matches.map(({c,i})=>`<option value="${i}">${esc(c.name)}</option>`).join('') +
+    '<option value="__custom__">+ Add custom…</option>';
+  if(prevValue && matches.some(({i})=>String(i)===prevValue)) sel.value = prevValue;
+  else if(q && matches.length===1){ sel.value = String(matches[0].i); onPurchaseCatSelectChange(); }
+}
+function renderPurchaseCatSuggestions(query){
+  const listEl = document.getElementById('pcatSuggestList');
+  const q = (query||'').trim().toLowerCase();
+  if(!q){ listEl.classList.remove('show'); listEl.innerHTML=''; return; }
+  const matches = purchaseCategories.map((c,i)=>({c,i})).filter(({c})=> c.name.toLowerCase().includes(q)).slice(0,8);
+  if(matches.length===0){
+    listEl.innerHTML = `<div class="cat-suggest-item" style="color:var(--grey-soft); cursor:default;">No matches</div>`;
+    listEl.classList.add('show');
+    return;
+  }
+  listEl.innerHTML = matches.map(({c,i})=>`<div class="cat-suggest-item" onmousedown="selectPurchaseCatSuggestion(${i})"><span>${esc(c.name)}</span></div>`).join('');
+  listEl.classList.add('show');
+}
+function selectPurchaseCatSuggestion(idx){
+  populatePurchaseCatSelect();
+  const sel = document.getElementById('pcatSelect');
+  sel.value = String(idx);
+  onPurchaseCatSelectChange();
+  const listEl = document.getElementById('pcatSuggestList');
+  listEl.classList.remove('show'); listEl.innerHTML='';
+}
+function onPurchaseCatSelectChange(){
+  const sel = document.getElementById('pcatSelect');
+  const addBox = document.getElementById('pcatAddBox');
+  if(sel.value === '__custom__') addBox.classList.add('show');
+  else addBox.classList.remove('show');
+}
+function addPurchaseCategory(){
+  const name = document.getElementById('pcatNewName').value.trim();
+  if(!name){ toast('Enter a category name'); return; }
+  const dupe = purchaseCategories.find(c=>c.name.trim().toLowerCase()===name.toLowerCase());
+  if(dupe){ toast(`"${name}" already exists — pick it from the dropdown instead`, true); return; }
+  const item = {id:uuid(), name, updatedAt:Date.now()};
+  purchaseCategories.push(item);
+  save(LS_PURCHASE_CATS, purchaseCategories);
+  populatePurchaseCatSelect();
+  document.getElementById('pcatSelect').value = String(purchaseCategories.length-1);
+  onPurchaseCatSelectChange();
+  document.getElementById('pcatNewName').value='';
+  toast(`Added "${name}" to Purchase Categories`);
+  pushChange();
+}
+function editPurchaseCategory(){
+  const sel = document.getElementById('pcatSelect');
+  if(!sel.value || sel.value==='__custom__'){ toast('Select an existing category to edit first'); return; }
+  const idx = parseInt(sel.value,10);
+  const item = purchaseCategories[idx];
+  const newName = prompt('Edit category name:', item.name);
+  if(newName===null) return;
+  const trimmed = newName.trim();
+  if(!trimmed){ toast('Category name cannot be empty'); return; }
+  const dupe = purchaseCategories.find((c,i)=> i!==idx && c.name.trim().toLowerCase()===trimmed.toLowerCase());
+  if(dupe){ toast(`"${trimmed}" already exists as another category`, true); return; }
+  item.name = trimmed; item.updatedAt = Date.now();
+  save(LS_PURCHASE_CATS, purchaseCategories);
+  populatePurchaseCatSelect();
+  sel.value = String(idx);
+  toast('Category updated');
+  pushChange();
+}
+function deletePurchaseCategory(){
+  const sel = document.getElementById('pcatSelect');
+  if(!sel.value || sel.value==='__custom__'){ toast('Select an existing category to delete first'); return; }
+  const idx = parseInt(sel.value,10);
+  const item = purchaseCategories[idx];
+  if(!confirm(`Delete "${item.name}" from Purchase Categories?`)) return;
+  purchaseCategories.splice(idx,1);
+  purchaseCategoryTombstones.push({id:item.id, deletedAt:Date.now()});
+  save(LS_PURCHASE_CATS, purchaseCategories); save(LS_PURCHASE_CAT_TOMB, purchaseCategoryTombstones);
+  populatePurchaseCatSelect();
+  toast('Category deleted');
+  pushChange();
+}
+
+/* --- Merchant widget (search + add/edit/delete, name + code, no duplicates) --- */
+function populateMerchantSelect(){
+  const searchInput = document.getElementById('merchSearch');
+  if(searchInput) searchInput.value = '';
+  const listEl = document.getElementById('merchSuggestList');
+  if(listEl){ listEl.classList.remove('show'); listEl.innerHTML=''; }
+  filterMerchantSelect('');
+}
+function filterMerchantSelect(query){
+  const sel = document.getElementById('merchSelect');
+  const q = (query||'').trim().toLowerCase();
+  const prevValue = sel.value;
+  const matches = merchants.map((m,i)=>({m,i})).filter(({m})=> !q || m.name.toLowerCase().includes(q) || m.code.toLowerCase().includes(q));
+  sel.innerHTML = '<option value="">Select…</option>' +
+    matches.map(({m,i})=>`<option value="${i}">${esc(m.name)} (${esc(m.code)})</option>`).join('') +
+    '<option value="__custom__">+ Add custom…</option>';
+  if(prevValue && matches.some(({i})=>String(i)===prevValue)) sel.value = prevValue;
+  else if(q && matches.length===1){ sel.value = String(matches[0].i); onMerchantSelectChange(); }
+}
+function renderMerchantSuggestions(query){
+  const listEl = document.getElementById('merchSuggestList');
+  const q = (query||'').trim().toLowerCase();
+  if(!q){ listEl.classList.remove('show'); listEl.innerHTML=''; return; }
+  const matches = merchants.map((m,i)=>({m,i})).filter(({m})=> m.name.toLowerCase().includes(q) || m.code.toLowerCase().includes(q)).slice(0,8);
+  if(matches.length===0){
+    listEl.innerHTML = `<div class="cat-suggest-item" style="color:var(--grey-soft); cursor:default;">No matches</div>`;
+    listEl.classList.add('show');
+    return;
+  }
+  listEl.innerHTML = matches.map(({m,i})=>`<div class="cat-suggest-item" onmousedown="selectMerchantSuggestion(${i})"><span>${esc(m.name)}</span><span class="code-tag">${esc(m.code)}</span></div>`).join('');
+  listEl.classList.add('show');
+}
+function selectMerchantSuggestion(idx){
+  populateMerchantSelect();
+  const sel = document.getElementById('merchSelect');
+  sel.value = String(idx);
+  onMerchantSelectChange();
+  const listEl = document.getElementById('merchSuggestList');
+  listEl.classList.remove('show'); listEl.innerHTML='';
+}
+function onMerchantSelectChange(){
+  const sel = document.getElementById('merchSelect');
+  const addBox = document.getElementById('merchAddBox');
+  const hint = document.getElementById('merchHint');
+  if(sel.value === '__custom__'){ addBox.classList.add('show'); hint.textContent=''; }
+  else if(sel.value===''){ addBox.classList.remove('show'); hint.textContent=''; }
+  else{ addBox.classList.remove('show'); const m = merchants[parseInt(sel.value,10)]; hint.textContent = `${m.name} · Code ${m.code}`; }
+  updateStockPurchaseCodePreview();
+}
+function addMerchant(){
+  const name = document.getElementById('merchNewName').value.trim();
+  const code = document.getElementById('merchNewCode').value.trim().toUpperCase();
+  if(!name || !code){ toast('Enter both merchant name and code'); return; }
+  const dupeName = merchants.find(m=>m.name.trim().toLowerCase()===name.toLowerCase());
+  if(dupeName){ toast(`"${name}" already exists — pick it from the dropdown instead`, true); return; }
+  const dupeCode = merchants.find(m=>m.code.toUpperCase()===code);
+  if(dupeCode){ toast(`Code "${code}" is already used by "${dupeCode.name}"`, true); return; }
+  const item = {id:uuid(), name, code, updatedAt:Date.now()};
+  merchants.push(item);
+  save(LS_MERCHANTS, merchants);
+  populateMerchantSelect();
+  document.getElementById('merchSelect').value = String(merchants.length-1);
+  onMerchantSelectChange();
+  document.getElementById('merchNewName').value=''; document.getElementById('merchNewCode').value='';
+  toast(`Added merchant "${name}" (${code})`);
+  pushChange();
+}
+function editMerchant(){
+  const sel = document.getElementById('merchSelect');
+  if(!sel.value || sel.value==='__custom__'){ toast('Select an existing merchant to edit first'); return; }
+  const idx = parseInt(sel.value,10);
+  const item = merchants[idx];
+  const newName = prompt('Edit merchant name:', item.name);
+  if(newName===null) return;
+  const trimmedName = newName.trim();
+  if(!trimmedName){ toast('Merchant name cannot be empty'); return; }
+  const newCodeRaw = prompt('Edit merchant code:', item.code);
+  if(newCodeRaw===null) return;
+  const trimmedCode = newCodeRaw.trim().toUpperCase();
+  if(!trimmedCode){ toast('Merchant code cannot be empty'); return; }
+  const dupeName = merchants.find((m,i)=> i!==idx && m.name.trim().toLowerCase()===trimmedName.toLowerCase());
+  if(dupeName){ toast(`"${trimmedName}" already exists as another merchant`, true); return; }
+  const dupeCode = merchants.find((m,i)=> i!==idx && m.code.toUpperCase()===trimmedCode);
+  if(dupeCode){ toast(`Code "${trimmedCode}" already used by "${dupeCode.name}"`, true); return; }
+  item.name = trimmedName; item.code = trimmedCode; item.updatedAt = Date.now();
+  save(LS_MERCHANTS, merchants);
+  populateMerchantSelect();
+  sel.value = String(idx);
+  onMerchantSelectChange();
+  toast('Merchant updated');
+  pushChange();
+}
+function deleteMerchant(){
+  const sel = document.getElementById('merchSelect');
+  if(!sel.value || sel.value==='__custom__'){ toast('Select an existing merchant to delete first'); return; }
+  const idx = parseInt(sel.value,10);
+  const item = merchants[idx];
+  if(item.code==='JC'){ toast('The seed merchant "Jain Creation" cannot be deleted — it backs the retrofit stock code.'); return; }
+  if(!confirm(`Delete merchant "${item.name}" (${item.code})?`)) return;
+  merchants.splice(idx,1);
+  merchantTombstones.push({id:item.id, deletedAt:Date.now()});
+  save(LS_MERCHANTS, merchants); save(LS_MERCHANT_TOMB, merchantTombstones);
+  populateMerchantSelect();
+  document.getElementById('merchHint').textContent='';
+  toast('Merchant deleted');
+  pushChange();
+}
+
+/* --- Stock code helpers shared by Product Catalog, Sales Book, Stock Return --- */
+function distinctStockPurchases(){
+  const seen = new Map();
+  stockPurchases.forEach(sp=>{ if(!seen.has(sp.stockCode)) seen.set(sp.stockCode, sp); });
+  return Array.from(seen.values()).sort((a,b)=> a.stockCode.localeCompare(b.stockCode));
+}
+function stockCodeOptionsHtml(selected){
+  return distinctStockPurchases().map(sp=>`<option value="${esc(sp.stockCode)}" ${sp.stockCode===selected?'selected':''}>${esc(sp.stockCode)} — ${esc(sp.merchantName||'')}</option>`).join('');
+}
+function populateProductStockCodeSelect(){
+  const sel = document.getElementById('pStockCode');
+  if(!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">Select stock code…</option>' + stockCodeOptionsHtml(null);
+  if(prev && distinctStockPurchases().some(sp=>sp.stockCode===prev)) sel.value = prev;
+  updateProductStockCodeHint();
+}
+function updateProductStockCodeHint(){
+  const sel = document.getElementById('pStockCode');
+  const hint = document.getElementById('pStockCodeHint');
+  if(!sel || !hint) return;
+  const sp = stockPurchases.find(x=>x.stockCode===sel.value);
+  hint.textContent = sp ? `Merchant: ${sp.merchantName}` : '';
+}
+
+/* --- Reinvestment cap logic --- */
+function getLastPurchaseDateExclusiveFloor(){
+  const real = stockPurchases.filter(sp=>!sp.isSeed);
+  if(real.length===0) return '2026-07-16';
+  return real.reduce((max,sp)=> sp.date > max ? sp.date : max, real[0].date);
+}
+function sumCollectedBetween(mode, fromDateExclusive, toDateInclusive){
+  return sales.reduce((sum,s)=>{
+    if(s.paymentMode!==mode) return sum;
+    if(!(s.date > fromDateExclusive && s.date <= toDateInclusive)) return sum;
+    return sum + (s.amountPaid||0);
+  },0);
+}
+function updateReinvestmentHints(){
+  const dateVal = document.getElementById('stockPurchaseDate').value;
+  const floor = getLastPurchaseDateExclusiveFloor();
+  const maxCash = dateVal ? sumCollectedBetween('cash', floor, dateVal) : 0;
+  const maxUpi = dateVal ? sumCollectedBetween('upi', floor, dateVal) : 0;
+  document.getElementById('stockCashInHint').textContent = `Max available: ${money(maxCash)} (cash collected since ${floor})`;
+  document.getElementById('stockUpiInHint').textContent = `Max available: ${money(maxUpi)} (UPI collected since ${floor})`;
+}
+function updateStockPurchaseCodePreview(){
+  const sel = document.getElementById('merchSelect');
+  const dateVal = document.getElementById('stockPurchaseDate').value;
+  const codeField = document.getElementById('stockPurchaseCode');
+  if(!sel.value || sel.value==='__custom__' || !dateVal){ codeField.value=''; updateReinvestmentHints(); return; }
+  const m = merchants[parseInt(sel.value,10)];
+  const [y,mo,d] = dateVal.split('-');
+  codeField.value = `${m.code}-${d}${mo}${y.slice(-2)}`;
+  updateReinvestmentHints();
+}
+
+/* --- Purchase Intake form --- */
+function resetStockPurchaseForm(){
+  document.getElementById('stockPurchaseQty').value='';
+  document.getElementById('stockPurchaseDesc').value='';
+  document.getElementById('stockPurchaseDate').value='';
+  document.getElementById('stockPurchaseCode').value='';
+  document.getElementById('stockCapitalInvestment').value='';
+  document.getElementById('stockCashIn').value='';
+  document.getElementById('stockUpiIn').value='';
+  populatePurchaseCatSelect(); onPurchaseCatSelectChange();
+  populateMerchantSelect(); onMerchantSelectChange();
+  updateReinvestmentHints();
+}
+document.getElementById('stockPurchaseTodayBtn').addEventListener('click', ()=>{
+  document.getElementById('stockPurchaseDate').value = todayStr();
+  updateStockPurchaseCodePreview();
+});
+document.getElementById('stockPurchaseDate').addEventListener('change', updateStockPurchaseCodePreview);
+document.getElementById('cancelStockPurchaseBtn').addEventListener('click', resetStockPurchaseForm);
+document.getElementById('saveStockPurchaseBtn').addEventListener('click', ()=>{
+  const catSel = document.getElementById('pcatSelect');
+  const merchSel = document.getElementById('merchSelect');
+  const qty = parseInt(document.getElementById('stockPurchaseQty').value,10);
+  const desc = document.getElementById('stockPurchaseDesc').value.trim();
+  const dateVal = document.getElementById('stockPurchaseDate').value;
+  const capital = parseFloat(document.getElementById('stockCapitalInvestment').value)||0;
+  const cashIn = parseFloat(document.getElementById('stockCashIn').value)||0;
+  const upiIn = parseFloat(document.getElementById('stockUpiIn').value)||0;
+
+  if(!catSel.value || catSel.value==='__custom__'){ toast('Select a Category'); return; }
+  if(!merchSel.value || merchSel.value==='__custom__'){ toast('Select a Merchant'); return; }
+  if(isNaN(qty) || qty<1){ toast('Enter a valid quantity purchased'); return; }
+  if(!desc){ toast('Enter a description'); return; }
+  if(!dateVal){ toast('Select a purchase date'); return; }
+  const stockCode = document.getElementById('stockPurchaseCode').value;
+  if(!stockCode){ toast('Stock code could not be generated — check merchant and date'); return; }
+  if(stockPurchases.some(sp=>sp.stockCode===stockCode)){ toast(`Stock code "${stockCode}" already exists — change the date or merchant`, true); return; }
+  if(capital<0){ toast('Capital investment cannot be negative'); return; }
+
+  const floor = getLastPurchaseDateExclusiveFloor();
+  const maxCash = sumCollectedBetween('cash', floor, dateVal);
+  const maxUpi = sumCollectedBetween('upi', floor, dateVal);
+  if(cashIn < 0 || cashIn > maxCash + 0.005){ toast(`Cash In cannot exceed ${money(maxCash)} (cash collected since ${floor})`, true); return; }
+  if(upiIn < 0 || upiIn > maxUpi + 0.005){ toast(`UPI In cannot exceed ${money(maxUpi)} (UPI collected since ${floor})`, true); return; }
+
+  const cat = purchaseCategories[parseInt(catSel.value,10)];
+  const m = merchants[parseInt(merchSel.value,10)];
+
+  stockPurchases.push({
+    id:uuid(), category:cat.name, categoryId:cat.id, qty, description:desc, date:dateVal,
+    merchantId:m.id, merchantName:m.name, merchantCode:m.code, stockCode,
+    capitalInvestment:capital, cashIn, upiIn, updatedAt:Date.now()
+  });
+  save(LS_STOCK_PURCHASES, stockPurchases);
+  resetStockPurchaseForm();
+  renderPurchaseLedger();
+  populateProductStockCodeSelect();
+  populateReturnCodeSelect();
+  renderProducts(); renderHistory();
+  toast(`Stock purchase saved — code ${stockCode}`);
+  pushChange();
+});
+
+/* --- Stock Return form (select-only stock code, no add/edit/delete) --- */
+function populateReturnCodeSelect(){
+  const searchInput = document.getElementById('returnCodeSearch');
+  if(searchInput) searchInput.value='';
+  const listEl = document.getElementById('returnCodeSuggestList');
+  if(listEl){ listEl.classList.remove('show'); listEl.innerHTML=''; }
+  filterReturnCodeSelect('');
+}
+function filterReturnCodeSelect(query){
+  const sel = document.getElementById('returnCodeSelect');
+  const q = (query||'').trim().toLowerCase();
+  const prevValue = sel.value;
+  const list = distinctStockPurchases();
+  const matches = list.filter(sp=> !q || sp.stockCode.toLowerCase().includes(q) || (sp.merchantName||'').toLowerCase().includes(q));
+  sel.innerHTML = '<option value="">Select…</option>' + matches.map(sp=>`<option value="${esc(sp.stockCode)}">${esc(sp.stockCode)}</option>`).join('');
+  if(prevValue && matches.some(sp=>sp.stockCode===prevValue)) sel.value = prevValue;
+  else if(q && matches.length===1){ sel.value = matches[0].stockCode; onReturnCodeChange(); }
+}
+function renderReturnCodeSuggestions(query){
+  const listEl = document.getElementById('returnCodeSuggestList');
+  const q = (query||'').trim().toLowerCase();
+  if(!q){ listEl.classList.remove('show'); listEl.innerHTML=''; return; }
+  const matches = distinctStockPurchases().filter(sp=> sp.stockCode.toLowerCase().includes(q) || (sp.merchantName||'').toLowerCase().includes(q)).slice(0,8);
+  if(matches.length===0){
+    listEl.innerHTML = `<div class="cat-suggest-item" style="color:var(--grey-soft); cursor:default;">No matches</div>`;
+    listEl.classList.add('show');
+    return;
+  }
+  listEl.innerHTML = matches.map(sp=>`<div class="cat-suggest-item" onmousedown="selectReturnCodeSuggestion('${esc(sp.stockCode)}')"><span>${esc(sp.stockCode)}</span><span class="code-tag">${esc(sp.merchantName||'')}</span></div>`).join('');
+  listEl.classList.add('show');
+}
+function selectReturnCodeSuggestion(code){
+  populateReturnCodeSelect();
+  const sel = document.getElementById('returnCodeSelect');
+  sel.value = code;
+  onReturnCodeChange();
+  const listEl = document.getElementById('returnCodeSuggestList');
+  listEl.classList.remove('show'); listEl.innerHTML='';
+}
+function onReturnCodeChange(){
+  const sel = document.getElementById('returnCodeSelect');
+  const hint = document.getElementById('returnMerchantHint');
+  const sp = stockPurchases.find(x=>x.stockCode===sel.value);
+  hint.textContent = sp ? `Merchant: ${sp.merchantName} (${sp.merchantCode})` : '';
+}
+function resetStockReturnForm(){
+  document.getElementById('stockReturnQty').value='';
+  document.getElementById('stockReturnAmount').value='';
+  populateReturnCodeSelect();
+  document.getElementById('returnMerchantHint').textContent='';
+}
+document.getElementById('cancelStockReturnBtn').addEventListener('click', resetStockReturnForm);
+document.getElementById('saveStockReturnBtn').addEventListener('click', ()=>{
+  const sel = document.getElementById('returnCodeSelect');
+  const qty = parseInt(document.getElementById('stockReturnQty').value,10);
+  const amount = parseFloat(document.getElementById('stockReturnAmount').value);
+  if(!sel.value){ toast('Select a Stock Code'); return; }
+  if(isNaN(qty) || qty<1){ toast('Enter a valid return quantity'); return; }
+  if(isNaN(amount) || amount<0){ toast('Enter a valid return amount'); return; }
+  stockReturns.push({id:uuid(), stockCode:sel.value, qty, amount, date:todayStr(), updatedAt:Date.now()});
+  save(LS_STOCK_RETURNS, stockReturns);
+  resetStockReturnForm();
+  toast('Stock return recorded');
+  pushChange();
+});
+
+/* --- Purchase Ledger (Part 2 — functional record view; seed row hidden) --- */
+function renderPurchaseLedger(){
+  const body = document.getElementById('purchaseLedgerBody');
+  const visible = stockPurchases.filter(sp=>!sp.isSeed).sort((a,b)=> (b.updatedAt||0)-(a.updatedAt||0));
+  body.innerHTML = visible.length===0
+    ? '<tr class="empty-row"><td colspan="9">No purchases recorded yet</td></tr>'
+    : visible.map(sp=>`<tr>
+        <td class="mono">${esc(sp.stockCode)}</td><td>${esc(sp.category)}</td><td>${esc(sp.date)}</td>
+        <td>${esc(sp.merchantName)} (${esc(sp.merchantCode)})</td><td class="num">${sp.qty}</td><td>${esc(sp.description)}</td>
+        <td class="num">${money(sp.capitalInvestment)}</td><td class="num">${money(sp.cashIn)}</td><td class="num">${money(sp.upiIn)}</td>
+      </tr>`).join('');
+}
+
+/* --- Wire up the widgets --- */
+document.getElementById('pcatSelect').addEventListener('change', onPurchaseCatSelectChange);
+document.getElementById('pcatSearch').addEventListener('input', e=>{ filterPurchaseCatSelect(e.target.value); renderPurchaseCatSuggestions(e.target.value); });
+document.getElementById('pcatSearch').addEventListener('focus', e=>{ renderPurchaseCatSuggestions(e.target.value); });
+document.getElementById('pcatSearch').addEventListener('blur', ()=>{ setTimeout(()=>{ const l=document.getElementById('pcatSuggestList'); if(l) l.classList.remove('show'); }, 150); });
+
+document.getElementById('merchSelect').addEventListener('change', onMerchantSelectChange);
+document.getElementById('merchSearch').addEventListener('input', e=>{ filterMerchantSelect(e.target.value); renderMerchantSuggestions(e.target.value); });
+document.getElementById('merchSearch').addEventListener('focus', e=>{ renderMerchantSuggestions(e.target.value); });
+document.getElementById('merchSearch').addEventListener('blur', ()=>{ setTimeout(()=>{ const l=document.getElementById('merchSuggestList'); if(l) l.classList.remove('show'); }, 150); });
+
+document.getElementById('returnCodeSelect').addEventListener('change', onReturnCodeChange);
+document.getElementById('returnCodeSearch').addEventListener('input', e=>{ filterReturnCodeSelect(e.target.value); renderReturnCodeSuggestions(e.target.value); });
+document.getElementById('returnCodeSearch').addEventListener('focus', e=>{ renderReturnCodeSuggestions(e.target.value); });
+document.getElementById('returnCodeSearch').addEventListener('blur', ()=>{ setTimeout(()=>{ const l=document.getElementById('returnCodeSuggestList'); if(l) l.classList.remove('show'); }, 150); });
+
+document.getElementById('pStockCode').addEventListener('change', updateProductStockCodeHint);
+
 /* ===== Products CRUD ===== */
 function findProduct(code){ code=(code||'').replace(/[^0-9A-Za-z]/g,'').toUpperCase(); return products.find(p=>p.code.toUpperCase()===code); }
 function inStock(p){ return p && (p.stock||0) > 0; }
@@ -1592,9 +2174,11 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
   const stock = parseInt(document.getElementById('pStock').value,10);
   const cost = parseFloat(document.getElementById('pCost').value);
   const price = parseFloat(document.getElementById('pPrice').value);
+  const stockCode = document.getElementById('pStockCode').value;
   if(!comboCode){ toast('Complete every subsection to build the product code'); return; }
   if(isNaN(stock) || stock<0){ toast('Enter a valid quantity (0 or more)'); return; }
   if(isNaN(cost)||isNaN(price)||cost<0||price<0){ toast('Enter valid cost and MRP'); return; }
+  if(!stockCode){ toast('Select a Stock Code'); return; }
 
   let finalCode, finalDesc;
   if(editingProductId){
@@ -1606,7 +2190,7 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
     const clash = products.find(p=>p.id!==editingProductId && p.code===newFullCode);
     if(clash){ toast('Another product already uses this exact subsection combination'); return; }
     const desc = assembledDescription();
-    products[idx] = {...existing, code:newFullCode, name:desc, cost, price, stock, updatedAt: Date.now()};
+    products[idx] = {...existing, code:newFullCode, name:desc, cost, price, stock, stockCode, updatedAt: Date.now()};
     finalCode = newFullCode; finalDesc = desc;
     editingProductId=null;
     document.getElementById('productFormTitle').textContent='Add Product';
@@ -1617,7 +2201,7 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
     const fullCode = comboCode + generateTimestampCode();
     if(!isValidProductCode(fullCode)){ toast('Could not build a valid 20-digit product code'); return; }
     if(findProduct(fullCode)){ toast('A product with this exact code already exists — try again in a moment'); return; }
-    products.push({id:uuid(), code:fullCode, name:desc, cost, price, stock, updatedAt: Date.now()});
+    products.push({id:uuid(), code:fullCode, name:desc, cost, price, stock, stockCode, updatedAt: Date.now()});
     finalCode = fullCode; finalDesc = desc;
     toast(`Product added — code ${formatCode(fullCode)}`);
   }
@@ -1635,6 +2219,7 @@ function resetProductForm(){
   document.getElementById('pStock').value=''; document.getElementById('pCost').value='';
   clearMarginFields(null); marginDriver=null;
   CAT_KEYS.forEach(key=>{ populateSelect(key); onSelectChange(key); });
+  document.getElementById('pStockCode').value=''; updateProductStockCodeHint();
 }
 document.getElementById('cancelEditBtn').addEventListener('click', resetProductForm);
 function deleteProduct(code){
@@ -1651,6 +2236,9 @@ function editProduct(code){
   if(!p) return;
   document.getElementById('pStock').value = p.stock ?? 0;
   document.getElementById('pCost').value = p.cost;
+  populateProductStockCodeSelect();
+  document.getElementById('pStockCode').value = p.stockCode || SEED_STOCK_CODE;
+  updateProductStockCodeHint();
   editingProductId = p.id;
   document.getElementById('productFormTitle').textContent=`Edit Product — ${formatCode(p.code)}`;
   document.getElementById('cancelEditBtn').style.display='inline-flex';
@@ -1762,7 +2350,7 @@ function renderProducts(){
   const body = document.getElementById('productBody');
   const visible = products.filter(productMatchesFilters);
   body.innerHTML = visible.length===0
-    ? `<tr class="empty-row"><td colspan="7">${products.length===0 ? 'No products yet' : 'No products match this filter/search'}</td></tr>`
+    ? `<tr class="empty-row"><td colspan="8">${products.length===0 ? 'No products yet' : 'No products match this filter/search'}</td></tr>`
     : visible.map(p=>{
         const margin = p.price - p.cost, stock = p.stock||0;
         const costDisplay = catalogUnmasked ? money(p.cost) : maskMoney();
@@ -1772,6 +2360,7 @@ function renderProducts(){
           <td class="num ${stock>0?'stock-ok':'stock-out'}">${stock>0?stock:'Out of stock'}</td>
           <td class="num">${costDisplay}</td><td class="num">${money(p.price)}</td>
           <td class="num" style="color:${catalogUnmasked ? (margin>=0?'var(--green)':'var(--burgundy)') : 'var(--grey-soft)'}">${marginDisplay}</td>
+          <td><select class="cell-input-text" onchange="updateProductStockCode('${p.code}', this.value)">${stockCodeOptionsHtml(p.stockCode)}</select></td>
           <td><button class="btn btn-ghost btn-sm" onclick="editProduct('${p.code}')">Edit</button>
               <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.code}')">Delete</button></td>
         </tr>`;
@@ -1779,6 +2368,14 @@ function renderProducts(){
   updateCatalogSuggestions();
   updateItemCodeSuggestions(document.getElementById('itemCode').value);
   renderCatalogUnitSummary(visible);
+}
+function updateProductStockCode(code, val){
+  const p = findProduct(code);
+  if(!p) return;
+  p.stockCode = val; p.updatedAt = Date.now();
+  save(LS_PRODUCTS, products);
+  toast('Stock code updated');
+  pushChange();
 }
 
 document.getElementById('exportCatalogBtn').addEventListener('click', ()=>{
@@ -1912,7 +2509,7 @@ document.getElementById('addToCartBtn').addEventListener('click', ()=>{
     return;
   }
   if(existing){ existing.qty+=qty; existing.price = sellPrice; }
-  else cart.push({code:p.code,name:p.name,cost:p.cost,expectedPrice:p.price,price:sellPrice,qty});
+  else cart.push({code:p.code,name:p.name,cost:p.cost,expectedPrice:p.price,price:sellPrice,qty,stockCode:p.stockCode||SEED_STOCK_CODE});
   itemCode.value=''; itemName.value=''; itemSellPrice.value=''; itemSellPrice.dataset.autoFilledFor='';
   document.getElementById('itemQty').value=1; lookupHint.textContent=''; hideStockWarning();
   renderCart();
@@ -1990,7 +2587,7 @@ document.getElementById('generateBillBtn').addEventListener('click', async ()=>{
     const marginPercent = c.price>0 ? ((c.price-c.cost)/c.price)*100 : 0;
     sales.push({id:uuid(), invoice:invoiceNo, date, customer:name, number, code:c.code, product:c.name,
       qty:c.qty, cost:c.cost, expectedPrice:c.expectedPrice, price:c.price, revenue, profit:revenue-costTotal,
-      marginPerPiece, marginPercent,
+      marginPerPiece, marginPercent, stockCode:c.stockCode||SEED_STOCK_CODE,
       paymentMode, paymentStatus, pendingAmount, amountPaid,
       updatedAt: Date.now()});
     const p = findProduct(c.code);
@@ -2331,7 +2928,7 @@ function renderHistory(){
   const body=document.getElementById('historyBody');
 
   if(visible.length===0){
-    body.innerHTML = '<tr class="empty-row"><td colspan="19">No sales recorded yet</td></tr>';
+    body.innerHTML = '<tr class="empty-row"><td colspan="20">No sales recorded yet</td></tr>';
   }else{
     const groups = groupSalesByInvoice(visible);
     let html = '';
@@ -2375,6 +2972,9 @@ function renderHistory(){
         const priceCell = allEditing
           ? `<input type="number" class="cell-input price" ${CELL_STYLE_ATTR} autocomplete="off" min="0" step="0.01" value="${s.price}" onchange="updateSalePrice('${s.id}', this.value)" onkeydown="if(event.key==='Enter') this.blur();">`
           : (salesUnmasked ? money(s.price) : maskMoney());
+        const stockCodeCell = allEditing
+          ? `<select class="cell-input-text" ${CELL_STYLE_ATTR} onchange="updateSaleStockCode('${s.id}', this.value)">${stockCodeOptionsHtml(s.stockCode)}</select>`
+          : esc(s.stockCode||SEED_STOCK_CODE);
 
         html += '<tr>';
         if(idx===0){
@@ -2387,6 +2987,7 @@ function renderHistory(){
           html += `<td class="merged-cell" rowspan="${rowspan}">${pendingAmountCell}</td>`;
         }
         html += `<td class="mono">${esc(formatCode(s.code))}</td><td>${esc(s.product)}</td>`;
+        html += `<td>${stockCodeCell}</td>`;
         html += `<td class="num">${qtyCell}</td>`;
         html += `<td class="num">${salesUnmasked ? money(s.cost) : maskMoney()}</td>`;
         html += `<td class="num">${salesUnmasked ? money(s.expectedPrice??s.price) : maskMoney()}</td>`;
@@ -2532,6 +3133,13 @@ function updateSalePrice(id, val){
   recalcInvoicePaymentTotals(s.invoice);
   save(LS_SALES, sales); renderHistory();
   toast('Selling price updated');
+  pushChange();
+}
+function updateSaleStockCode(id, val){
+  const s = sales.find(x=>x.id===id); if(!s) return;
+  s.stockCode = val; s.updatedAt = Date.now();
+  save(LS_SALES, sales);
+  toast('Stock code updated');
   pushChange();
 }
 function deleteSaleRow(id){
@@ -2761,6 +3369,7 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.classList.add('active');
     document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
     if(btn.dataset.tab==='history') renderHistory();
+    if(btn.dataset.tab==='stockacct') renderPurchaseLedger();
     if(btn.dataset.tab==='contact') renderContacts();
     if(btn.dataset.tab==='profile') renderUserProfileList();
   });
@@ -2798,6 +3407,8 @@ async function buildBackupPayload(){
     products, productTombstones, sales, saleTombstones, cats,
     contactPhones, contactAddresses, contactPhoneTombstones, contactAddressTombstones, contactMeta,
     users, userTombstones,
+    purchaseCategories, purchaseCategoryTombstones, merchants, merchantTombstones,
+    stockPurchases, stockPurchaseTombstones, stockReturns, stockReturnTombstones,
     seq: parseInt(localStorage.getItem(LS_SEQ)||'0',10),
     version: DATA_VERSION, deviceId: DEVICE_ID
   };
@@ -2891,6 +3502,18 @@ function applyBackupDataAdditive(data){
   const uRes = restoreRowsAdditive(users, data.users||[], userTombstones);
   users = uRes.merged; addedCount += uRes.addedCount;
 
+  const pcRes = restoreRowsAdditive(purchaseCategories, data.purchaseCategories||[], purchaseCategoryTombstones);
+  purchaseCategories = pcRes.merged; addedCount += pcRes.addedCount;
+
+  const mRes = restoreRowsAdditive(merchants, data.merchants||[], merchantTombstones);
+  merchants = mRes.merged; addedCount += mRes.addedCount;
+
+  const spRes = restoreRowsAdditive(stockPurchases, data.stockPurchases||[], stockPurchaseTombstones);
+  stockPurchases = spRes.merged; addedCount += spRes.addedCount;
+
+  const srRes = restoreRowsAdditive(stockReturns, data.stockReturns||[], stockReturnTombstones);
+  stockReturns = srRes.merged; addedCount += srRes.addedCount;
+
   if(data.cats){
     CAT_KEYS.forEach(key=>{
       if(!data.cats[key]) return;
@@ -2917,6 +3540,8 @@ function applyBackupDataAdditive(data){
   if(incomingSeq > currentSeq) localStorage.setItem(LS_SEQ, String(incomingSeq));
 
   ensureDefaultUser();
+  ensureSeedMerchantAndPurchase();
+  retrofitStockCodes();
 
   save(LS_PRODUCTS, products); save(LS_SALES, sales);
   save(LS_PROD_TOMB, productTombstones); save(LS_SALE_TOMB, saleTombstones);
@@ -2925,7 +3550,13 @@ function applyBackupDataAdditive(data){
   save(LS_CONTACT_META, contactMeta);
   save(LS_USERS, users); save(LS_USER_TOMB, userTombstones);
   save(LS_CATS, cats);
+  save(LS_PURCHASE_CATS, purchaseCategories); save(LS_PURCHASE_CAT_TOMB, purchaseCategoryTombstones);
+  save(LS_MERCHANTS, merchants); save(LS_MERCHANT_TOMB, merchantTombstones);
+  save(LS_STOCK_PURCHASES, stockPurchases); save(LS_STOCK_PURCHASE_TOMB, stockPurchaseTombstones);
+  save(LS_STOCK_RETURNS, stockReturns); save(LS_STOCK_RETURN_TOMB, stockReturnTombstones);
   CAT_KEYS.forEach(populateSelect);
+  populatePurchaseCatSelect(); populateMerchantSelect(); populateReturnCodeSelect(); populateProductStockCodeSelect();
+  renderPurchaseLedger();
   renderProducts(); renderHistory(); renderContacts(); renderUserProfileList();
   pushChange();
   return addedCount;
@@ -3049,6 +3680,8 @@ function buildLocalPayload(){
     products, productTombstones, sales, saleTombstones, cats,
     contactPhones, contactAddresses, contactPhoneTombstones, contactAddressTombstones, contactMeta,
     users, userTombstones,
+    purchaseCategories, purchaseCategoryTombstones, merchants, merchantTombstones,
+    stockPurchases, stockPurchaseTombstones, stockReturns, stockReturnTombstones,
     seq: parseInt(localStorage.getItem(LS_SEQ)||'0',10), timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID
   };
 }
@@ -3063,7 +3696,11 @@ function hashPayload(data){
     sales:data.sales, saleTombstones:data.saleTombstones, cats:data.cats,
     contactPhones:data.contactPhones, contactAddresses:data.contactAddresses,
     contactPhoneTombstones:data.contactPhoneTombstones, contactAddressTombstones:data.contactAddressTombstones,
-    contactMeta:data.contactMeta, users:data.users, userTombstones:data.userTombstones, seq:data.seq
+    contactMeta:data.contactMeta, users:data.users, userTombstones:data.userTombstones, seq:data.seq,
+    purchaseCategories:data.purchaseCategories, purchaseCategoryTombstones:data.purchaseCategoryTombstones,
+    merchants:data.merchants, merchantTombstones:data.merchantTombstones,
+    stockPurchases:data.stockPurchases, stockPurchaseTombstones:data.stockPurchaseTombstones,
+    stockReturns:data.stockReturns, stockReturnTombstones:data.stockReturnTombstones
   });
   let h = 0; for(let i=0;i<str.length;i++){ h = (Math.imul(31,h) + str.charCodeAt(i)) | 0; } return h;
 }
@@ -3110,12 +3747,20 @@ function mergeData(local, cloud){
   const cloudPhones = normalizeRows(cloud.contactPhones), localPhones = normalizeRows(local.contactPhones);
   const cloudAddrs = normalizeRows(cloud.contactAddresses), localAddrs = normalizeRows(local.contactAddresses);
   const cloudUsers = normalizeRows(cloud.users), localUsers = normalizeRows(local.users);
+  const cloudPurchaseCats = normalizeRows(cloud.purchaseCategories), localPurchaseCats = normalizeRows(local.purchaseCategories);
+  const cloudMerchants = normalizeRows(cloud.merchants), localMerchants = normalizeRows(local.merchants);
+  const cloudStockPurchases = normalizeRows(cloud.stockPurchases), localStockPurchases = normalizeRows(local.stockPurchases);
+  const cloudStockReturns = normalizeRows(cloud.stockReturns), localStockReturns = normalizeRows(local.stockReturns);
 
   const pMerge = mergeRows(localProducts, cloudProducts, local.productTombstones||[], cloud.productTombstones||[]);
   const sMerge = mergeRows(localSales, cloudSales, local.saleTombstones||[], cloud.saleTombstones||[]);
   const phMerge = mergeRows(localPhones, cloudPhones, local.contactPhoneTombstones||[], cloud.contactPhoneTombstones||[]);
   const adMerge = mergeRows(localAddrs, cloudAddrs, local.contactAddressTombstones||[], cloud.contactAddressTombstones||[]);
   const uMerge = mergeRows(localUsers, cloudUsers, local.userTombstones||[], cloud.userTombstones||[]);
+  const pcMerge = mergeRows(localPurchaseCats, cloudPurchaseCats, local.purchaseCategoryTombstones||[], cloud.purchaseCategoryTombstones||[]);
+  const mMerge = mergeRows(localMerchants, cloudMerchants, local.merchantTombstones||[], cloud.merchantTombstones||[]);
+  const spMerge = mergeRows(localStockPurchases, cloudStockPurchases, local.stockPurchaseTombstones||[], cloud.stockPurchaseTombstones||[]);
+  const srMerge = mergeRows(localStockReturns, cloudStockReturns, local.stockReturnTombstones||[], cloud.stockReturnTombstones||[]);
 
   return {
     products: pMerge.rows, productTombstones: pMerge.tombstones,
@@ -3124,6 +3769,10 @@ function mergeData(local, cloud){
     contactAddresses: adMerge.rows, contactAddressTombstones: adMerge.tombstones,
     contactMeta: mergeContactMeta(local.contactMeta, cloud.contactMeta),
     users: uMerge.rows, userTombstones: uMerge.tombstones,
+    purchaseCategories: pcMerge.rows, purchaseCategoryTombstones: pcMerge.tombstones,
+    merchants: mMerge.rows, merchantTombstones: mMerge.tombstones,
+    stockPurchases: spMerge.rows, stockPurchaseTombstones: spMerge.tombstones,
+    stockReturns: srMerge.rows, stockReturnTombstones: srMerge.tombstones,
     cats: mergeCategoryData(local.cats, cloud.cats),
     seq: Math.max(local.seq||0, cloud.seq||0),
     timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID
@@ -3136,6 +3785,10 @@ function applyRemoteData(data){
   contactPhoneTombstones = data.contactPhoneTombstones || []; contactAddressTombstones = data.contactAddressTombstones || [];
   contactMeta = data.contactMeta || {primaryPhoneId:null, primaryAddressId:null, updatedAt:0};
   users = data.users || []; userTombstones = data.userTombstones || [];
+  purchaseCategories = data.purchaseCategories || []; purchaseCategoryTombstones = data.purchaseCategoryTombstones || [];
+  merchants = data.merchants || []; merchantTombstones = data.merchantTombstones || [];
+  stockPurchases = data.stockPurchases || []; stockPurchaseTombstones = data.stockPurchaseTombstones || [];
+  stockReturns = data.stockReturns || []; stockReturnTombstones = data.stockReturnTombstones || [];
   cats = ensureCatsShape(data.cats || JSON.parse(JSON.stringify(defaultCats)));
   ensureBlankEntries(cats);
   CAT_KEYS.forEach(key=>{ normalizeSeedIdsForCategory(key, cats[key]); recomputeFreeCodes(cats[key]); });
@@ -3143,6 +3796,8 @@ function applyRemoteData(data){
     if(s.paymentMode===undefined){ s.paymentMode='cash'; s.paymentStatus='Done'; s.pendingAmount=0; s.amountPaid=s.revenue; }
   });
   ensureDefaultUser();
+  ensureSeedMerchantAndPurchase();
+  retrofitStockCodes();
   localStorage.setItem(LS_SEQ, String(data.seq || 0));
   save(LS_PRODUCTS, products); save(LS_SALES, sales);
   save(LS_PROD_TOMB, productTombstones); save(LS_SALE_TOMB, saleTombstones); save(LS_CATS, cats);
@@ -3150,7 +3805,14 @@ function applyRemoteData(data){
   save(LS_PHONE_TOMB, contactPhoneTombstones); save(LS_ADDR_TOMB, contactAddressTombstones);
   save(LS_CONTACT_META, contactMeta);
   save(LS_USERS, users); save(LS_USER_TOMB, userTombstones);
-  CAT_KEYS.forEach(populateSelect); renderProducts(); renderHistory(); renderContacts(); renderUserProfileList();
+  save(LS_PURCHASE_CATS, purchaseCategories); save(LS_PURCHASE_CAT_TOMB, purchaseCategoryTombstones);
+  save(LS_MERCHANTS, merchants); save(LS_MERCHANT_TOMB, merchantTombstones);
+  save(LS_STOCK_PURCHASES, stockPurchases); save(LS_STOCK_PURCHASE_TOMB, stockPurchaseTombstones);
+  save(LS_STOCK_RETURNS, stockReturns); save(LS_STOCK_RETURN_TOMB, stockReturnTombstones);
+  CAT_KEYS.forEach(populateSelect);
+  populatePurchaseCatSelect(); populateMerchantSelect(); populateReturnCodeSelect(); populateProductStockCodeSelect();
+  renderPurchaseLedger();
+  renderProducts(); renderHistory(); renderContacts(); renderUserProfileList();
 }
 function markSynced(){ localStorage.setItem(LS_SYNCED, new Date().toLocaleString()); }
 
@@ -3250,6 +3912,12 @@ function toast(msg, isErr, isSuccess){
   toast._h=setTimeout(()=>t.classList.remove('show'),2600);
 }
 
+populatePurchaseCatSelect(); onPurchaseCatSelectChange();
+populateMerchantSelect(); onMerchantSelectChange();
+populateReturnCodeSelect();
+populateProductStockCodeSelect();
+updateReinvestmentHints();
+renderPurchaseLedger();
 renderCart(); renderProducts(); renderHistory(); renderContacts(); renderUserProfileList();
 updateCustNameSuggestions();
 </script>
