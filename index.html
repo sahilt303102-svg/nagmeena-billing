@@ -144,6 +144,12 @@
   .cell-input{ width:64px; font-family:'IBM Plex Mono',monospace; text-align:right; }
   .cell-input.price{ width:78px; font-family:'IBM Plex Mono',monospace; text-align:right; }
   .cell-input-text{ width:110px; font-family:'Inter',sans-serif; text-align:left; }
+  .cell-select-themed{
+    padding:5px 6px; border-radius:6px; font-size:12.5px; width:110px;
+    font-family:'IBM Plex Mono',monospace; text-align:left;
+    color:var(--charcoal); background:transparent; border:1px solid var(--gold-line);
+    -webkit-appearance:none; appearance:none; cursor:pointer;
+  }
   .masked-text{ letter-spacing:2px; color:var(--grey-soft); user-select:none; }
   .merged-cell{ vertical-align:middle; }
   .pay-done{ color:var(--green); font-weight:700; }
@@ -1038,7 +1044,7 @@ let currentSession = null;
 
 if(!localStorage.getItem(LS_DEVICE)){ localStorage.setItem(LS_DEVICE, uuid()); }
 const DEVICE_ID = localStorage.getItem(LS_DEVICE);
-const DATA_VERSION = 29; // v29: Stock Accounting module — Purchase Intake, Stock Return, Purchase/Cash Flow ledgers, mandatory Stock Code on Catalog & Sales Book
+const DATA_VERSION = 30;
 
 /* =========================================================================
    Generic Yes/No confirmation modal
@@ -2360,7 +2366,7 @@ function renderProducts(){
           <td class="num ${stock>0?'stock-ok':'stock-out'}">${stock>0?stock:'Out of stock'}</td>
           <td class="num">${costDisplay}</td><td class="num">${money(p.price)}</td>
           <td class="num" style="color:${catalogUnmasked ? (margin>=0?'var(--green)':'var(--burgundy)') : 'var(--grey-soft)'}">${marginDisplay}</td>
-          <td><select class="cell-input-text" onchange="updateProductStockCode('${p.code}', this.value)">${stockCodeOptionsHtml(p.stockCode)}</select></td>
+          <td><select class="cell-select-themed" onchange="updateProductStockCode('${p.code}', this.value)">${stockCodeOptionsHtml(p.stockCode)}</select></td>
           <td><button class="btn btn-ghost btn-sm" onclick="editProduct('${p.code}')">Edit</button>
               <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.code}')">Delete</button></td>
         </tr>`;
@@ -2999,7 +3005,9 @@ function renderHistory(){
         if(idx===0){
           html += `<td class="merged-cell" rowspan="${rowspan}">${invoiceActionsCell}</td>`;
         }
-        html += `<td><button class="btn btn-danger btn-sm" onclick="deleteSaleRow('${s.id}')">Delete</button></td>`;
+        html += allEditing
+          ? `<td><button class="btn btn-danger btn-sm" onclick="deleteSaleRow('${s.id}')">Del</button></td>`
+          : `<td></td>`;
         html += '</tr>';
       });
     });
