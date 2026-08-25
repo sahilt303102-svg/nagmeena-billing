@@ -6,11 +6,12 @@
 <meta name="color-scheme" content="light">
 <title>Nagmeena — Billing &amp; Sales Book</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://accounts.google.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://accounts.google.com/gsi/client" async defer onload="onGisLoaded()"></script>
+<script src="https://accounts.google.com/gsi/client" async onload="onGisLoaded()"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <style>
   :root{
     --ivory:#FBF7EE; --cream:#F7F1E2; --beige:#F1E8D3; --beige-soft:#F5EEDD;
@@ -922,7 +923,7 @@
 /* ===== Storage keys ===== */
 const LS_PRODUCTS='ledger_products', LS_SALES='ledger_sales', LS_SEQ='ledger_invoice_seq',
       LS_CATS='ledger_categories', LS_CLIENTID='ledger_drive_client_id', LS_SYNCED='ledger_last_sync',
-      LS_CONNECTED='ledger_drive_connected', LS_DEVICE='ledger_device_id', LS_TOKEN_EXP='ledger_token_expiry',
+      LS_CONNECTED='ledger_drive_connected', LS_DEVICE='ledger_device_id', LS_TOKEN_EXP='ledger_token_expiry', LS_DRIVE_FID='ledger_drive_file_id',
       LS_PROD_TOMB='ledger_product_tombstones', LS_SALE_TOMB='ledger_sale_tombstones',
       LS_PHONES='ledger_contact_phones', LS_ADDRS='ledger_contact_addresses',
       LS_PHONE_TOMB='ledger_contact_phone_tomb', LS_ADDR_TOMB='ledger_contact_addr_tomb',
@@ -3575,7 +3576,9 @@ const DRIVE_FILENAME = 'nagmeena_ledger_data.json';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const TOMBSTONE_RETENTION_MS = 90*24*60*60*1000;
 
-let gisReady = false, tokenClient = null, accessToken = null, driveFileId = null;
+let gisReady = false, tokenClient = null, driveFileId = null;
+let accessToken = (()=>{ try{ return sessionStorage.getItem('nagmeena_access_token')||null; }catch(e){ return null; } })();
+driveFileId = localStorage.getItem(LS_DRIVE_FID) || null;
 let syncInProgress = false, syncQueued = false;
 
 const STATUS = {
@@ -3636,6 +3639,7 @@ function requestToken(interactive){
       if(settled) return; settled = true; clearTimeout(timer);
       if(resp.error){ reject({code:resp.error}); return; }
       accessToken = resp.access_token;
+      try{ sessionStorage.setItem('nagmeena_access_token', accessToken); }catch(e){}
       localStorage.setItem(LS_TOKEN_EXP, String(Date.now() + (resp.expires_in||3600)*1000));
       resolve(accessToken);
     };
@@ -3824,9 +3828,15 @@ function applyRemoteData(data){
 }
 function markSynced(){ localStorage.setItem(LS_SYNCED, new Date().toLocaleString()); }
 
+let lastSyncEpoch = 0;
+const SYNC_COOLDOWN_MS = 30000;
 async function performSync(trigger){
   if(!navigator.onLine){ setStatus('offline'); return; }
   if(!isDriveConnected() && trigger!=='connect'){ if(trigger==='manual') setStatus('failed', mapError({code:'no_client'})); return; }
+  if(trigger==='startup' && (Date.now() - lastSyncEpoch) < SYNC_COOLDOWN_MS){
+    setStatus('success', 'Sync skipped — recently synced');
+    return;
+  }
   if(syncInProgress){ syncQueued = true; return; }
   syncInProgress = true; setButtonsBusy(true);
   try{
@@ -3835,47 +3845,59 @@ async function performSync(trigger){
 
     setStatus('downloading');
     if(!driveFileId) driveFileId = await driveFindFile();
+    if(driveFileId) localStorage.setItem(LS_DRIVE_FID, driveFileId);
     const cloudData = driveFileId ? await driveDownloadFile(driveFileId) : null;
 
     const localData = buildLocalPayload();
     let finalData;
 
     if(cloudData){
+      const cloudHash = hashPayload(cloudData);
+      const localHash = hashPayload(localData);
+
       if(isFreshLocalState(localData) && !isFreshLocalState(cloudData)){
         applyRemoteData(cloudData);
         localStorage.setItem(LS_CONNECTED,'1');
         setStatus('success', 'Restored from cloud backup');
-        markSynced();
+        markSynced(); lastSyncEpoch = Date.now();
         return;
       }
+
+      if(localHash === cloudHash){
+        localStorage.setItem(LS_CONNECTED,'1');
+        setStatus('success', trigger==='manual' ? 'Already up to date' : 'Sync successful');
+        markSynced(); lastSyncEpoch = Date.now();
+        return;
+      }
+
       finalData = mergeData(localData, cloudData);
+      const finalHash = hashPayload(finalData);
+
+      if(finalHash === cloudHash){
+        applyRemoteData(finalData);
+        localStorage.setItem(LS_CONNECTED,'1');
+        setStatus('success', 'Sync successful');
+        markSynced(); lastSyncEpoch = Date.now();
+        return;
+      }
+
       applyRemoteData(finalData);
     }else{
       finalData = localData;
     }
 
-    const cloudHash = cloudData ? hashPayload(cloudData) : null;
-    const finalHash = hashPayload(finalData);
-
-    if(driveFileId && finalHash === cloudHash){
-      localStorage.setItem(LS_CONNECTED,'1');
-      setStatus('success', trigger==='manual' ? 'Already up to date' : 'Sync successful');
-      markSynced();
-      return;
-    }
-
     setStatus('uploading');
     const savedId = await driveSaveFile(driveFileId, finalData);
-    const verifyData = await driveDownloadFile(savedId);
-    if(hashPayload(verifyData) !== finalHash) throw {code:'verify_failed'};
 
     driveFileId = savedId;
+    localStorage.setItem(LS_DRIVE_FID, savedId);
     localStorage.setItem(LS_CONNECTED,'1');
     setStatus('success', 'Sync successful');
-    markSynced();
+    markSynced(); lastSyncEpoch = Date.now();
 
   }catch(err){
     console.error('Drive sync error:', err);
+    if(err && err.status === 404 && driveFileId){ driveFileId = null; localStorage.removeItem(LS_DRIVE_FID); }
     if(trigger==='startup') setStatus('disconnected', 'Working offline — reconnect Drive to sync');
     else{ setStatus('failed', mapError(err)); toast(mapError(err), true); }
   }finally{
@@ -3897,7 +3919,8 @@ document.getElementById('connectDriveBtn').addEventListener('click', async (e)=>
 document.getElementById('disconnectDriveBtn').addEventListener('click', (e)=>{
   e.stopPropagation();
   accessToken = null; driveFileId = null;
-  localStorage.removeItem(LS_CONNECTED); localStorage.removeItem(LS_TOKEN_EXP);
+  localStorage.removeItem(LS_CONNECTED); localStorage.removeItem(LS_TOKEN_EXP); localStorage.removeItem(LS_DRIVE_FID);
+  try{ sessionStorage.removeItem('nagmeena_access_token'); }catch(e){}
   setStatus('disconnected'); toast('Disconnected from Google Drive');
 });
 document.getElementById('syncNowBtn').addEventListener('click', (e)=>{ e.stopPropagation(); performSync('manual'); });
