@@ -591,21 +591,17 @@
       </div>
       <p class="sub" style="margin-top:-8px;">Rows sharing an invoice number are merged. Click Edit once per invoice to unlock Customer, Number, Payment Mode, Qty, and Selling Price for every item in it. The summary cards above always reflect the current filter/search — clear both to see totals for the entire Sales Book.</p>
 
-      <div class="form-row" style="flex-wrap:wrap; gap:10px; margin-bottom:12px;">
-        <div class="field" style="flex:1; min-width:130px;">
-          <label for="salesFromDate">From Date</label>
+      <div style="display:flex; flex-wrap:nowrap; gap:8px; margin-bottom:12px; align-items:flex-end;">
+        <div class="field" style="flex:0 0 auto; margin-bottom:0;">
+          <label for="salesFromDate">From</label>
           <input type="date" id="salesFromDate">
         </div>
-        <div class="field" style="flex:1; min-width:130px;">
-          <label for="salesToDate">To Date</label>
-          <div style="display:flex; gap:6px;">
-            <input type="date" id="salesToDate" style="flex:1;">
-            <button type="button" class="btn btn-ghost btn-sm" id="salesTodayBtn">Today</button>
-          </div>
+        <div class="field" style="flex:0 0 auto; margin-bottom:0;">
+          <label for="salesToDate">To</label>
+          <input type="date" id="salesToDate">
         </div>
-        <div class="field" style="flex:0.5; min-width:80px; align-self:flex-end;">
-          <button class="btn btn-ghost btn-sm" id="clearFilterBtn" style="width:100%;">Clear Filter</button>
-        </div>
+        <button type="button" class="btn btn-ghost btn-sm" id="salesTodayBtn" style="white-space:nowrap; height:38px;">Today</button>
+        <button class="btn btn-ghost btn-sm" id="clearFilterBtn" style="white-space:nowrap; height:38px;">Clear</button>
       </div>
 
       <div class="row" style="align-items:flex-end;">
@@ -695,13 +691,13 @@
         <div class="field"><label for="stockPurchaseCode">Stock Code</label><input type="text" id="stockPurchaseCode" class="mono" disabled placeholder="Select merchant &amp; date"></div>
         <div class="field"><label for="stockCapitalInvestment">Capital Investment (₹)</label><input type="number" id="stockCapitalInvestment" min="0" step="0.01" placeholder="0.00"></div>
         <div class="field">
-          <label for="stockCashIn">Reinvestment — Cash In (₹)</label>
-          <input type="number" id="stockCashIn" min="0" step="0.01" placeholder="0.00">
+          <label for="stockCashIn" style="color:#2E7D32;">Reinvestment — Cash In (₹)</label>
+          <input type="number" id="stockCashIn" min="0" step="0.01" placeholder="0.00" style="border-left:3px solid #2E7D32;">
           <div class="sub-hint" id="stockCashInHint">Max available: ₹0.00</div>
         </div>
         <div class="field">
-          <label for="stockUpiIn">Reinvestment — UPI In (₹)</label>
-          <input type="number" id="stockUpiIn" min="0" step="0.01" placeholder="0.00">
+          <label for="stockUpiIn" style="color:#1565C0;">Reinvestment — UPI In (₹)</label>
+          <input type="number" id="stockUpiIn" min="0" step="0.01" placeholder="0.00" style="border-left:3px solid #1565C0;">
           <div class="sub-hint" id="stockUpiInHint">Max available: ₹0.00</div>
         </div>
 
@@ -725,29 +721,27 @@
     </div>
     <div style="display:flex; gap:10px; margin-top:10px; margin-bottom:6px; padding:0 4px;">
       <button class="btn btn-primary" id="saveStockPurchaseBtn">Save</button>
-      <button class="btn btn-primary" id="saveStockReturnBtn" style="background:var(--gold); color:var(--charcoal);">Save Return</button>
       <button class="btn btn-ghost" id="cancelStockAcctBtn">Cancel</button>
     </div>
 
     <div class="card" style="margin-top:22px;">
       <div class="toolbar"><div class="title">Purchase Ledger</div></div>
       <p class="sub" style="margin-top:-8px;">Complete record of all stock purchases with returns, costs, and sales performance.</p>
-      <div class="form-row" style="flex-wrap:wrap; gap:10px; margin-bottom:12px;">
-        <div class="field" style="flex:1; min-width:130px;">
-          <label for="plFromDate">From Date</label>
+      <div style="display:flex; flex-wrap:nowrap; gap:8px; margin-bottom:12px; align-items:flex-end;">
+        <div class="field" style="flex:0 0 auto; margin-bottom:0;">
+          <label for="plFromDate">From</label>
           <input type="date" id="plFromDate">
         </div>
-        <div class="field" style="flex:1; min-width:130px;">
-          <label for="plToDate">To Date</label>
+        <div class="field" style="flex:0 0 auto; margin-bottom:0;">
+          <label for="plToDate">To</label>
           <input type="date" id="plToDate">
         </div>
-        <div class="field" style="flex:1.5; min-width:160px;">
+        <div style="width:16px;"></div>
+        <div class="field" style="flex:0 0 auto; margin-bottom:0;">
           <label for="plSearchInput">Search</label>
-          <input type="text" id="plSearchInput" placeholder="Merchant or stock code…">
+          <input type="text" id="plSearchInput" placeholder="Merchant / code…">
         </div>
-        <div class="field" style="flex:0.5; min-width:80px; align-self:flex-end;">
-          <button class="btn btn-ghost btn-sm" id="plClearFiltersBtn" style="width:100%;">Clear</button>
-        </div>
+        <button class="btn btn-ghost btn-sm" id="plClearFiltersBtn" style="white-space:nowrap; height:38px;">Clear</button>
       </div>
       <div class="catalog-scroll-frame">
       <div class="table-scroll">
@@ -2095,6 +2089,7 @@ document.getElementById('saveStockPurchaseBtn').addEventListener('click', ()=>{
     }
     editingPurchaseId = null;
     document.getElementById('saveStockPurchaseBtn').textContent = 'Save';
+    document.getElementById('cancelStockAcctBtn').textContent = 'Cancel';
     toast(`Purchase entry updated — ${stockCode}`);
   } else {
     stockPurchases.push({
@@ -2105,7 +2100,9 @@ document.getElementById('saveStockPurchaseBtn').addEventListener('click', ()=>{
     toast(`Stock purchase saved — code ${stockCode}`);
   }
   save(LS_STOCK_PURCHASES, stockPurchases);
+  if(!trySaveReturn(stockCode, m)) return;
   resetStockPurchaseForm();
+  resetStockReturnForm();
   renderPurchaseLedger();
   populateProductStockCodeSelect();
   populateReturnCodeSelect();
@@ -2209,27 +2206,24 @@ function resetStockReturnForm(){
   document.getElementById('stockReturnAmount').value='';
   populateReturnCodeSelect();
 }
-document.getElementById('saveStockReturnBtn').addEventListener('click', ()=>{
-  const m = getSelectedMerchantForReturn();
-  if(!m){ toast('Select a merchant in the Purchase Intake form first', true); return; }
+function trySaveReturn(stockCode, merchant){
   const sel = document.getElementById('returnCodeSelect');
-  const qty = parseInt(document.getElementById('stockReturnQty').value,10);
-  const amount = parseFloat(document.getElementById('stockReturnAmount').value);
-  if(!sel.value){ toast('Select a Stock Code'); return; }
-  if(isNaN(qty) || qty<1){ toast('Enter a valid return quantity'); return; }
-  if(isNaN(amount) || amount<0){ toast('Enter a valid return amount'); return; }
-  const sp = stockPurchases.find(x=>x.stockCode===sel.value);
-  if(sp && sp.merchantId !== m.id){ toast('Stock code does not belong to the selected merchant', true); return; }
-  const totalReturned = stockReturns.filter(r=>r.stockCode===sel.value).reduce((s,r)=>s+r.qty,0);
+  const qtyStr = document.getElementById('stockReturnQty').value;
+  const amtStr = document.getElementById('stockReturnAmount').value;
+  if(!qtyStr && !amtStr) return true;
+  const qty = parseInt(qtyStr,10);
+  const amount = parseFloat(amtStr);
+  const retCode = sel.value || stockCode;
+  if(isNaN(qty) || qty<1){ toast('Enter a valid return quantity', true); return false; }
+  if(isNaN(amount) || amount<0){ toast('Enter a valid return amount', true); return false; }
+  const sp = stockPurchases.find(x=>x.stockCode===retCode);
+  const totalReturned = stockReturns.filter(r=>r.stockCode===retCode).reduce((s,r)=>s+r.qty,0);
   const purchased = sp ? sp.qty : 0;
-  if(totalReturned + qty > purchased){ toast(`Cannot return more than purchased (${purchased} bought, ${totalReturned} already returned)`, true); return; }
-  stockReturns.push({id:uuid(), stockCode:sel.value, qty, amount, merchantId:m.id, merchantName:m.name, merchantCode:m.code, date:todayStr(), updatedAt:Date.now()});
+  if(totalReturned + qty > purchased){ toast(`Cannot return more than purchased (${purchased} bought, ${totalReturned} already returned)`, true); return false; }
+  stockReturns.push({id:uuid(), stockCode:retCode, qty, amount, merchantId:merchant.id, merchantName:merchant.name, merchantCode:merchant.code, date:todayStr(), updatedAt:Date.now()});
   save(LS_STOCK_RETURNS, stockReturns);
-  resetStockReturnForm();
-  renderPurchaseLedger();
-  toast('Stock return recorded');
-  pushChange();
-});
+  return true;
+}
 
 /* --- Purchase Ledger (full columns A–M with filters, search, delete) --- */
 function getReturnedForStock(stockCode){
@@ -2265,7 +2259,7 @@ function renderPurchaseLedger(){
     const returnedCost = returns.reduce((s,r)=>s+r.amount,0);
     const netQty = sp.qty - qtyReturned;
     const reinvestment = (sp.cashIn||0) + (sp.upiIn||0);
-    const reinvestmentDisplay = `Cash ${money(sp.cashIn||0)}, UPI ${money(sp.upiIn||0)} = ${money(reinvestment)}`;
+    const reinvestmentDisplay = `<span style="color:#2E7D32; font-weight:500;">₹${(sp.cashIn||0).toFixed(0)}</span> <span style="color:#6B6357; font-size:10px;">cash</span> + <span style="color:#1565C0; font-weight:500;">₹${(sp.upiIn||0).toFixed(0)}</span> <span style="color:#6B6357; font-size:10px;">upi</span>`;
     const stockCost = (sp.capitalInvestment||0) + reinvestment;
     const netStockCost = stockCost - returnedCost;
     const stockSales = getSalesForStock(sp.stockCode);
@@ -2365,6 +2359,7 @@ function editPurchaseLedgerEntry(id){
     }, 100);
   }
   document.getElementById('saveStockPurchaseBtn').textContent = 'Save Edit';
+  document.getElementById('cancelStockAcctBtn').textContent = 'Cancel Edit';
   document.getElementById('cancelStockAcctBtn').style.display = '';
   document.querySelector('#panel-stockacct').scrollIntoView({behavior:'smooth'});
   toast('Editing purchase entry — update fields and click Save Edit');
@@ -2376,6 +2371,7 @@ function cancelStockAcctEdit(){
   document.getElementById('stockReturnAmount').value='';
   document.getElementById('returnCodeSelect').value='';
   document.getElementById('saveStockPurchaseBtn').textContent = 'Save';
+  document.getElementById('cancelStockAcctBtn').textContent = 'Cancel';
   toast('Edit cancelled');
 }
 document.getElementById('cancelStockAcctBtn').addEventListener('click', cancelStockAcctEdit);
@@ -3182,7 +3178,7 @@ function renderHistory(){
              <option value="upi" ${first.paymentMode==='upi'?'selected':''}>UPI</option>
              <option value="loan" ${first.paymentMode==='loan'?'selected':''}>Loan</option>
            </select>`
-        : capitalizeMode(first.paymentMode);
+        : `<span style="color:${first.paymentMode==='cash'?'#2E7D32':first.paymentMode==='upi'?'#1565C0':'var(--burgundy)'}; font-weight:600;">${capitalizeMode(first.paymentMode)}</span>`;
       const paymentStatusCell = first.paymentStatus==='Pending'
         ? `<span class="pay-pending">Pending</span>`
         : `<span class="pay-done">Done</span>`;
