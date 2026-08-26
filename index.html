@@ -753,7 +753,32 @@
 
     <div class="card">
       <div class="toolbar"><div class="title">Cash Flow Ledger</div></div>
-      <p class="sub" style="margin-top:-8px;">Cash flow computation logic will be defined in a future update — this section is a placeholder for now.</p>
+      <p class="sub" style="margin-top:-8px;">Tracks cash and UPI flows across stock purchases — automatically derived from Purchase Ledger and Sales Book.</p>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>S.No.</th>
+              <th>Date</th>
+              <th>Stock Code</th>
+              <th class="num">Stock Cost</th>
+              <th class="num">Capital Inv.</th>
+              <th class="num">Reinvestment</th>
+              <th>Particulars</th>
+              <th class="num" style="color:#2E7D32;">Cash In</th>
+              <th class="num" style="color:#1565C0;">UPI In</th>
+              <th class="num" style="color:#2E7D32;">Cash Out</th>
+              <th class="num" style="color:#1565C0;">UPI Out</th>
+              <th class="num" style="color:#2E7D32;">Cash Balance</th>
+              <th class="num" style="color:#1565C0;">UPI Balance</th>
+              <th class="num">Net Balance</th>
+            </tr>
+          </thead>
+          <tbody id="cashFlowLedgerBody">
+            <tr class="empty-row"><td colspan="14">No entries — add stock purchases to generate the Cash Flow Ledger.</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </section>
 
@@ -2250,6 +2275,7 @@ function renderPurchaseLedger(){
 
   if(visible.length===0){
     body.innerHTML = `<tr class="empty-row"><td colspan="15">${stockPurchases.filter(sp=>!sp.isSeed).length===0 ? 'No purchases recorded yet' : 'No purchases match this filter/search'}</td></tr>`;
+    renderCashFlowLedger();
     return;
   }
 
@@ -2288,6 +2314,76 @@ function renderPurchaseLedger(){
       <td><button class="btn btn-ghost btn-sm" onclick="editPurchaseLedgerEntry('${sp.id}')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deletePurchaseLedgerEntry('${sp.id}')">Del</button>${seedItemCounts().total>0 ? ` <button class="btn btn-gold btn-sm" onclick="retrofitStockCode('${sp.id}')" title="Assign existing catalog &amp; sales data to this stock code">Retrofit</button>` : ''}</td>
     </tr>`;
   }).join('');
+  renderCashFlowLedger();
+}
+function renderCashFlowLedger(){
+  const body = document.getElementById('cashFlowLedgerBody');
+  if(!body) return;
+  const entries = stockPurchases.filter(sp=>!sp.isSeed)
+    .slice().sort((a,b)=> a.date.localeCompare(b.date) || (a.updatedAt||0)-(b.updatedAt||0));
+  if(entries.length===0){
+    body.innerHTML = '<tr class="empty-row"><td colspan="14">No entries — add stock purchases to generate the Cash Flow Ledger.</td></tr>';
+    return;
+  }
+  const floor = '2026-07-16';
+  let runCash = 0, runUpi = 0;
+  const rows = [];
+  entries.forEach((sp,idx)=>{
+    const sno = idx+1;
+    const prevDate = idx===0 ? floor : entries[idx-1].date;
+    const cashIn = sales.filter(s=> s.paymentMode==='cash' && s.date > prevDate && s.date <= sp.date)
+      .reduce((sum,s)=> sum + (s.amountPaid||0), 0);
+    const upiIn = sales.filter(s=> s.paymentMode==='upi' && s.date > prevDate && s.date <= sp.date)
+      .reduce((sum,s)=> sum + (s.amountPaid||0), 0);
+    const cashOut = sp.cashIn||0;
+    const upiOut = sp.upiIn||0;
+    const reinvestment = cashOut + upiOut;
+    const capitalInv = sp.capitalInvestment||0;
+    const stockCost = capitalInv + reinvestment;
+    const openCash = runCash;
+    const openUpi = runUpi;
+    runCash = openCash + cashIn - cashOut;
+    runUpi = openUpi + upiIn - upiOut;
+    const netBal = Math.max(0, runCash + runUpi - capitalInv);
+    const particulars = cashIn>0||upiIn>0 ? `Sales collected (${prevDate} → ${sp.date})` : 'No sales in period';
+    rows.push(`<tr style="border-top:2px solid var(--gold-line);">
+      <td rowspan="3" style="vertical-align:middle; font-weight:600; text-align:center;">${sno}</td>
+      <td rowspan="3" style="vertical-align:middle;">${esc(sp.date)}</td>
+      <td rowspan="3" class="mono" style="vertical-align:middle;">${esc(sp.stockCode)}</td>
+      <td rowspan="3" class="num" style="vertical-align:middle; font-weight:600;">${money(stockCost)}</td>
+      <td rowspan="3" class="num" style="vertical-align:middle;">${money(capitalInv)}</td>
+      <td rowspan="3" class="num" style="vertical-align:middle;">${money(reinvestment)}</td>
+      <td style="font-size:12px; color:var(--charcoal-muted);">Opening Balance</td>
+      <td class="num">—</td>
+      <td class="num">—</td>
+      <td class="num">—</td>
+      <td class="num">—</td>
+      <td class="num" style="color:#2E7D32; font-weight:500;">${money(openCash)}</td>
+      <td class="num" style="color:#1565C0; font-weight:500;">${money(openUpi)}</td>
+      <td class="num">—</td>
+    </tr>`);
+    rows.push(`<tr>
+      <td style="font-size:12px;">${esc(particulars)}</td>
+      <td class="num" style="color:#2E7D32; font-weight:600;">${cashIn>0 ? money(cashIn) : '—'}</td>
+      <td class="num" style="color:#1565C0; font-weight:600;">${upiIn>0 ? money(upiIn) : '—'}</td>
+      <td class="num">—</td>
+      <td class="num">—</td>
+      <td class="num">—</td>
+      <td class="num">—</td>
+      <td class="num">—</td>
+    </tr>`);
+    rows.push(`<tr style="background:var(--beige-soft);">
+      <td style="font-size:12px; font-weight:600;">Purchase Of New Stock</td>
+      <td class="num">—</td>
+      <td class="num">—</td>
+      <td class="num" style="color:#2E7D32; font-weight:600;">${cashOut>0 ? money(cashOut) : '—'}</td>
+      <td class="num" style="color:#1565C0; font-weight:600;">${upiOut>0 ? money(upiOut) : '—'}</td>
+      <td class="num" style="color:#2E7D32; font-weight:700;">${money(runCash)}</td>
+      <td class="num" style="color:#1565C0; font-weight:700;">${money(runUpi)}</td>
+      <td class="num" style="font-weight:700;">${money(netBal)}</td>
+    </tr>`);
+  });
+  body.innerHTML = rows.join('');
 }
 function deletePurchaseLedgerEntry(id){
   const sp = stockPurchases.find(x=>x.id===id);
@@ -3303,6 +3399,7 @@ function renderHistory(){
   fs.textContent = parts.length ? `Showing results — ${parts.join(', ')}. Summary cards above reflect this filtered view.` : '';
   updateSalesSearchSuggestions();
   updateCustNameSuggestions();
+  renderCashFlowLedger();
 }
 function recalcSaleRow(s){
   s.revenue = s.qty * s.price;
