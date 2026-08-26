@@ -2347,14 +2347,14 @@ function renderCashFlowLedger(){
   const floor = '2026-07-16';
   const D = '<td class="num cf-dash">—</td>';
   let runCash = 0, runUpi = 0;
-  const rows = [];
+  const blocks = [];
   entries.forEach((sp,idx)=>{
     const sno = idx+1;
     const prevDate = idx===0 ? floor : entries[idx-1].date;
     const sfbCI = sales.filter(s=> s.paymentMode==='cash' && s.date > prevDate && s.date <= sp.date)
-      .reduce((sum,s)=> sum + (s.amountPaid||0), 0);
+      .reduce((sum,s)=> sum + (s.revenue||0), 0);
     const sfbUI = sales.filter(s=> s.paymentMode==='upi' && s.date > prevDate && s.date <= sp.date)
-      .reduce((sum,s)=> sum + (s.amountPaid||0), 0);
+      .reduce((sum,s)=> sum + (s.revenue||0), 0);
     const pnsCO = sp.cashIn||0;
     const pnsUO = sp.upiIn||0;
     const reinvestment = pnsCO + pnsUO;
@@ -2369,7 +2369,7 @@ function renderCashFlowLedger(){
     runCash = pnsCB;
     runUpi = pnsUB;
     const sfbLabel = sfbCI>0||sfbUI>0 ? `Sale From Book <span style="font-size:10px; color:var(--charcoal-muted);">(${prevDate} → ${sp.date})</span>` : 'Sale From Book';
-    rows.push(`<tr class="cf-ob">
+    blocks.push(`<tr class="cf-ob">
       <td rowspan="3" class="cf-span" style="font-weight:700; text-align:center; font-size:13px;">${sno}</td>
       <td rowspan="3" class="cf-span" style="font-weight:500;">${esc(sp.date)}</td>
       <td rowspan="3" class="cf-span mono" style="font-weight:600;">${esc(sp.stockCode)}</td>
@@ -2381,14 +2381,14 @@ function renderCashFlowLedger(){
       <td class="num cf-upi cf-val">${obUI!==0 ? money(obUI) : '—'}</td>
       ${D}${D}${D}${D}
       <td rowspan="3" class="cf-span num cf-net" style="font-size:13px;">${money(netBal)}</td>
-    </tr>`);
-    rows.push(`<tr class="cf-sfb">
+    </tr>
+    <tr class="cf-sfb">
       <td class="cf-part">${sfbLabel}</td>
       <td class="num cf-cash cf-val">${sfbCI>0 ? money(sfbCI) : '—'}</td>
       <td class="num cf-upi cf-val">${sfbUI>0 ? money(sfbUI) : '—'}</td>
       ${D}${D}${D}${D}
-    </tr>`);
-    rows.push(`<tr class="cf-pns">
+    </tr>
+    <tr class="cf-pns">
       <td class="cf-part" style="font-weight:600; color:var(--charcoal);">Purchase Of New Stock</td>
       ${D}${D}
       <td class="num cf-cash cf-val">${pnsCO>0 ? money(pnsCO) : '—'}</td>
@@ -2397,7 +2397,8 @@ function renderCashFlowLedger(){
       <td class="num cf-upi" style="font-weight:700;">${money(pnsUB)}</td>
     </tr>`);
   });
-  body.innerHTML = rows.join('');
+  blocks.reverse();
+  body.innerHTML = blocks.join('');
 }
 function deletePurchaseLedgerEntry(id){
   const sp = stockPurchases.find(x=>x.id===id);
