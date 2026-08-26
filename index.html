@@ -751,27 +751,46 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="cashFlowCard">
       <div class="toolbar"><div class="title">Cash Flow Ledger</div></div>
       <p class="sub" style="margin-top:-8px;">Tracks cash and UPI flows across stock purchases — automatically derived from Purchase Ledger and Sales Book.</p>
-      <div style="overflow-x:auto;">
+      <style>
+        #cashFlowCard table{border-collapse:separate; border-spacing:0; width:100%;}
+        #cashFlowCard thead th{background:var(--teal); color:#fff; padding:10px 8px; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; border:none; position:sticky; top:0; z-index:2;}
+        #cashFlowCard thead th:first-child{border-radius:var(--radius-sm) 0 0 0;}
+        #cashFlowCard thead th:last-child{border-radius:0 var(--radius-sm) 0 0;}
+        #cashFlowCard tbody td{padding:7px 8px; font-size:12px; border-bottom:1px solid var(--line-soft);}
+        #cashFlowCard .cf-ob td{background:var(--cream);}
+        #cashFlowCard .cf-sfb td{background:var(--ivory);}
+        #cashFlowCard .cf-pns td{background:var(--beige-soft);}
+        #cashFlowCard .cf-ob td:first-child,
+        #cashFlowCard .cf-ob td[rowspan]{border-top:2px solid var(--gold-line);}
+        #cashFlowCard .cf-val{font-weight:600;}
+        #cashFlowCard .cf-dash{color:var(--grey-soft); text-align:center;}
+        #cashFlowCard .cf-cash{color:#2E7D32;}
+        #cashFlowCard .cf-upi{color:#1565C0;}
+        #cashFlowCard .cf-net{color:var(--teal); font-weight:700;}
+        #cashFlowCard .cf-span{vertical-align:middle; border-top:2px solid var(--gold-line); background:var(--ivory) !important;}
+        #cashFlowCard .cf-part{font-size:11px; letter-spacing:0.3px;}
+      </style>
+      <div style="overflow-x:auto; border-radius:var(--radius-sm); border:1px solid var(--line);">
         <table>
           <thead>
             <tr>
-              <th>S.No.</th>
+              <th style="width:46px;">S.No.</th>
               <th>Date</th>
               <th>Stock Code</th>
               <th class="num">Stock Cost</th>
               <th class="num">Capital Inv.</th>
               <th class="num">Reinvestment</th>
-              <th>Particulars</th>
-              <th class="num" style="color:#2E7D32;">Cash In</th>
-              <th class="num" style="color:#1565C0;">UPI In</th>
-              <th class="num" style="color:#2E7D32;">Cash Out</th>
-              <th class="num" style="color:#1565C0;">UPI Out</th>
-              <th class="num" style="color:#2E7D32;">Cash Balance</th>
-              <th class="num" style="color:#1565C0;">UPI Balance</th>
-              <th class="num">Net Balance</th>
+              <th style="min-width:120px;">Particulars</th>
+              <th class="num" style="color:#A5D6A7;">Cash In</th>
+              <th class="num" style="color:#90CAF9;">UPI In</th>
+              <th class="num" style="color:#A5D6A7;">Cash Out</th>
+              <th class="num" style="color:#90CAF9;">UPI Out</th>
+              <th class="num" style="color:#A5D6A7;">Cash Bal.</th>
+              <th class="num" style="color:#90CAF9;">UPI Bal.</th>
+              <th class="num" style="min-width:80px;">Net Bal.</th>
             </tr>
           </thead>
           <tbody id="cashFlowLedgerBody">
@@ -2326,61 +2345,56 @@ function renderCashFlowLedger(){
     return;
   }
   const floor = '2026-07-16';
+  const D = '<td class="num cf-dash">—</td>';
   let runCash = 0, runUpi = 0;
   const rows = [];
   entries.forEach((sp,idx)=>{
     const sno = idx+1;
     const prevDate = idx===0 ? floor : entries[idx-1].date;
-    const cashIn = sales.filter(s=> s.paymentMode==='cash' && s.date > prevDate && s.date <= sp.date)
+    const sfbCI = sales.filter(s=> s.paymentMode==='cash' && s.date > prevDate && s.date <= sp.date)
       .reduce((sum,s)=> sum + (s.amountPaid||0), 0);
-    const upiIn = sales.filter(s=> s.paymentMode==='upi' && s.date > prevDate && s.date <= sp.date)
+    const sfbUI = sales.filter(s=> s.paymentMode==='upi' && s.date > prevDate && s.date <= sp.date)
       .reduce((sum,s)=> sum + (s.amountPaid||0), 0);
-    const cashOut = sp.cashIn||0;
-    const upiOut = sp.upiIn||0;
-    const reinvestment = cashOut + upiOut;
+    const pnsCO = sp.cashIn||0;
+    const pnsUO = sp.upiIn||0;
+    const reinvestment = pnsCO + pnsUO;
     const capitalInv = sp.capitalInvestment||0;
     const stockCost = capitalInv + reinvestment;
-    const openCash = runCash;
-    const openUpi = runUpi;
-    runCash = openCash + cashIn - cashOut;
-    runUpi = openUpi + upiIn - upiOut;
-    const netBal = Math.max(0, runCash + runUpi - capitalInv);
-    const particulars = cashIn>0||upiIn>0 ? `Sales collected (${prevDate} → ${sp.date})` : 'No sales in period';
-    rows.push(`<tr style="border-top:2px solid var(--gold-line);">
-      <td rowspan="3" style="vertical-align:middle; font-weight:600; text-align:center;">${sno}</td>
-      <td rowspan="3" style="vertical-align:middle;">${esc(sp.date)}</td>
-      <td rowspan="3" class="mono" style="vertical-align:middle;">${esc(sp.stockCode)}</td>
-      <td rowspan="3" class="num" style="vertical-align:middle; font-weight:600;">${money(stockCost)}</td>
-      <td rowspan="3" class="num" style="vertical-align:middle;">${money(capitalInv)}</td>
-      <td rowspan="3" class="num" style="vertical-align:middle;">${money(reinvestment)}</td>
-      <td style="font-size:12px; color:var(--charcoal-muted);">Opening Balance</td>
-      <td class="num">—</td>
-      <td class="num">—</td>
-      <td class="num">—</td>
-      <td class="num">—</td>
-      <td class="num" style="color:#2E7D32; font-weight:500;">${money(openCash)}</td>
-      <td class="num" style="color:#1565C0; font-weight:500;">${money(openUpi)}</td>
-      <td class="num">—</td>
+    const obCI = runCash;
+    const obUI = runUpi;
+    const pnsCB = obCI + (sfbCI - pnsCO);
+    const pnsUB = obUI + (sfbUI - pnsUO);
+    const rawNB = pnsCB + pnsUB - capitalInv;
+    const netBal = Math.max(0, rawNB);
+    runCash = pnsCB;
+    runUpi = pnsUB;
+    const sfbLabel = sfbCI>0||sfbUI>0 ? `Sale From Book <span style="font-size:10px; color:var(--charcoal-muted);">(${prevDate} → ${sp.date})</span>` : 'Sale From Book';
+    rows.push(`<tr class="cf-ob">
+      <td rowspan="3" class="cf-span" style="font-weight:700; text-align:center; font-size:13px;">${sno}</td>
+      <td rowspan="3" class="cf-span" style="font-weight:500;">${esc(sp.date)}</td>
+      <td rowspan="3" class="cf-span mono" style="font-weight:600;">${esc(sp.stockCode)}</td>
+      <td rowspan="3" class="cf-span num cf-val">${money(stockCost)}</td>
+      <td rowspan="3" class="cf-span num">${money(capitalInv)}</td>
+      <td rowspan="3" class="cf-span num">${money(reinvestment)}</td>
+      <td class="cf-part" style="color:var(--charcoal-muted); font-weight:500;">Opening Balance</td>
+      <td class="num cf-cash cf-val">${obCI!==0 ? money(obCI) : '—'}</td>
+      <td class="num cf-upi cf-val">${obUI!==0 ? money(obUI) : '—'}</td>
+      ${D}${D}${D}${D}
+      <td rowspan="3" class="cf-span num cf-net" style="font-size:13px;">${money(netBal)}</td>
     </tr>`);
-    rows.push(`<tr>
-      <td style="font-size:12px;">${esc(particulars)}</td>
-      <td class="num" style="color:#2E7D32; font-weight:600;">${cashIn>0 ? money(cashIn) : '—'}</td>
-      <td class="num" style="color:#1565C0; font-weight:600;">${upiIn>0 ? money(upiIn) : '—'}</td>
-      <td class="num">—</td>
-      <td class="num">—</td>
-      <td class="num">—</td>
-      <td class="num">—</td>
-      <td class="num">—</td>
+    rows.push(`<tr class="cf-sfb">
+      <td class="cf-part">${sfbLabel}</td>
+      <td class="num cf-cash cf-val">${sfbCI>0 ? money(sfbCI) : '—'}</td>
+      <td class="num cf-upi cf-val">${sfbUI>0 ? money(sfbUI) : '—'}</td>
+      ${D}${D}${D}${D}
     </tr>`);
-    rows.push(`<tr style="background:var(--beige-soft);">
-      <td style="font-size:12px; font-weight:600;">Purchase Of New Stock</td>
-      <td class="num">—</td>
-      <td class="num">—</td>
-      <td class="num" style="color:#2E7D32; font-weight:600;">${cashOut>0 ? money(cashOut) : '—'}</td>
-      <td class="num" style="color:#1565C0; font-weight:600;">${upiOut>0 ? money(upiOut) : '—'}</td>
-      <td class="num" style="color:#2E7D32; font-weight:700;">${money(runCash)}</td>
-      <td class="num" style="color:#1565C0; font-weight:700;">${money(runUpi)}</td>
-      <td class="num" style="font-weight:700;">${money(netBal)}</td>
+    rows.push(`<tr class="cf-pns">
+      <td class="cf-part" style="font-weight:600; color:var(--charcoal);">Purchase Of New Stock</td>
+      ${D}${D}
+      <td class="num cf-cash cf-val">${pnsCO>0 ? money(pnsCO) : '—'}</td>
+      <td class="num cf-upi cf-val">${pnsUO>0 ? money(pnsUO) : '—'}</td>
+      <td class="num cf-cash" style="font-weight:700;">${money(pnsCB)}</td>
+      <td class="num cf-upi" style="font-weight:700;">${money(pnsUB)}</td>
     </tr>`);
   });
   body.innerHTML = rows.join('');
