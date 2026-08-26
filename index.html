@@ -2259,7 +2259,10 @@ function renderPurchaseLedger(){
     const returnedCost = returns.reduce((s,r)=>s+r.amount,0);
     const netQty = sp.qty - qtyReturned;
     const reinvestment = (sp.cashIn||0) + (sp.upiIn||0);
-    const reinvestmentDisplay = `<span style="color:#2E7D32; font-weight:500;">₹${(sp.cashIn||0).toFixed(0)}</span> <span style="color:#6B6357; font-size:10px;">cash</span> + <span style="color:#1565C0; font-weight:500;">₹${(sp.upiIn||0).toFixed(0)}</span> <span style="color:#6B6357; font-size:10px;">upi</span>`;
+    const reinvestmentDisplay = `<div style="border:1px solid var(--gold-line); border-radius:4px; padding:3px 6px; text-align:center; line-height:1.4;">
+      <div style="font-weight:600; color:var(--charcoal); font-size:12px;">₹${reinvestment.toFixed(2)}</div>
+      <div style="font-size:10px;"><span style="color:#2E7D32; font-weight:500;">₹${(sp.cashIn||0).toFixed(0)}</span> <span style="color:#6B6357;">cash</span> + <span style="color:#1565C0; font-weight:500;">₹${(sp.upiIn||0).toFixed(0)}</span> <span style="color:#6B6357;">upi</span></div>
+    </div>`;
     const stockCost = (sp.capitalInvestment||0) + reinvestment;
     const netStockCost = stockCost - returnedCost;
     const stockSales = getSalesForStock(sp.stockCode);
@@ -2276,7 +2279,7 @@ function renderPurchaseLedger(){
       <td class="num" style="color:var(--burgundy); font-weight:600;">${qtyReturned > 0 ? '-'+qtyReturned : '0'}</td>
       <td class="num" style="color:var(--green); font-weight:600;">${netQty}</td>
       <td class="num">${money(sp.capitalInvestment||0)}</td>
-      <td class="num" style="font-size:11px;">${reinvestmentDisplay}</td>
+      <td class="num" style="padding:2px 4px;">${reinvestmentDisplay}</td>
       <td class="num">${money(stockCost)}</td>
       <td class="num" style="color:var(--burgundy); font-weight:600;">${returnedCost > 0 ? '-'+money(returnedCost) : money(0)}</td>
       <td class="num" style="color:var(--green); font-weight:600;">${money(netStockCost)}</td>
