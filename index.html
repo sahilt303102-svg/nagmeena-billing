@@ -573,7 +573,7 @@
       <div class="stat"><div class="label">Bills Raised</div><div class="value" id="statBills">0</div></div>
       <div class="stat"><div class="label">Total Qty Sold</div><div class="value" id="statTotalQty">0</div></div>
       <div class="stat"><div class="label">Expected Revenue</div><div class="value" id="statRevenue">₹0.00</div></div>
-      <div class="stat actual-revenue"><div class="label">Actual Revenue</div><div class="value" id="statActualRevenue">₹0.00</div></div>
+      <div class="stat actual-revenue"><div class="label">Actual Revenue</div><div class="value" id="statActualRevenue">₹0.00</div><div id="statActualRevenueBreakdown" style="margin-top:4px; font-size:11px; line-height:1.3;"></div></div>
       <div class="stat cost"><div class="label">Cost of Goods</div><div class="value" id="statCost">₹0.00</div></div>
       <div class="stat profit"><div class="label">Total Profit</div><div class="value" id="statProfit">₹0.00</div></div>
       <div class="stat profit"><div class="label">Total Profit %</div><div class="value" id="statProfitPct">0%</div></div>
@@ -3259,7 +3259,36 @@ function renderHistory(){
   document.getElementById('statBills').textContent=bills;
   document.getElementById('statTotalQty').textContent=totalQty;
   document.getElementById('statRevenue').textContent= salesUnmasked ? money(revenue) : maskMoney();
-  document.getElementById('statActualRevenue').textContent= salesUnmasked ? money(actualRevenue) : maskMoney();
+  const activeModeFilter = (salesSearchField==='paymentMode' && salesSearchQuery) ? salesSearchQuery : '';
+  const cashRevenue = visible.filter(s=>s.paymentMode==='cash').reduce((a,s)=>a+s.revenue,0);
+  const upiRevenue = visible.filter(s=>s.paymentMode==='upi').reduce((a,s)=>a+s.revenue,0);
+  const cashPending = new Map(); const upiPending = new Map();
+  visible.forEach(s=>{
+    if(s.paymentMode==='cash' && !cashPending.has(s.invoice)) cashPending.set(s.invoice, s.pendingAmount||0);
+    if(s.paymentMode==='upi' && !upiPending.has(s.invoice)) upiPending.set(s.invoice, s.pendingAmount||0);
+  });
+  const actualCash = Math.max(0, cashRevenue - Array.from(cashPending.values()).reduce((a,b)=>a+b,0));
+  const actualUpi = Math.max(0, upiRevenue - Array.from(upiPending.values()).reduce((a,b)=>a+b,0));
+
+  const arEl = document.getElementById('statActualRevenue');
+  const arBreak = document.getElementById('statActualRevenueBreakdown');
+  if(!salesUnmasked){
+    arEl.textContent = maskMoney();
+    arEl.style.color = '';
+    arBreak.innerHTML = '';
+  } else if(activeModeFilter === 'cash'){
+    arEl.textContent = money(actualCash);
+    arEl.style.color = '#2E7D32';
+    arBreak.innerHTML = '<span style="color:#2E7D32; font-weight:500;">cash</span>';
+  } else if(activeModeFilter === 'upi'){
+    arEl.textContent = money(actualUpi);
+    arEl.style.color = '#1565C0';
+    arBreak.innerHTML = '<span style="color:#1565C0; font-weight:500;">upi</span>';
+  } else {
+    arEl.textContent = money(actualRevenue);
+    arEl.style.color = '';
+    arBreak.innerHTML = `<span style="color:#2E7D32; font-weight:500;">₹${actualCash.toFixed(0)}</span> <span style="color:#6B6357;">cash</span> + <span style="color:#1565C0; font-weight:500;">₹${actualUpi.toFixed(0)}</span> <span style="color:#6B6357;">upi</span>`;
+  }
   document.getElementById('statCost').textContent= salesUnmasked ? money(cost) : maskMoney();
   document.getElementById('statProfit').textContent= salesUnmasked ? money(profit) : maskMoney();
   document.getElementById('statProfitPct').textContent= salesUnmasked ? totalProfitPercent.toFixed(1)+'%' : '••%';
