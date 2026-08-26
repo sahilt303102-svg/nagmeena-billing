@@ -487,6 +487,12 @@
         <h2 id="productFormTitle">Add Product</h2>
         <p class="sub">Build the code from its subsections. Pick "Blank" for a subsection you want left out of the description (its code still counts toward the product code). A date-time stamp is appended automatically on save.</p>
 
+        <div class="field">
+          <label for="pStockCode">Stock Code</label>
+          <select id="pStockCode"></select>
+          <div class="sub-hint" id="pStockCodeHint">Stock code stays selected for batch entry — change it when switching to a different stock.</div>
+        </div>
+
         <div class="recent-box" id="recentAddedBox">
           <div class="label">Just Saved — Code &amp; Description</div>
           <div class="code" id="recentAddedCode"></div>
@@ -502,11 +508,6 @@
         </div>
         <div class="field"><label for="pStock">Quantity</label><input type="number" id="pStock" min="0" step="1" placeholder="e.g. 10"></div>
         <div class="field"><label for="pCost">Cost Price (₹)</label><input type="number" id="pCost" min="0" step="0.01" placeholder="0.00"></div>
-        <div class="field">
-          <label for="pStockCode">Stock Code</label>
-          <select id="pStockCode"></select>
-          <div class="sub-hint" id="pStockCodeHint"></div>
-        </div>
 
         <div class="margin-calc">
           <p class="help">Enter Cost Price above, then any ONE of the three fields below — the other two fill in automatically (assumes selling at MRP).</p>
@@ -590,18 +591,20 @@
       </div>
       <p class="sub" style="margin-top:-8px;">Rows sharing an invoice number are merged. Click Edit once per invoice to unlock Customer, Number, Payment Mode, Qty, and Selling Price for every item in it. The summary cards above always reflect the current filter/search — clear both to see totals for the entire Sales Book.</p>
 
-      <div class="filter-bar">
-        <div class="filter-group">
-          <label>From Date</label>
-          <div class="date-select-row"><select id="fromDay"></select><select id="fromMonth"></select><select id="fromYear"></select></div>
+      <div class="form-row" style="flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+        <div class="field" style="flex:1; min-width:130px;">
+          <label for="salesFromDate">From Date</label>
+          <input type="date" id="salesFromDate">
         </div>
-        <div class="filter-group">
-          <label>To Date</label>
-          <div class="date-select-row"><select id="toDay"></select><select id="toMonth"></select><select id="toYear"></select></div>
+        <div class="field" style="flex:1; min-width:130px;">
+          <label for="salesToDate">To Date</label>
+          <div style="display:flex; gap:6px;">
+            <input type="date" id="salesToDate" style="flex:1;">
+            <button type="button" class="btn btn-ghost btn-sm" id="salesTodayBtn">Today</button>
+          </div>
         </div>
-        <div class="filter-actions">
-          <button class="btn btn-primary btn-sm" id="applyFilterBtn">Apply Filter</button>
-          <button class="btn btn-ghost btn-sm" id="clearFilterBtn">Clear Filter</button>
+        <div class="field" style="flex:0.5; min-width:80px; align-self:flex-end;">
+          <button class="btn btn-ghost btn-sm" id="clearFilterBtn" style="width:100%;">Clear Filter</button>
         </div>
       </div>
 
@@ -702,10 +705,6 @@
           <div class="sub-hint" id="stockUpiInHint">Max available: ₹0.00</div>
         </div>
 
-        <div style="display:flex; gap:10px;">
-          <button class="btn btn-primary" id="saveStockPurchaseBtn">Save</button>
-          <button class="btn btn-ghost" id="cancelStockPurchaseBtn">Cancel</button>
-        </div>
       </div>
 
       <div class="card" style="margin-top:0;">
@@ -722,11 +721,12 @@
         </div>
         <div class="field"><label for="stockReturnQty">Quantity</label><input type="number" id="stockReturnQty" min="1" step="1" placeholder="e.g. 2"></div>
         <div class="field"><label for="stockReturnAmount">Amount (₹)</label><input type="number" id="stockReturnAmount" min="0" step="0.01" placeholder="0.00"></div>
-        <div style="display:flex; gap:10px;">
-          <button class="btn btn-primary" id="saveStockReturnBtn">Save</button>
-          <button class="btn btn-ghost" id="cancelStockReturnBtn">Cancel</button>
-        </div>
       </div>
+    </div>
+    <div style="display:flex; gap:10px; margin-top:10px; margin-bottom:6px; padding:0 4px;">
+      <button class="btn btn-primary" id="saveStockPurchaseBtn">Save</button>
+      <button class="btn btn-primary" id="saveStockReturnBtn" style="background:var(--gold); color:var(--charcoal);">Save Return</button>
+      <button class="btn btn-ghost" id="cancelStockAcctBtn">Cancel</button>
     </div>
 
     <div class="card" style="margin-top:22px;">
@@ -751,8 +751,8 @@
       </div>
       <div class="catalog-scroll-frame">
       <div class="table-scroll">
-      <table><thead><tr><th>Merchant</th><th>Date</th><th class="mono">Stock Code</th><th class="num">Qty Bought</th><th class="num">Qty Returned</th><th class="num">Net Qty</th><th class="num">Capital Inv.</th><th class="num">Reinvestment</th><th class="num">Stock Cost</th><th class="num">Returned Cost</th><th class="num">Net Stock Cost</th><th class="num">Revenue</th><th class="num">Profit</th><th></th></tr></thead>
-        <tbody id="purchaseLedgerBody"><tr class="empty-row"><td colspan="14">No purchases recorded yet</td></tr></tbody></table>
+      <table><thead><tr><th>Merchant</th><th>Date</th><th class="mono">Stock Code</th><th>Description</th><th class="num">Qty Bought</th><th class="num">Qty Returned</th><th class="num">Net Qty</th><th class="num">Capital Inv.</th><th class="num">Reinvestment</th><th class="num">Stock Cost</th><th class="num">Returned Cost</th><th class="num">Net Stock Cost</th><th class="num">Revenue</th><th class="num">Profit</th><th></th></tr></thead>
+        <tbody id="purchaseLedgerBody"><tr class="empty-row"><td colspan="15">No purchases recorded yet</td></tr></tbody></table>
       </div>
       </div>
     </div>
@@ -2048,7 +2048,6 @@ document.getElementById('stockPurchaseTodayBtn').addEventListener('click', ()=>{
   updateStockPurchaseCodePreview();
 });
 document.getElementById('stockPurchaseDate').addEventListener('change', updateStockPurchaseCodePreview);
-document.getElementById('cancelStockPurchaseBtn').addEventListener('click', resetStockPurchaseForm);
 document.getElementById('saveStockPurchaseBtn').addEventListener('click', ()=>{
   const catSel = document.getElementById('pcatSelect');
   const merchSel = document.getElementById('merchSelect');
@@ -2066,39 +2065,62 @@ document.getElementById('saveStockPurchaseBtn').addEventListener('click', ()=>{
   if(!dateVal){ toast('Select a purchase date'); return; }
   const stockCode = document.getElementById('stockPurchaseCode').value;
   if(!stockCode){ toast('Stock code could not be generated — check merchant and date'); return; }
-  if(stockPurchases.some(sp=>sp.stockCode===stockCode)){ toast(`Stock code "${stockCode}" already exists — change the date or merchant`, true); return; }
+  if(!editingPurchaseId && stockPurchases.some(sp=>sp.stockCode===stockCode)){ toast(`Stock code "${stockCode}" already exists — change the date or merchant`, true); return; }
   if(capital<0){ toast('Capital investment cannot be negative'); return; }
 
-  const floor = getLastPurchaseDateExclusiveFloor();
-  const maxCash = sumCollectedBetween('cash', floor, dateVal);
-  const maxUpi = sumCollectedBetween('upi', floor, dateVal);
-  if(cashIn < 0 || cashIn > maxCash + 0.005){ toast(`Cash In cannot exceed ${money(maxCash)} (cash collected since ${floor})`, true); return; }
-  if(upiIn < 0 || upiIn > maxUpi + 0.005){ toast(`UPI In cannot exceed ${money(maxUpi)} (UPI collected since ${floor})`, true); return; }
+  if(!editingPurchaseId){
+    const floor = getLastPurchaseDateExclusiveFloor();
+    const maxCash = sumCollectedBetween('cash', floor, dateVal);
+    const maxUpi = sumCollectedBetween('upi', floor, dateVal);
+    if(cashIn < 0 || cashIn > maxCash + 0.005){ toast(`Cash In cannot exceed ${money(maxCash)} (cash collected since ${floor})`, true); return; }
+    if(upiIn < 0 || upiIn > maxUpi + 0.005){ toast(`UPI In cannot exceed ${money(maxUpi)} (UPI collected since ${floor})`, true); return; }
+  }
 
   const cat = purchaseCategories[parseInt(catSel.value,10)];
   const m = merchants[parseInt(merchSel.value,10)];
 
-  stockPurchases.push({
-    id:uuid(), category:cat.name, categoryId:cat.id, qty, description:desc, date:dateVal,
-    merchantId:m.id, merchantName:m.name, merchantCode:m.code, stockCode,
-    capitalInvestment:capital, cashIn, upiIn, updatedAt:Date.now()
-  });
+  if(editingPurchaseId){
+    const idx = stockPurchases.findIndex(sp=>sp.id===editingPurchaseId);
+    if(idx<0){ toast('Purchase entry no longer exists'); editingPurchaseId=null; return; }
+    const old = stockPurchases[idx];
+    const oldCode = old.stockCode;
+    stockPurchases[idx] = {...old, category:cat.name, categoryId:cat.id, qty, description:desc, date:dateVal,
+      merchantId:m.id, merchantName:m.name, merchantCode:m.code, stockCode,
+      capitalInvestment:capital, cashIn, upiIn, updatedAt:Date.now()};
+    if(oldCode !== stockCode){
+      products.forEach(p=>{ if(p.stockCode===oldCode){ p.stockCode=stockCode; p.updatedAt=Date.now(); } });
+      sales.forEach(s=>{ if(s.stockCode===oldCode){ s.stockCode=stockCode; s.updatedAt=Date.now(); } });
+      stockReturns.forEach(r=>{ if(r.stockCode===oldCode){ r.stockCode=stockCode; r.updatedAt=Date.now(); } });
+      save(LS_PRODUCTS, products); save(LS_SALES, sales); save(LS_STOCK_RETURNS, stockReturns);
+    }
+    editingPurchaseId = null;
+    document.getElementById('saveStockPurchaseBtn').textContent = 'Save';
+    toast(`Purchase entry updated — ${stockCode}`);
+  } else {
+    stockPurchases.push({
+      id:uuid(), category:cat.name, categoryId:cat.id, qty, description:desc, date:dateVal,
+      merchantId:m.id, merchantName:m.name, merchantCode:m.code, stockCode,
+      capitalInvestment:capital, cashIn, upiIn, updatedAt:Date.now()
+    });
+    toast(`Stock purchase saved — code ${stockCode}`);
+  }
   save(LS_STOCK_PURCHASES, stockPurchases);
   resetStockPurchaseForm();
   renderPurchaseLedger();
   populateProductStockCodeSelect();
   populateReturnCodeSelect();
   renderProducts(); renderHistory();
-  toast(`Stock purchase saved — code ${stockCode}`);
   pushChange();
-  const seed = seedItemCounts();
-  if(seed.total > 0){
-    setTimeout(()=>{
-      if(confirm(`You have ${seed.prods} product(s) and ${seed.saleRecs} sale record(s) still on the default seed stock code.\n\nRetrofit them to "${stockCode}" so this purchase entry's Revenue and Profit reflect your actual sales?`)){
-        const sp = stockPurchases.find(x=>x.stockCode===stockCode);
-        if(sp) retrofitStockCode(sp.id);
-      }
-    }, 600);
+  if(!editingPurchaseId){
+    const seed = seedItemCounts();
+    if(seed.total > 0){
+      setTimeout(()=>{
+        if(confirm(`You have ${seed.prods} product(s) and ${seed.saleRecs} sale record(s) still on the default seed stock code.\n\nRetrofit them to "${stockCode}" so this purchase entry's Revenue and Profit reflect your actual sales?`)){
+          const sp = stockPurchases.find(x=>x.stockCode===stockCode);
+          if(sp) retrofitStockCode(sp.id);
+        }
+      }, 600);
+    }
   }
 });
 
@@ -2187,7 +2209,6 @@ function resetStockReturnForm(){
   document.getElementById('stockReturnAmount').value='';
   populateReturnCodeSelect();
 }
-document.getElementById('cancelStockReturnBtn').addEventListener('click', resetStockReturnForm);
 document.getElementById('saveStockReturnBtn').addEventListener('click', ()=>{
   const m = getSelectedMerchantForReturn();
   if(!m){ toast('Select a merchant in the Purchase Intake form first', true); return; }
@@ -2231,10 +2252,10 @@ function renderPurchaseLedger(){
     (sp.merchantCode||'').toLowerCase().includes(searchQ) ||
     sp.stockCode.toLowerCase().includes(searchQ)
   );
-  visible.sort((a,b)=> b.date.localeCompare(a.date) || (b.updatedAt||0)-(a.updatedAt||0));
+  visible.sort((a,b)=> a.date.localeCompare(b.date) || (a.updatedAt||0)-(b.updatedAt||0));
 
   if(visible.length===0){
-    body.innerHTML = `<tr class="empty-row"><td colspan="14">${stockPurchases.filter(sp=>!sp.isSeed).length===0 ? 'No purchases recorded yet' : 'No purchases match this filter/search'}</td></tr>`;
+    body.innerHTML = `<tr class="empty-row"><td colspan="15">${stockPurchases.filter(sp=>!sp.isSeed).length===0 ? 'No purchases recorded yet' : 'No purchases match this filter/search'}</td></tr>`;
     return;
   }
 
@@ -2248,13 +2269,15 @@ function renderPurchaseLedger(){
     const stockCost = (sp.capitalInvestment||0) + reinvestment;
     const netStockCost = stockCost - returnedCost;
     const stockSales = getSalesForStock(sp.stockCode);
-    const revenue = stockSales.reduce((s,sl)=>s+sl.revenue,0);
-    const profit = stockSales.reduce((s,sl)=>s+sl.profit,0);
+    const revenue = stockSales.reduce((s,sl)=>s+(sl.qty*sl.price),0);
+    const costOfGoods = stockSales.reduce((s,sl)=>s+(sl.qty*sl.cost),0);
+    const profit = revenue - costOfGoods;
 
     return `<tr>
       <td>${esc(sp.merchantName)} (${esc(sp.merchantCode)})</td>
       <td>${esc(sp.date)}</td>
       <td class="mono">${esc(sp.stockCode)}</td>
+      <td>${esc(sp.description||'')}</td>
       <td class="num">${sp.qty}</td>
       <td class="num" style="color:var(--burgundy); font-weight:600;">${qtyReturned > 0 ? '-'+qtyReturned : '0'}</td>
       <td class="num" style="color:var(--green); font-weight:600;">${netQty}</td>
@@ -2265,7 +2288,7 @@ function renderPurchaseLedger(){
       <td class="num" style="color:var(--green); font-weight:600;">${money(netStockCost)}</td>
       <td class="num">${money(revenue)}</td>
       <td class="num" style="color:${profit>=0?'var(--green)':'var(--burgundy)'}; font-weight:600;">${money(profit)}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="deletePurchaseLedgerEntry('${sp.id}')">Del</button>${seedItemCounts().total>0 ? ` <button class="btn btn-gold btn-sm" onclick="retrofitStockCode('${sp.id}')" title="Assign existing catalog &amp; sales data to this stock code">Retrofit</button>` : ''}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="editPurchaseLedgerEntry('${sp.id}')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deletePurchaseLedgerEntry('${sp.id}')">Del</button>${seedItemCounts().total>0 ? ` <button class="btn btn-gold btn-sm" onclick="retrofitStockCode('${sp.id}')" title="Assign existing catalog &amp; sales data to this stock code">Retrofit</button>` : ''}</td>
     </tr>`;
   }).join('');
 }
@@ -2314,6 +2337,48 @@ function retrofitStockCode(id){
   toast(`Retrofitted ${counts.prods} product(s) and ${counts.saleRecs} sale(s) to ${sp.stockCode}`);
   pushChange();
 }
+let editingPurchaseId = null;
+function editPurchaseLedgerEntry(id){
+  const sp = stockPurchases.find(x=>x.id===id);
+  if(!sp) return;
+  editingPurchaseId = sp.id;
+  const catIdx = purchaseCategories.findIndex(c=>c.id===sp.categoryId);
+  if(catIdx>=0) document.getElementById('pcatSelect').value = catIdx;
+  const merchIdx = merchants.findIndex(m=>m.id===sp.merchantId);
+  if(merchIdx>=0){ document.getElementById('merchSelect').value = merchIdx; onMerchantSelectChange(); }
+  document.getElementById('stockPurchaseQty').value = sp.qty;
+  document.getElementById('stockPurchaseDesc').value = sp.description||'';
+  document.getElementById('stockPurchaseDate').value = sp.date;
+  updateStockPurchaseCodePreview();
+  document.getElementById('stockCapitalInvestment').value = sp.capitalInvestment||0;
+  document.getElementById('stockCashIn').value = sp.cashIn||0;
+  document.getElementById('stockUpiIn').value = sp.upiIn||0;
+  const returns = getReturnedForStock(sp.stockCode);
+  if(returns.length > 0){
+    const r = returns[0];
+    const retSel = document.getElementById('returnCodeSelect');
+    setTimeout(()=>{
+      const opt = Array.from(retSel.options).find(o=>o.value===sp.stockCode);
+      if(opt) retSel.value = sp.stockCode;
+      document.getElementById('stockReturnQty').value = returns.reduce((s,x)=>s+x.qty,0);
+      document.getElementById('stockReturnAmount').value = returns.reduce((s,x)=>s+x.amount,0);
+    }, 100);
+  }
+  document.getElementById('saveStockPurchaseBtn').textContent = 'Save Edit';
+  document.getElementById('cancelStockAcctBtn').style.display = '';
+  document.querySelector('#panel-stockacct').scrollIntoView({behavior:'smooth'});
+  toast('Editing purchase entry — update fields and click Save Edit');
+}
+function cancelStockAcctEdit(){
+  editingPurchaseId = null;
+  resetStockPurchaseForm();
+  document.getElementById('stockReturnQty').value='';
+  document.getElementById('stockReturnAmount').value='';
+  document.getElementById('returnCodeSelect').value='';
+  document.getElementById('saveStockPurchaseBtn').textContent = 'Save';
+  toast('Edit cancelled');
+}
+document.getElementById('cancelStockAcctBtn').addEventListener('click', cancelStockAcctEdit);
 document.getElementById('plFromDate').addEventListener('change', renderPurchaseLedger);
 document.getElementById('plToDate').addEventListener('change', renderPurchaseLedger);
 document.getElementById('plSearchInput').addEventListener('input', renderPurchaseLedger);
@@ -2396,7 +2461,7 @@ function resetProductForm(){
   document.getElementById('pStock').value=''; document.getElementById('pCost').value='';
   clearMarginFields(null); marginDriver=null;
   CAT_KEYS.forEach(key=>{ populateSelect(key); onSelectChange(key); });
-  document.getElementById('pStockCode').value=''; updateProductStockCodeHint();
+  updateProductStockCodeHint();
 }
 document.getElementById('cancelEditBtn').addEventListener('click', resetProductForm);
 function deleteProduct(code){
@@ -2537,7 +2602,7 @@ function renderProducts(){
           <td class="num ${stock>0?'stock-ok':'stock-out'}">${stock>0?stock:'Out of stock'}</td>
           <td class="num">${costDisplay}</td><td class="num">${money(p.price)}</td>
           <td class="num" style="color:${catalogUnmasked ? (margin>=0?'var(--green)':'var(--burgundy)') : 'var(--grey-soft)'}">${marginDisplay}</td>
-          <td><select class="cell-select-themed" onchange="updateProductStockCode('${p.code}', this.value)">${stockCodeOptionsHtml(p.stockCode)}</select></td>
+          <td class="mono" style="font-size:12px;">${esc(p.stockCode||SEED_STOCK_CODE)}</td>
           <td><button class="btn btn-ghost btn-sm" onclick="editProduct('${p.code}')">Edit</button>
               <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.code}')">Delete</button></td>
         </tr>`;
@@ -3002,40 +3067,29 @@ document.getElementById('printPreviewPrintBtn').addEventListener('click', ()=>{
 });
 
 let activeFilter = null;
-const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-function populateDateSelects(prefix){
-  const daySel = document.getElementById(prefix+'Day'), monSel = document.getElementById(prefix+'Month'), yrSel = document.getElementById(prefix+'Year');
-  daySel.innerHTML = '<option value="">Day</option>' + Array.from({length:31},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('');
-  monSel.innerHTML = '<option value="">Month</option>' + MONTH_NAMES.map((m,i)=>`<option value="${i+1}">${m}</option>`).join('');
-  const curYear = new Date().getFullYear();
-  const years = []; for(let y=curYear; y>=curYear-5; y--) years.push(y);
-  yrSel.innerHTML = '<option value="">Year</option>' + years.map(y=>`<option value="${y}">${y}</option>`).join('');
-}
-populateDateSelects('from'); populateDateSelects('to');
-function getSelectedDate(prefix){
-  const d = document.getElementById(prefix+'Day').value, m = document.getElementById(prefix+'Month').value, y = document.getElementById(prefix+'Year').value;
-  if(!d || !m || !y) return null;
-  return new Date(parseInt(y,10), parseInt(m,10)-1, parseInt(d,10));
-}
-function parseSaleDate(str){ const [y,m,d] = str.split('-').map(Number); return new Date(y, m-1, d); }
-document.getElementById('applyFilterBtn').addEventListener('click', ()=>{
-  const from = getSelectedDate('from'), to = getSelectedDate('to');
-  const today = new Date(); today.setHours(23,59,59,999);
-  if(to && to > today){ toast('To date cannot be in the future', true); return; }
+function applySalesDateFilter(){
+  const from = document.getElementById('salesFromDate').value;
+  const to = document.getElementById('salesToDate').value;
   if(from && to && from > to){ toast('From date cannot be after To date', true); return; }
-  activeFilter = (from || to) ? {from, to} : null;
+  activeFilter = (from || to) ? {from: from||null, to: to||null} : null;
   renderHistory();
+}
+document.getElementById('salesFromDate').addEventListener('change', applySalesDateFilter);
+document.getElementById('salesToDate').addEventListener('change', applySalesDateFilter);
+document.getElementById('salesTodayBtn').addEventListener('click', ()=>{
+  document.getElementById('salesToDate').value = todayStr();
+  applySalesDateFilter();
 });
 document.getElementById('clearFilterBtn').addEventListener('click', ()=>{
-  ['fromDay','fromMonth','fromYear','toDay','toMonth','toYear'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('salesFromDate').value='';
+  document.getElementById('salesToDate').value='';
   activeFilter = null;
   renderHistory();
 });
 function matchesFilter(sale){
   if(!activeFilter) return true;
-  const d = parseSaleDate(sale.date);
-  if(activeFilter.from && d < activeFilter.from) return false;
-  if(activeFilter.to){ const toEnd = new Date(activeFilter.to); toEnd.setHours(23,59,59,999); if(d > toEnd) return false; }
+  if(activeFilter.from && sale.date < activeFilter.from) return false;
+  if(activeFilter.to && sale.date > activeFilter.to) return false;
   return true;
 }
 
