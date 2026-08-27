@@ -173,6 +173,23 @@
   .catalog-scroll-frame th:first-child, .sales-scroll-frame th:first-child{ border-top-left-radius:0; }
   .catalog-scroll-frame th:last-child, .sales-scroll-frame th:last-child{ border-top-right-radius:0; }
 
+  /* ── Luxurious teal-header style for Purchase Ledger, Sales Book, Product Catalog ── */
+  .lux-table table{border-collapse:separate; border-spacing:0; width:100%;}
+  .lux-table thead th{
+    background:var(--teal); color:#fff; padding:10px 8px; font-size:11px;
+    text-transform:uppercase; letter-spacing:0.5px; border:none;
+    position:sticky; top:0; z-index:5; box-shadow:none;
+  }
+  .lux-table thead th:first-child{border-radius:var(--radius-sm) 0 0 0;}
+  .lux-table thead th:last-child{border-radius:0 var(--radius-sm) 0 0;}
+  .lux-table tbody td{padding:8px 8px; font-size:12px; border-bottom:1px solid var(--line-soft);}
+  .lux-table tbody tr:nth-child(odd) td{background:var(--ivory);}
+  .lux-table tbody tr:nth-child(even) td{background:var(--cream);}
+  .lux-table tbody tr:hover td{background:var(--gold-soft);}
+  .lux-table tbody tr:last-child td{border-bottom:none;}
+  .lux-table .empty-row td{background:transparent !important;}
+
+
   .totals{ margin-top:16px; padding-top:16px; border-top:1px dashed var(--gold-line); }
   .totals .line{ display:flex; justify-content:space-between; font-size:13.5px; padding:4px 0; color:var(--charcoal-muted); }
   .totals .line.grand{ color:var(--teal); font-weight:700; font-size:19px; font-family:'Cormorant Garamond',serif; padding-top:8px; letter-spacing:0.3px; }
@@ -548,7 +565,7 @@
           </div>
         </div>
         <div class="catalog-total-qty" id="catalogTotalQty">All Units: <b>0</b> unit(s)</div>
-        <div class="catalog-scroll-frame">
+        <div class="catalog-scroll-frame lux-table">
         <div class="table-scroll">
         <table><thead><tr><th>Code</th><th>Description</th><th class="num">Stock</th><th class="num">Cost</th><th class="num">MRP</th><th class="num">Margin</th><th>Stock Code</th><th></th></tr></thead>
           <tbody id="productBody"><tr class="empty-row"><td colspan="8">No products yet</td></tr></tbody></table>
@@ -625,7 +642,7 @@
       </div>
       <div class="filter-status" id="filterStatus"></div>
 
-      <div class="sales-scroll-frame">
+      <div class="sales-scroll-frame lux-table">
       <div class="table-scroll">
       <table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Number</th><th>Payment Mode</th><th>Payment Status</th><th>Pending Amount</th><th>Code</th><th>Description</th><th>Stock Code</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">MRP</th><th class="num">Selling</th><th class="num">Margin/Pc</th><th class="num">Margin %</th><th class="num">Revenue</th><th class="num">Profit</th><th></th><th></th></tr></thead>
         <tbody id="historyBody"><tr class="empty-row"><td colspan="20">No sales recorded yet</td></tr></tbody></table>
@@ -743,7 +760,7 @@
         </div>
         <button class="btn btn-ghost btn-sm" id="plClearFiltersBtn" style="white-space:nowrap; height:38px;">Clear</button>
       </div>
-      <div class="catalog-scroll-frame">
+      <div class="catalog-scroll-frame lux-table">
       <div class="table-scroll">
       <table><thead><tr><th>Merchant</th><th>Date</th><th class="mono">Stock Code</th><th>Description</th><th class="num">Qty Bought</th><th class="num">Qty Returned</th><th class="num">Net Qty</th><th class="num">Capital Inv.</th><th class="num">Reinvestment</th><th class="num">Stock Cost</th><th class="num">Returned Cost</th><th class="num">Net Stock Cost</th><th class="num">Revenue</th><th class="num">Profit</th><th></th></tr></thead>
         <tbody id="purchaseLedgerBody"><tr class="empty-row"><td colspan="15">No purchases recorded yet</td></tr></tbody></table>
@@ -762,16 +779,19 @@
         #cashFlowCard tbody td{padding:7px 8px; font-size:12px; border-bottom:1px solid var(--line-soft);}
         #cashFlowCard .cf-ob td{background:var(--cream);}
         #cashFlowCard .cf-sfb td{background:var(--ivory);}
-        #cashFlowCard .cf-pns td{background:var(--beige-soft);}
+        #cashFlowCard .cf-pns td{background:var(--beige-soft); border-bottom:3px solid var(--gold);}
         #cashFlowCard .cf-ob td:first-child,
-        #cashFlowCard .cf-ob td[rowspan]{border-top:2px solid var(--gold-line);}
+        #cashFlowCard .cf-ob td[rowspan]{border-top:3px solid var(--gold);}
+        #cashFlowCard .cf-ob td:not([rowspan]):not(:first-child){border-top:3px solid var(--gold);}
         #cashFlowCard .cf-val{font-weight:600;}
         #cashFlowCard .cf-dash{color:var(--grey-soft); text-align:center;}
         #cashFlowCard .cf-cash{color:#2E7D32;}
         #cashFlowCard .cf-upi{color:#1565C0;}
         #cashFlowCard .cf-net{color:var(--teal); font-weight:700;}
-        #cashFlowCard .cf-span{vertical-align:middle; border-top:2px solid var(--gold-line); background:var(--ivory) !important;}
+        #cashFlowCard .cf-span{vertical-align:middle; border-top:3px solid var(--gold); border-left:3px solid var(--gold); background:var(--ivory) !important;}
         #cashFlowCard .cf-part{font-size:11px; letter-spacing:0.3px;}
+        #cashFlowCard .cf-sfb td:first-child,
+        #cashFlowCard .cf-pns td:first-child{padding-left:12px;}
       </style>
       <div style="overflow-x:auto; border-radius:var(--radius-sm); border:1px solid var(--line);">
         <table>
