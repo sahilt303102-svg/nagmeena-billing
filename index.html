@@ -456,8 +456,8 @@
           <h2>Items in this Bill</h2>
           <div class="table-scroll">
           <table>
-            <thead><tr><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th><th></th></tr></thead>
-            <tbody id="cartBody"><tr class="empty-row"><td colspan="6">No items added yet</td></tr></tbody>
+            <thead><tr><th style="width:40px"></th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th><th></th></tr></thead>
+            <tbody id="cartBody"><tr class="empty-row"><td colspan="7">No items added yet</td></tr></tbody>
           </table>
           </div>
           <div class="totals">
@@ -674,8 +674,8 @@
 
       <div class="sales-scroll-frame lux-table">
       <div class="table-scroll">
-      <table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Number</th><th>Payment Mode</th><th>Payment Status</th><th>Pending Amount</th><th>Code</th><th>Description</th><th>Stock Code</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">MRP</th><th class="num">Selling</th><th class="num">Margin/Pc</th><th class="num">Margin %</th><th class="num">Revenue</th><th class="num">Profit</th><th></th><th></th></tr></thead>
-        <tbody id="historyBody"><tr class="empty-row"><td colspan="20">No sales recorded yet</td></tr></tbody></table>
+      <table><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Number</th><th>Payment Mode</th><th>Payment Status</th><th>Pending Amount</th><th style="width:40px"></th><th>Code</th><th>Description</th><th>Stock Code</th><th class="num">Qty</th><th class="num">Cost</th><th class="num">MRP</th><th class="num">Selling</th><th class="num">Margin/Pc</th><th class="num">Margin %</th><th class="num">Revenue</th><th class="num">Profit</th><th></th><th></th></tr></thead>
+        <tbody id="historyBody"><tr class="empty-row"><td colspan="21">No sales recorded yet</td></tr></tbody></table>
       </div>
       </div>
     </div>
@@ -3025,10 +3025,10 @@ function pctText(v){ return (v>0?'+':'') + v.toFixed(1) + '%'; }
 function renderCart(){
   const body=document.getElementById('cartBody'), rv=document.getElementById('rvBody');
   if(cart.length===0){
-    body.innerHTML='<tr class="empty-row"><td colspan="6">No items added yet</td></tr>';
+    body.innerHTML='<tr class="empty-row"><td colspan="7">No items added yet</td></tr>';
     rv.innerHTML='<tr class="empty-row"><td colspan="3">Cart is empty</td></tr>';
   }else{
-    body.innerHTML=cart.map((c,i)=>`<tr><td class="mono">${esc(formatCode(c.code))}</td><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.price)}</td><td class="num">${money(c.qty*c.price)}</td><td><button class="btn btn-ghost btn-sm" onclick="removeCartItem(${i})">Remove</button></td></tr>`).join('');
+    body.innerHTML=cart.map((c,i)=>{ const pr=findProduct(c.code); const thumb=pr&&pr.image?`<img src="${pr.image}" onclick="viewImageLightbox(this.src)">`:'<span class="no-img">—</span>'; return `<tr><td><div class="cat-thumb">${thumb}</div></td><td class="mono">${esc(formatCode(c.code))}</td><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.price)}</td><td class="num">${money(c.qty*c.price)}</td><td><button class="btn btn-ghost btn-sm" onclick="removeCartItem(${i})">Remove</button></td></tr>`; }).join('');
     rv.innerHTML=cart.map(c=>`<tr><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.qty*c.price)}</td></tr>`).join('');
   }
   document.getElementById('cartCount').textContent=cart.reduce((s,c)=>s+c.qty,0);
@@ -3482,7 +3482,7 @@ function renderHistory(){
   const body=document.getElementById('historyBody');
 
   if(visible.length===0){
-    body.innerHTML = '<tr class="empty-row"><td colspan="20">No sales recorded yet</td></tr>';
+    body.innerHTML = '<tr class="empty-row"><td colspan="21">No sales recorded yet</td></tr>';
   }else{
     const groups = groupSalesByInvoice(visible);
     groups.sort((a,b)=> (b[0].date||'').localeCompare(a[0].date||'') || (b[0].updatedAt||0)-(a[0].updatedAt||0));
@@ -3541,6 +3541,8 @@ function renderHistory(){
           html += `<td class="merged-cell" rowspan="${rowspan}">${paymentStatusCell}</td>`;
           html += `<td class="merged-cell" rowspan="${rowspan}">${pendingAmountCell}</td>`;
         }
+        const sp=findProduct(s.code); const sThumb=sp&&sp.image?`<img src="${sp.image}" onclick="viewImageLightbox(this.src)">`:'<span class="no-img">—</span>';
+        html += `<td><div class="cat-thumb">${sThumb}</div></td>`;
         html += `<td class="mono">${esc(formatCode(s.code))}</td><td>${esc(s.product)}</td>`;
         html += `<td>${stockCodeCell}</td>`;
         html += `<td class="num">${qtyCell}</td>`;
