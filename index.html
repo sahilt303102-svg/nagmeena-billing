@@ -506,7 +506,11 @@
 
         <div class="field">
           <label for="pStockCode">Stock Code</label>
-          <select id="pStockCode"></select>
+          <div class="cat-suggest-wrap">
+            <input type="text" class="cat-search" id="pStockCodeInput" autocomplete="off" placeholder="Search or select stock code…" list="pStockCodeSuggestions">
+            <datalist id="pStockCodeSuggestions"></datalist>
+          </div>
+          <select id="pStockCode" style="margin-top:4px;"></select>
           <div class="sub-hint" id="pStockCodeHint">Stock code stays selected for batch entry — change it when switching to a different stock.</div>
         </div>
 
@@ -554,7 +558,7 @@
             <select id="stockFilterSelect"><option value="all">All</option><option value="in">In Stock</option><option value="out">Out of Stock</option></select>
           </div>
           <div class="field" style="flex:0.8;"><label for="searchFieldSelect">Search By</label>
-            <select id="searchFieldSelect"><option value="code">Product Code</option><option value="desc">Description</option><option value="price">MRP</option></select>
+            <select id="searchFieldSelect"><option value="code">Product Code</option><option value="desc">Description</option><option value="price">MRP</option><option value="stockCode">Stock Code</option></select>
           </div>
           <div class="field" style="flex:1.4;"><label for="catalogSearchInput">Search</label>
             <input type="text" id="catalogSearchInput" list="catalogSearchSuggestions" placeholder="Start typing…">
@@ -630,6 +634,7 @@
             <option value="paymentMode">Payment Mode</option>
             <option value="customer">Customer Name</option>
             <option value="number">Customer Number</option>
+            <option value="stockCode">Stock Code</option>
           </select>
         </div>
         <div class="field" style="flex:1.6;"><label for="salesSearchInput">Search</label>
@@ -742,7 +747,7 @@
     </div>
 
     <div class="card" style="margin-top:22px;">
-      <div class="toolbar"><div class="title">Purchase Ledger</div></div>
+      <div class="toolbar"><div class="title">Purchase Ledger</div><div class="actions"><button class="btn btn-gold btn-sm" id="exportPurchaseLedgerBtn">Export .xlsx</button></div></div>
       <p class="sub" style="margin-top:-8px;">Complete record of all stock purchases with returns, costs, and sales performance.</p>
       <div style="display:flex; flex-wrap:nowrap; gap:8px; margin-bottom:12px; align-items:flex-end;">
         <div class="field" style="flex:0 0 auto; margin-bottom:0;">
@@ -779,19 +784,23 @@
         #cashFlowCard tbody td{padding:7px 8px; font-size:12px; border-bottom:1px solid var(--line-soft);}
         #cashFlowCard .cf-ob td{background:var(--cream);}
         #cashFlowCard .cf-sfb td{background:var(--ivory);}
-        #cashFlowCard .cf-pns td{background:var(--beige-soft); border-bottom:3px solid var(--gold);}
+        #cashFlowCard .cf-pns td{background:var(--beige-soft); border-bottom:1px solid var(--gold-line);}
         #cashFlowCard .cf-ob td:first-child,
-        #cashFlowCard .cf-ob td[rowspan]{border-top:3px solid var(--gold);}
-        #cashFlowCard .cf-ob td:not([rowspan]):not(:first-child){border-top:3px solid var(--gold);}
+        #cashFlowCard .cf-ob td[rowspan]{border-top:1px solid var(--gold-line);}
+        #cashFlowCard .cf-ob td:not([rowspan]):not(:first-child){border-top:1px solid var(--gold-line);}
         #cashFlowCard .cf-val{font-weight:600;}
         #cashFlowCard .cf-dash{color:var(--grey-soft); text-align:center;}
         #cashFlowCard .cf-cash{color:#2E7D32;}
         #cashFlowCard .cf-upi{color:#1565C0;}
         #cashFlowCard .cf-net{color:var(--teal); font-weight:700;}
-        #cashFlowCard .cf-span{vertical-align:middle; border-top:3px solid var(--gold); border-left:3px solid var(--gold); background:var(--ivory) !important;}
+        #cashFlowCard .cf-span{vertical-align:middle; border-top:1px solid var(--gold-line); background:var(--ivory) !important;}
         #cashFlowCard .cf-part{font-size:11px; letter-spacing:0.3px;}
         #cashFlowCard .cf-sfb td:first-child,
         #cashFlowCard .cf-pns td:first-child{padding-left:12px;}
+        #cashFlowCard .cf-even .cf-ob td{background:var(--beige-soft);}
+        #cashFlowCard .cf-even .cf-sfb td{background:var(--cream);}
+        #cashFlowCard .cf-even .cf-pns td{background:#EDE5D3;}
+        #cashFlowCard .cf-even .cf-span{background:var(--cream) !important;}
       </style>
       <div style="overflow-x:auto; border-radius:var(--radius-sm); border:1px solid var(--line);">
         <table>
@@ -2046,7 +2055,17 @@ function populateProductStockCodeSelect(){
   const prev = sel.value;
   sel.innerHTML = '<option value="">Select stock code…</option>' + stockCodeOptionsHtml(null);
   if(prev && distinctStockPurchases().some(sp=>sp.stockCode===prev)) sel.value = prev;
+  updateProductStockCodeSuggestions();
   updateProductStockCodeHint();
+}
+function updateProductStockCodeSuggestions(){
+  const dl = document.getElementById('pStockCodeSuggestions');
+  if(!dl) return;
+  const input = document.getElementById('pStockCodeInput');
+  const q = (input ? input.value : '').trim().toLowerCase();
+  const all = distinctStockPurchases();
+  const filtered = q ? all.filter(sp=> sp.stockCode.toLowerCase().includes(q) || (sp.merchantName||'').toLowerCase().includes(q)) : all;
+  dl.innerHTML = filtered.map(sp=> `<option value="${esc(sp.stockCode)}">${esc(sp.stockCode)} — ${esc(sp.merchantName||'')}</option>`).join('');
 }
 function updateProductStockCodeHint(){
   const sel = document.getElementById('pStockCode');
@@ -2389,7 +2408,7 @@ function renderCashFlowLedger(){
     runCash = pnsCB;
     runUpi = pnsUB;
     const sfbLabel = sfbCI>0||sfbUI>0 ? `Sale From Book <span style="font-size:10px; color:var(--charcoal-muted);">(${prevDate} → ${sp.date})</span>` : 'Sale From Book';
-    blocks.push(`<tr class="cf-ob">
+    blocks.push({idx, html:`<tr class="cf-ob __ALT__">
       <td rowspan="3" class="cf-span" style="font-weight:700; text-align:center; font-size:13px;">${sno}</td>
       <td rowspan="3" class="cf-span" style="font-weight:500;">${esc(sp.date)}</td>
       <td rowspan="3" class="cf-span mono" style="font-weight:600;">${esc(sp.stockCode)}</td>
@@ -2402,23 +2421,23 @@ function renderCashFlowLedger(){
       ${D}${D}${D}${D}
       <td rowspan="3" class="cf-span num cf-net" style="font-size:13px;">${money(netBal)}</td>
     </tr>
-    <tr class="cf-sfb">
+    <tr class="cf-sfb __ALT__">
       <td class="cf-part">${sfbLabel}</td>
       <td class="num cf-cash cf-val">${sfbCI>0 ? money(sfbCI) : '—'}</td>
       <td class="num cf-upi cf-val">${sfbUI>0 ? money(sfbUI) : '—'}</td>
       ${D}${D}${D}${D}
     </tr>
-    <tr class="cf-pns">
+    <tr class="cf-pns __ALT__">
       <td class="cf-part" style="font-weight:600; color:var(--charcoal);">Purchase Of New Stock</td>
       ${D}${D}
       <td class="num cf-cash cf-val">${pnsCO>0 ? money(pnsCO) : '—'}</td>
       <td class="num cf-upi cf-val">${pnsUO>0 ? money(pnsUO) : '—'}</td>
       <td class="num cf-cash" style="font-weight:700;">${money(pnsCB)}</td>
       <td class="num cf-upi" style="font-weight:700;">${money(pnsUB)}</td>
-    </tr>`);
+    </tr>`});
   });
   blocks.reverse();
-  body.innerHTML = blocks.join('');
+  body.innerHTML = blocks.map((b,i)=> b.html.replace(/__ALT__/g, i%2===1 ? 'cf-even' : '')).join('');
 }
 function deletePurchaseLedgerEntry(id){
   const sp = stockPurchases.find(x=>x.id===id);
@@ -2446,6 +2465,53 @@ function deletePurchaseLedgerEntry(id){
   toast('Purchase entry deleted');
   pushChange();
 }
+document.getElementById('exportPurchaseLedgerBtn').addEventListener('click', ()=>{
+  const real = stockPurchases.filter(sp=>!sp.isSeed);
+  if(real.length===0){ toast('No purchase data to export yet'); return; }
+  const sorted = real.slice().sort((a,b)=> a.date.localeCompare(b.date) || (a.updatedAt||0)-(b.updatedAt||0));
+  const plRows = sorted.map(sp=>{
+    const returns = getReturnedForStock(sp.stockCode);
+    const qtyReturned = returns.reduce((s,r)=>s+r.qty,0);
+    const returnedCost = returns.reduce((s,r)=>s+r.amount,0);
+    const reinvestment = (sp.cashIn||0) + (sp.upiIn||0);
+    const stockCost = (sp.capitalInvestment||0) + reinvestment;
+    const netStockCost = stockCost - returnedCost;
+    const stockSales = getSalesForStock(sp.stockCode);
+    const revenue = stockSales.reduce((s,sl)=>s+(sl.qty*sl.price),0);
+    const costOfGoods = stockSales.reduce((s,sl)=>s+(sl.qty*sl.cost),0);
+    const profit = revenue - costOfGoods;
+    return {'Merchant':sp.merchantName+' ('+sp.merchantCode+')','Date':sp.date,'Stock Code':sp.stockCode,'Description':sp.description||'','Qty Bought':sp.qty,'Qty Returned':qtyReturned,'Net Qty':sp.qty-qtyReturned,'Capital Inv.':sp.capitalInvestment||0,'Cash Reinvest':sp.cashIn||0,'UPI Reinvest':sp.upiIn||0,'Total Reinvestment':reinvestment,'Stock Cost':stockCost,'Returned Cost':returnedCost,'Net Stock Cost':netStockCost,'Revenue':revenue,'Profit':profit};
+  });
+  const plWs = XLSX.utils.json_to_sheet(plRows);
+  plWs['!cols']=[{wch:20},{wch:12},{wch:16},{wch:20},{wch:10},{wch:12},{wch:8},{wch:12},{wch:12},{wch:12},{wch:14},{wch:12},{wch:12},{wch:14},{wch:12},{wch:12}];
+  const floor = '2026-07-16';
+  let runCash = 0, runUpi = 0;
+  const cfRows = [];
+  sorted.forEach((sp,idx)=>{
+    const prevDate = idx===0 ? floor : sorted[idx-1].date;
+    const sfbCI = sales.filter(s=> s.paymentMode==='cash' && s.date > prevDate && s.date <= sp.date).reduce((sum,s)=> sum + (s.revenue||0), 0);
+    const sfbUI = sales.filter(s=> s.paymentMode==='upi' && s.date > prevDate && s.date <= sp.date).reduce((sum,s)=> sum + (s.revenue||0), 0);
+    const pnsCO = sp.cashIn||0, pnsUO = sp.upiIn||0;
+    const reinvestment = pnsCO + pnsUO;
+    const capitalInv = sp.capitalInvestment||0;
+    const stockCost = capitalInv + reinvestment;
+    const obCI = runCash, obUI = runUpi;
+    const pnsCB = obCI + (sfbCI - pnsCO);
+    const pnsUB = obUI + (sfbUI - pnsUO);
+    const netBal = Math.max(0, pnsCB + pnsUB - capitalInv);
+    runCash = pnsCB; runUpi = pnsUB;
+    cfRows.push({'S.No.':idx+1,'Date':sp.date,'Stock Code':sp.stockCode,'Stock Cost':stockCost,'Capital Inv.':capitalInv,'Reinvestment':reinvestment,'Particulars':'Opening Balance','Cash In':obCI||'','UPI In':obUI||'','Cash Out':'','UPI Out':'','Cash Bal.':'','UPI Bal.':'','Net Bal.':''});
+    cfRows.push({'S.No.':'','Date':'','Stock Code':'','Stock Cost':'','Capital Inv.':'','Reinvestment':'','Particulars':'Sale From Book','Cash In':sfbCI||'','UPI In':sfbUI||'','Cash Out':'','UPI Out':'','Cash Bal.':'','UPI Bal.':'','Net Bal.':''});
+    cfRows.push({'S.No.':'','Date':'','Stock Code':'','Stock Cost':'','Capital Inv.':'','Reinvestment':'','Particulars':'Purchase Of New Stock','Cash In':'','UPI In':'','Cash Out':pnsCO||'','UPI Out':pnsUO||'','Cash Bal.':pnsCB,'UPI Bal.':pnsUB,'Net Bal.':netBal});
+  });
+  const cfWs = XLSX.utils.json_to_sheet(cfRows);
+  cfWs['!cols']=[{wch:6},{wch:12},{wch:16},{wch:12},{wch:12},{wch:12},{wch:20},{wch:12},{wch:12},{wch:12},{wch:12},{wch:12},{wch:12},{wch:12}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, plWs, 'Purchase Ledger');
+  XLSX.utils.book_append_sheet(wb, cfWs, 'Cash Flow Ledger');
+  XLSX.writeFile(wb, `Nagmeena_StockAccounting_${todayStr()}.xlsx`);
+  toast('Stock Accounting Excel file downloaded');
+});
 function seedItemCounts(){
   const prods = products.filter(p=>p.stockCode===SEED_STOCK_CODE).length;
   const saleRecs = sales.filter(s=>s.stockCode===SEED_STOCK_CODE).length;
@@ -2535,7 +2601,35 @@ document.getElementById('returnCodeSearch').addEventListener('input', e=>{ filte
 document.getElementById('returnCodeSearch').addEventListener('focus', e=>{ renderReturnCodeSuggestions(e.target.value); });
 document.getElementById('returnCodeSearch').addEventListener('blur', ()=>{ setTimeout(()=>{ const l=document.getElementById('returnCodeSuggestList'); if(l) l.classList.remove('show'); }, 150); });
 
-document.getElementById('pStockCode').addEventListener('change', updateProductStockCodeHint);
+document.getElementById('pStockCode').addEventListener('change', ()=>{
+  const input = document.getElementById('pStockCodeInput');
+  if(input) input.value = document.getElementById('pStockCode').value;
+  updateProductStockCodeHint();
+});
+document.getElementById('pStockCodeInput').addEventListener('input', ()=>{
+  const input = document.getElementById('pStockCodeInput');
+  const sel = document.getElementById('pStockCode');
+  const q = input.value.trim().toLowerCase();
+  const all = distinctStockPurchases();
+  const exact = all.find(sp=> sp.stockCode.toLowerCase()===q);
+  if(exact){ sel.value = exact.stockCode; }
+  else {
+    const partial = all.filter(sp=> sp.stockCode.toLowerCase().includes(q));
+    if(partial.length===1) sel.value = partial[0].stockCode;
+    else sel.value = '';
+  }
+  updateProductStockCodeSuggestions();
+  updateProductStockCodeHint();
+});
+document.getElementById('pStockCodeInput').addEventListener('change', ()=>{
+  const input = document.getElementById('pStockCodeInput');
+  const sel = document.getElementById('pStockCode');
+  const q = input.value.trim();
+  const match = distinctStockPurchases().find(sp=> sp.stockCode.toLowerCase()===q.toLowerCase());
+  if(match){ sel.value = match.stockCode; input.value = match.stockCode; }
+  else sel.value = '';
+  updateProductStockCodeHint();
+});
 
 /* ===== Products CRUD ===== */
 function findProduct(code){ code=(code||'').replace(/[^0-9A-Za-z]/g,'').toUpperCase(); return products.find(p=>p.code.toUpperCase()===code); }
@@ -2610,6 +2704,7 @@ function editProduct(code){
   document.getElementById('pCost').value = p.cost;
   populateProductStockCodeSelect();
   document.getElementById('pStockCode').value = p.stockCode || SEED_STOCK_CODE;
+  document.getElementById('pStockCodeInput').value = p.stockCode || SEED_STOCK_CODE;
   updateProductStockCodeHint();
   editingProductId = p.id;
   document.getElementById('productFormTitle').textContent=`Edit Product — ${formatCode(p.code)}`;
@@ -2676,6 +2771,7 @@ function updateCatalogSuggestions(){
   let values;
   if(searchField==='code') values = products.map(p=>formatCode(p.code));
   else if(searchField==='desc') values = products.map(p=>p.name);
+  else if(searchField==='stockCode') values = products.map(p=>p.stockCode||SEED_STOCK_CODE);
   else values = products.map(p=>String(p.price));
   dl.innerHTML = Array.from(new Set(values)).map(v=>`<option value="${esc(v)}">`).join('');
 }
@@ -2695,6 +2791,8 @@ function productMatchesFilters(p){
       if(!p.name.toLowerCase().includes(searchQuery)) return false;
     }else if(searchField==='price'){
       if(!String(p.price).includes(searchQuery)) return false;
+    }else if(searchField==='stockCode'){
+      if(!(p.stockCode||SEED_STOCK_CODE).toLowerCase().includes(searchQuery)) return false;
     }
   }
   return true;
@@ -3243,6 +3341,7 @@ function updateSalesSearchSuggestions(){
   else if(salesSearchField==='paymentStatus') values = ['Done','Pending'];
   else if(salesSearchField==='paymentMode') values = ['Cash','UPI','Loan'];
   else if(salesSearchField==='customer') values = sales.map(s=>s.customer||'');
+  else if(salesSearchField==='stockCode') values = sales.map(s=>s.stockCode||SEED_STOCK_CODE);
   else values = sales.map(s=>s.number||'');
   dl.innerHTML = Array.from(new Set(values.filter(Boolean))).map(v=>`<option value="${esc(v)}">`).join('');
 }
@@ -3256,6 +3355,7 @@ function matchesSalesSearch(s){
     case 'paymentMode': return capitalizeMode(s.paymentMode).toLowerCase().includes(q);
     case 'customer': return (s.customer||'').toLowerCase().includes(q);
     case 'number': return (s.number||'').toLowerCase().includes(q);
+    case 'stockCode': return (s.stockCode||SEED_STOCK_CODE).toLowerCase().includes(q);
     default: return true;
   }
 }
@@ -3292,6 +3392,7 @@ function renderHistory(){
     body.innerHTML = '<tr class="empty-row"><td colspan="20">No sales recorded yet</td></tr>';
   }else{
     const groups = groupSalesByInvoice(visible);
+    groups.sort((a,b)=> (b[0].date||'').localeCompare(a[0].date||'') || (b[0].updatedAt||0)-(a[0].updatedAt||0));
     let html = '';
     groups.forEach(group=>{
       const invoiceNo = group[0].invoice;
@@ -3826,7 +3927,7 @@ async function doBackup(target){
     a.href=url; a.download = `Nagmeena_Backup_${todayStr()}.json`;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
-    toast('Local backup downloaded — includes Catalog, Sales Book, Contact Us & Profile');
+    toast('Local backup downloaded — includes Catalog, Sales Book, Stock Accounting, Contact Us & Profile');
   }
   if(target==='cloud' || target==='both'){
     if(!localStorage.getItem(LS_CLIENTID)){ toast('Add a Google Client ID and connect Drive first', true); return; }
@@ -3848,7 +3949,7 @@ document.getElementById('restoreFileInput').addEventListener('change', async (e)
     const text = await file.text();
     const data = JSON.parse(text);
     const added = applyBackupDataAdditive(data);
-    toast(`Restored from local backup — Catalog, Sales Book, Contact Us & Profile: ${added} record(s) added back, nothing removed`);
+    toast(`Restored from local backup — Catalog, Sales Book, Stock Accounting, Contact Us & Profile: ${added} record(s) added back, nothing removed`);
   }catch(err){ console.error(err); toast('Could not read that backup file — check it is a valid Nagmeena backup JSON', true); }
   e.target.value='';
 });
