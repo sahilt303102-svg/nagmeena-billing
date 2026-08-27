@@ -1041,7 +1041,8 @@ const LS_PRODUCTS='ledger_products', LS_SALES='ledger_sales', LS_SEQ='ledger_inv
       LS_PURCHASE_CATS='ledger_purchase_categories', LS_PURCHASE_CAT_TOMB='ledger_purchase_category_tombstones',
       LS_MERCHANTS='ledger_merchants', LS_MERCHANT_TOMB='ledger_merchant_tombstones',
       LS_STOCK_PURCHASES='ledger_stock_purchases', LS_STOCK_PURCHASE_TOMB='ledger_stock_purchase_tombstones',
-      LS_STOCK_RETURNS='ledger_stock_returns', LS_STOCK_RETURN_TOMB='ledger_stock_return_tombstones';
+      LS_STOCK_RETURNS='ledger_stock_returns', LS_STOCK_RETURN_TOMB='ledger_stock_return_tombstones',
+      LS_PRODUCT_IMAGES='ledger_product_images';
 
 const INSTAGRAM_URL = 'https://www.instagram.com/thenagmeena?igsh=MXMxM2lrb2N2YTZocg==';
 const SEED_STOCK_CODE = 'JC-180726';
@@ -1101,6 +1102,33 @@ let stockPurchases = load(LS_STOCK_PURCHASES, []);
 let stockPurchaseTombstones = load(LS_STOCK_PURCHASE_TOMB, []);
 let stockReturns = load(LS_STOCK_RETURNS, []);
 let stockReturnTombstones = load(LS_STOCK_RETURN_TOMB, []);
+let productImages = load(LS_PRODUCT_IMAGES, {});
+
+(function migrateProductImagesToMap(){
+  let moved = false;
+  products.forEach(p=>{
+    if(p.image){
+      if(!productImages[p.code]) productImages[p.code] = p.image;
+      delete p.image;
+      moved = true;
+    }
+  });
+  if(moved){ save(LS_PRODUCTS, products); save(LS_PRODUCT_IMAGES, productImages); }
+})();
+
+function getProductImage(code){ return productImages[code] || null; }
+
+function cleanupOrphanedImages(){
+  const usedCodes = new Set();
+  products.forEach(p=> usedCodes.add(p.code));
+  sales.forEach(s=> usedCodes.add(s.code));
+  let changed = false;
+  Object.keys(productImages).forEach(code=>{
+    if(!usedCodes.has(code)){ delete productImages[code]; changed = true; }
+  });
+  if(changed) save(LS_PRODUCT_IMAGES, productImages);
+}
+
 function ensureSeedMerchantAndPurchase(){
   let touched = false;
   let jc = merchants.find(m=>m.code==='JC');
@@ -2681,8 +2709,11 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
     const clash = products.find(p=>p.id!==editingProductId && p.code===newFullCode);
     if(clash){ toast('Another product already uses this exact subsection combination'); return; }
     const desc = assembledDescription();
-    const imgVal = pendingProductImage==='__remove__' ? undefined : (pendingProductImage || existing.image);
-    products[idx] = {...existing, code:newFullCode, name:desc, cost, price, stock, stockCode, image:imgVal, updatedAt: Date.now()};
+    const imgVal = pendingProductImage==='__remove__' ? null : (pendingProductImage || getProductImage(existing.code));
+    if(existing.code !== newFullCode && getProductImage(existing.code)){ delete productImages[existing.code]; }
+    if(imgVal) productImages[newFullCode] = imgVal; else delete productImages[newFullCode];
+    save(LS_PRODUCT_IMAGES, productImages);
+    products[idx] = {...existing, code:newFullCode, name:desc, cost, price, stock, stockCode, updatedAt: Date.now()};
     finalCode = newFullCode; finalDesc = desc;
     editingProductId=null;
     document.getElementById('productFormTitle').textContent='Add Product';
@@ -2693,8 +2724,9 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
     const fullCode = comboCode + generateTimestampCode();
     if(!isValidProductCode(fullCode)){ toast('Could not build a valid 20-digit product code'); return; }
     if(findProduct(fullCode)){ toast('A product with this exact code already exists — try again in a moment'); return; }
-    const imgNew = pendingProductImage==='__remove__' ? undefined : pendingProductImage;
-    products.push({id:uuid(), code:fullCode, name:desc, cost, price, stock, stockCode, image:imgNew||undefined, updatedAt: Date.now()});
+    const imgNew = pendingProductImage==='__remove__' ? null : pendingProductImage;
+    if(imgNew) productImages[fullCode] = imgNew; save(LS_PRODUCT_IMAGES, productImages);
+    products.push({id:uuid(), code:fullCode, name:desc, cost, price, stock, stockCode, updatedAt: Date.now()});
     finalCode = fullCode; finalDesc = desc;
     toast(`Product added — code ${formatCode(fullCode)}`);
   }
@@ -2723,6 +2755,7 @@ function deleteProduct(code){
   if(p) productTombstones.push({id:p.id, deletedAt: Date.now()});
   products = products.filter(pr=>pr.code!==code);
   save(LS_PRODUCTS, products); save(LS_PROD_TOMB, productTombstones);
+  cleanupOrphanedImages();
   renderProducts();
   pushChange();
 }
@@ -2735,7 +2768,7 @@ function editProduct(code){
   document.getElementById('pStockCode').value = p.stockCode || SEED_STOCK_CODE;
   document.getElementById('pStockCodeInput').value = p.stockCode || SEED_STOCK_CODE;
   updateProductStockCodeHint();
-  pendingProductImage=null; setProductImagePreview(p.image||null);
+  pendingProductImage=null; setProductImagePreview(getProductImage(p.code));
   editingProductId = p.id;
   document.getElementById('productFormTitle').textContent=`Edit Product — ${formatCode(p.code)}`;
   document.getElementById('cancelEditBtn').style.display='inline-flex';
@@ -2855,7 +2888,7 @@ function renderProducts(){
         const margin = p.price - p.cost, stock = p.stock||0;
         const costDisplay = catalogUnmasked ? money(p.cost) : maskMoney();
         const marginDisplay = catalogUnmasked ? money(margin) : maskMoney();
-        const thumb = p.image ? `<img src="${p.image}" onclick="viewImageLightbox(this.src)">` : '<span class="no-img">—</span>';
+        const pImg = getProductImage(p.code); const thumb = pImg ? `<img src="${pImg}" onclick="viewImageLightbox(this.src)">` : '<span class="no-img">—</span>';
         return `<tr>
           <td><div class="cat-thumb">${thumb}</div></td>
           <td class="mono">${esc(formatCode(p.code))}</td><td>${esc(p.name)}</td>
@@ -3028,7 +3061,7 @@ function renderCart(){
     body.innerHTML='<tr class="empty-row"><td colspan="7">No items added yet</td></tr>';
     rv.innerHTML='<tr class="empty-row"><td colspan="3">Cart is empty</td></tr>';
   }else{
-    body.innerHTML=cart.map((c,i)=>{ const pr=findProduct(c.code); const thumb=pr&&pr.image?`<img src="${pr.image}" onclick="viewImageLightbox(this.src)">`:'<span class="no-img">—</span>'; return `<tr><td><div class="cat-thumb">${thumb}</div></td><td class="mono">${esc(formatCode(c.code))}</td><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.price)}</td><td class="num">${money(c.qty*c.price)}</td><td><button class="btn btn-ghost btn-sm" onclick="removeCartItem(${i})">Remove</button></td></tr>`; }).join('');
+    body.innerHTML=cart.map((c,i)=>{ const cImg=getProductImage(c.code); const thumb=cImg?`<img src="${cImg}" onclick="viewImageLightbox(this.src)">`:'<span class="no-img">—</span>'; return `<tr><td><div class="cat-thumb">${thumb}</div></td><td class="mono">${esc(formatCode(c.code))}</td><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.price)}</td><td class="num">${money(c.qty*c.price)}</td><td><button class="btn btn-ghost btn-sm" onclick="removeCartItem(${i})">Remove</button></td></tr>`; }).join('');
     rv.innerHTML=cart.map(c=>`<tr><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.qty*c.price)}</td></tr>`).join('');
   }
   document.getElementById('cartCount').textContent=cart.reduce((s,c)=>s+c.qty,0);
@@ -3541,7 +3574,7 @@ function renderHistory(){
           html += `<td class="merged-cell" rowspan="${rowspan}">${paymentStatusCell}</td>`;
           html += `<td class="merged-cell" rowspan="${rowspan}">${pendingAmountCell}</td>`;
         }
-        const sp=findProduct(s.code); const sThumb=sp&&sp.image?`<img src="${sp.image}" onclick="viewImageLightbox(this.src)">`:'<span class="no-img">—</span>';
+        const sImg=getProductImage(s.code); const sThumb=sImg?`<img src="${sImg}" onclick="viewImageLightbox(this.src)">`:'<span class="no-img">—</span>';
         html += `<td><div class="cat-thumb">${sThumb}</div></td>`;
         html += `<td class="mono">${esc(formatCode(s.code))}</td><td>${esc(s.product)}</td>`;
         html += `<td>${stockCodeCell}</td>`;
@@ -3744,6 +3777,7 @@ function deleteSaleRow(id){
   editingSaleIds.delete(id);
   recalcInvoicePaymentTotals(invoiceNo);
   save(LS_SALES,sales); save(LS_PRODUCTS, products); save(LS_SALE_TOMB, saleTombstones);
+  cleanupOrphanedImages();
   renderHistory(); renderProducts(); renderPurchaseLedger();
   pushChange();
 }
@@ -3757,6 +3791,7 @@ document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{
       sales.forEach(s=> saleTombstones.push({id:s.id, deletedAt: now}));
       sales=[]; editingSaleIds.clear();
       save(LS_SALES,sales); save(LS_SALE_TOMB, saleTombstones);
+      cleanupOrphanedImages();
       renderHistory(); toast('Sales Book cleared');
       pushChange();
     }
@@ -3993,7 +4028,7 @@ async function buildBackupPayload(){
   return {
     app:'Nagmeena Billing', backupCreatedAt: new Date().toISOString(),
     brandLogo: logo,
-    products, productTombstones, sales, saleTombstones, cats,
+    products, productTombstones, sales, saleTombstones, cats, productImages,
     contactPhones, contactAddresses, contactPhoneTombstones, contactAddressTombstones, contactMeta,
     users, userTombstones,
     purchaseCategories, purchaseCategoryTombstones, merchants, merchantTombstones,
@@ -4128,11 +4163,17 @@ function applyBackupDataAdditive(data){
   const currentSeq = parseInt(localStorage.getItem(LS_SEQ)||'0',10);
   if(incomingSeq > currentSeq) localStorage.setItem(LS_SEQ, String(incomingSeq));
 
+  if(data.productImages){
+    Object.keys(data.productImages).forEach(code=>{
+      if(!productImages[code]) productImages[code] = data.productImages[code];
+    });
+  }
+
   ensureDefaultUser();
   ensureSeedMerchantAndPurchase();
   retrofitStockCodes();
 
-  save(LS_PRODUCTS, products); save(LS_SALES, sales);
+  save(LS_PRODUCTS, products); save(LS_SALES, sales); save(LS_PRODUCT_IMAGES, productImages);
   save(LS_PROD_TOMB, productTombstones); save(LS_SALE_TOMB, saleTombstones);
   save(LS_PHONES, contactPhones); save(LS_ADDRS, contactAddresses);
   save(LS_PHONE_TOMB, contactPhoneTombstones); save(LS_ADDR_TOMB, contactAddressTombstones);
@@ -4269,7 +4310,7 @@ async function driveSaveFile(fileId, data){
 function normalizeRows(rows){ return (rows||[]).map(r=> (r.id && r.updatedAt) ? r : {...r, id: r.id || uuid(), updatedAt: r.updatedAt || Date.now()}); }
 function buildLocalPayload(){
   return {
-    products, productTombstones, sales, saleTombstones, cats,
+    products, productTombstones, sales, saleTombstones, cats, productImages,
     contactPhones, contactAddresses, contactPhoneTombstones, contactAddressTombstones, contactMeta,
     users, userTombstones,
     purchaseCategories, purchaseCategoryTombstones, merchants, merchantTombstones,
@@ -4285,7 +4326,7 @@ function isFreshLocalState(d){
 function hashPayload(data){
   const str = JSON.stringify({
     products:data.products, productTombstones:data.productTombstones,
-    sales:data.sales, saleTombstones:data.saleTombstones, cats:data.cats,
+    sales:data.sales, saleTombstones:data.saleTombstones, cats:data.cats, productImages:data.productImages||{},
     contactPhones:data.contactPhones, contactAddresses:data.contactAddresses,
     contactPhoneTombstones:data.contactPhoneTombstones, contactAddressTombstones:data.contactAddressTombstones,
     contactMeta:data.contactMeta, users:data.users, userTombstones:data.userTombstones, seq:data.seq,
@@ -4354,9 +4395,11 @@ function mergeData(local, cloud){
   const spMerge = mergeRows(localStockPurchases, cloudStockPurchases, local.stockPurchaseTombstones||[], cloud.stockPurchaseTombstones||[]);
   const srMerge = mergeRows(localStockReturns, cloudStockReturns, local.stockReturnTombstones||[], cloud.stockReturnTombstones||[]);
 
+  const mergedImages = Object.assign({}, cloud.productImages||{}, local.productImages||{});
+
   return {
     products: pMerge.rows, productTombstones: pMerge.tombstones,
-    sales: sMerge.rows, saleTombstones: sMerge.tombstones,
+    sales: sMerge.rows, saleTombstones: sMerge.tombstones, productImages: mergedImages,
     contactPhones: phMerge.rows, contactPhoneTombstones: phMerge.tombstones,
     contactAddresses: adMerge.rows, contactAddressTombstones: adMerge.tombstones,
     contactMeta: mergeContactMeta(local.contactMeta, cloud.contactMeta),
@@ -4381,6 +4424,7 @@ function applyRemoteData(data){
   merchants = data.merchants || []; merchantTombstones = data.merchantTombstones || [];
   stockPurchases = data.stockPurchases || []; stockPurchaseTombstones = data.stockPurchaseTombstones || [];
   stockReturns = data.stockReturns || []; stockReturnTombstones = data.stockReturnTombstones || [];
+  productImages = data.productImages || {};
   cats = ensureCatsShape(data.cats || JSON.parse(JSON.stringify(defaultCats)));
   ensureBlankEntries(cats);
   CAT_KEYS.forEach(key=>{ normalizeSeedIdsForCategory(key, cats[key]); recomputeFreeCodes(cats[key]); });
@@ -4391,7 +4435,7 @@ function applyRemoteData(data){
   ensureSeedMerchantAndPurchase();
   retrofitStockCodes();
   localStorage.setItem(LS_SEQ, String(data.seq || 0));
-  save(LS_PRODUCTS, products); save(LS_SALES, sales);
+  save(LS_PRODUCTS, products); save(LS_SALES, sales); save(LS_PRODUCT_IMAGES, productImages);
   save(LS_PROD_TOMB, productTombstones); save(LS_SALE_TOMB, saleTombstones); save(LS_CATS, cats);
   save(LS_PHONES, contactPhones); save(LS_ADDRS, contactAddresses);
   save(LS_PHONE_TOMB, contactPhoneTombstones); save(LS_ADDR_TOMB, contactAddressTombstones);
