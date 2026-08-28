@@ -35,7 +35,7 @@
     color:var(--charcoal); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;
     min-height:100vh;
   }
-  ::selection{ background:var(--gold-soft); }
+  ::selection{ background:#b3d9ff; color:#000; }
   button{ cursor:pointer; font-family:inherit; -webkit-appearance:none; appearance:none; }
   input,select,textarea{ font-family:inherit; color-scheme:light; }
   button:focus, input:focus, select:focus, textarea:focus, a:focus{ outline:none; }
@@ -163,7 +163,7 @@
     border-radius:var(--radius-sm);
     border:1px solid var(--line);
   }
-  .catalog-scroll-frame{ max-height:800px; flex:1; }
+  .catalog-scroll-frame{ max-height:800px; flex:1; margin:0 -30px -28px; border-radius:0 0 var(--radius) var(--radius); border-left:none; border-right:none; border-bottom:none; }
   .sales-scroll-frame{ max-height:700px; }
   .catalog-scroll-frame table, .sales-scroll-frame table{ border-radius:0; }
   .catalog-scroll-frame thead th, .sales-scroll-frame thead th{
