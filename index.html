@@ -626,6 +626,7 @@
       <div class="stat"><div class="label">Avg Margin/Pc</div><div class="value" id="statAvgMargin">₹0.00</div></div>
       <div class="stat"><div class="label">Avg Margin %</div><div class="value" id="statAvgMarginPct">0%</div></div>
       <div class="stat pending"><div class="label">Pending Payments</div><div class="value" id="statPending">₹0.00</div></div>
+      <div class="stat actual-revenue"><div class="label">Current Net Balance</div><div class="value" id="statCNB">₹0.00</div><div id="statCNBBreakdown" style="margin-top:4px; font-size:11px; line-height:1.3;"></div></div>
     </div>
     <div class="card" style="margin-top:0;">
       <div class="toolbar">
@@ -2146,8 +2147,8 @@ function updateReinvestmentHints(){
   const floor = getLastPurchaseDateExclusiveFloor();
   const maxCash = dateVal ? sumCollectedBetween('cash', floor, dateVal) : 0;
   const maxUpi = dateVal ? sumCollectedBetween('upi', floor, dateVal) : 0;
-  document.getElementById('stockCashInHint').textContent = `Max available: ${money(maxCash)} (cash collected since ${floor})`;
-  document.getElementById('stockUpiInHint').textContent = `Max available: ${money(maxUpi)} (UPI collected since ${floor})`;
+  document.getElementById('stockCashInHint').textContent = `Max available: ${money(maxCash)} (cash collected since ${fmtDate(floor)})`;
+  document.getElementById('stockUpiInHint').textContent = `Max available: ${money(maxUpi)} (UPI collected since ${fmtDate(floor)})`;
 }
 function updateStockPurchaseCodePreview(){
   const sel = document.getElementById('merchSelect');
@@ -2202,8 +2203,8 @@ document.getElementById('saveStockPurchaseBtn').addEventListener('click', ()=>{
     const floor = getLastPurchaseDateExclusiveFloor();
     const maxCash = sumCollectedBetween('cash', floor, dateVal);
     const maxUpi = sumCollectedBetween('upi', floor, dateVal);
-    if(cashIn < 0 || cashIn > maxCash + 0.005){ toast(`Cash In cannot exceed ${money(maxCash)} (cash collected since ${floor})`, true); return; }
-    if(upiIn < 0 || upiIn > maxUpi + 0.005){ toast(`UPI In cannot exceed ${money(maxUpi)} (UPI collected since ${floor})`, true); return; }
+    if(cashIn < 0 || cashIn > maxCash + 0.005){ toast(`Cash In cannot exceed ${money(maxCash)} (cash collected since ${fmtDate(floor)})`, true); return; }
+    if(upiIn < 0 || upiIn > maxUpi + 0.005){ toast(`UPI In cannot exceed ${money(maxUpi)} (UPI collected since ${fmtDate(floor)})`, true); return; }
   }
 
   const cat = purchaseCategories[parseInt(catSel.value,10)];
@@ -2409,7 +2410,7 @@ function renderPurchaseLedger(){
 
     return `<tr>
       <td>${esc(sp.merchantName)} (${esc(sp.merchantCode)})</td>
-      <td>${esc(sp.date)}</td>
+      <td>${fmtDate(sp.date)}</td>
       <td class="mono">${esc(sp.stockCode)}</td>
       <td>${esc(sp.description||'')}</td>
       <td class="num">${sp.qty}</td>
@@ -2439,14 +2440,17 @@ function renderCashFlowLedger(){
   const floor = '2026-07-16';
   const D = '<td class="num cf-dash">—</td>';
   let runCash = 0, runUpi = 0;
+  let lastSuitDate = floor;
   const blocks = [];
   entries.forEach((sp,idx)=>{
     const sno = idx+1;
-    const prevDate = idx===0 ? floor : entries[idx-1].date;
-    const sfbCI = sales.filter(s=> s.paymentMode==='cash' && s.date > prevDate && s.date <= sp.date)
-      .reduce((sum,s)=> sum + (s.revenue||0), 0);
-    const sfbUI = sales.filter(s=> s.paymentMode==='upi' && s.date > prevDate && s.date <= sp.date)
-      .reduce((sum,s)=> sum + (s.revenue||0), 0);
+    const isSuit = (sp.category||'').toLowerCase() === 'suit';
+    const sfbFrom = isSuit ? lastSuitDate : null;
+    const sfbCI = isSuit ? sales.filter(s=> s.paymentMode==='cash' && s.date > sfbFrom && s.date <= sp.date)
+      .reduce((sum,s)=> sum + (s.revenue||0), 0) : 0;
+    const sfbUI = isSuit ? sales.filter(s=> s.paymentMode==='upi' && s.date > sfbFrom && s.date <= sp.date)
+      .reduce((sum,s)=> sum + (s.revenue||0), 0) : 0;
+    if(isSuit) lastSuitDate = sp.date;
     const pnsCO = sp.cashIn||0;
     const pnsUO = sp.upiIn||0;
     const reinvestment = pnsCO + pnsUO;
@@ -2460,10 +2464,10 @@ function renderCashFlowLedger(){
     const netBal = Math.max(0, rawNB);
     runCash = pnsCB;
     runUpi = pnsUB;
-    const sfbLabel = sfbCI>0||sfbUI>0 ? `Sale From Book <span style="font-size:10px; color:var(--charcoal-muted);">(${prevDate} → ${sp.date})</span>` : 'Sale From Book';
+    const sfbLabel = isSuit && (sfbCI>0||sfbUI>0) ? `Sale From Book <span style="font-size:10px; color:var(--charcoal-muted);">(${fmtDate(sfbFrom)} → ${fmtDate(sp.date)})</span>` : 'Sale From Book';
     blocks.push({idx, html:`<tr class="cf-ob __ALT__">
       <td rowspan="3" class="cf-span" style="font-weight:700; text-align:center; font-size:13px;">${sno}</td>
-      <td rowspan="3" class="cf-span" style="font-weight:500;">${esc(sp.date)}</td>
+      <td rowspan="3" class="cf-span" style="font-weight:500;">${fmtDate(sp.date)}</td>
       <td rowspan="3" class="cf-span mono" style="font-weight:600;">${esc(sp.stockCode)}</td>
       <td rowspan="3" class="cf-span num cf-val">${money(stockCost)}</td>
       <td rowspan="3" class="cf-span num">${money(capitalInv)}</td>
@@ -2533,17 +2537,20 @@ document.getElementById('exportPurchaseLedgerBtn').addEventListener('click', ()=
     const revenue = stockSales.reduce((s,sl)=>s+(sl.qty*sl.price),0);
     const costOfGoods = stockSales.reduce((s,sl)=>s+(sl.qty*sl.cost),0);
     const profit = revenue - costOfGoods;
-    return {'Merchant':sp.merchantName+' ('+sp.merchantCode+')','Date':sp.date,'Stock Code':sp.stockCode,'Description':sp.description||'','Qty Bought':sp.qty,'Qty Returned':qtyReturned,'Net Qty':sp.qty-qtyReturned,'Capital Inv.':sp.capitalInvestment||0,'Cash Reinvest':sp.cashIn||0,'UPI Reinvest':sp.upiIn||0,'Total Reinvestment':reinvestment,'Stock Cost':stockCost,'Returned Cost':returnedCost,'Net Stock Cost':netStockCost,'Revenue':revenue,'Profit':profit};
+    return {'Merchant':sp.merchantName+' ('+sp.merchantCode+')','Date':fmtDate(sp.date),'Stock Code':sp.stockCode,'Description':sp.description||'','Qty Bought':sp.qty,'Qty Returned':qtyReturned,'Net Qty':sp.qty-qtyReturned,'Capital Inv.':sp.capitalInvestment||0,'Cash Reinvest':sp.cashIn||0,'UPI Reinvest':sp.upiIn||0,'Total Reinvestment':reinvestment,'Stock Cost':stockCost,'Returned Cost':returnedCost,'Net Stock Cost':netStockCost,'Revenue':revenue,'Profit':profit};
   });
   const plWs = XLSX.utils.json_to_sheet(plRows);
   plWs['!cols']=[{wch:20},{wch:12},{wch:16},{wch:20},{wch:10},{wch:12},{wch:8},{wch:12},{wch:12},{wch:12},{wch:14},{wch:12},{wch:12},{wch:14},{wch:12},{wch:12}];
   const floor = '2026-07-16';
   let runCash = 0, runUpi = 0;
+  let xlLastSuitDate = floor;
   const cfRows = [];
   sorted.forEach((sp,idx)=>{
-    const prevDate = idx===0 ? floor : sorted[idx-1].date;
-    const sfbCI = sales.filter(s=> s.paymentMode==='cash' && s.date > prevDate && s.date <= sp.date).reduce((sum,s)=> sum + (s.revenue||0), 0);
-    const sfbUI = sales.filter(s=> s.paymentMode==='upi' && s.date > prevDate && s.date <= sp.date).reduce((sum,s)=> sum + (s.revenue||0), 0);
+    const isSuit = (sp.category||'').toLowerCase() === 'suit';
+    const sfbFrom = isSuit ? xlLastSuitDate : null;
+    const sfbCI = isSuit ? sales.filter(s=> s.paymentMode==='cash' && s.date > sfbFrom && s.date <= sp.date).reduce((sum,s)=> sum + (s.revenue||0), 0) : 0;
+    const sfbUI = isSuit ? sales.filter(s=> s.paymentMode==='upi' && s.date > sfbFrom && s.date <= sp.date).reduce((sum,s)=> sum + (s.revenue||0), 0) : 0;
+    if(isSuit) xlLastSuitDate = sp.date;
     const pnsCO = sp.cashIn||0, pnsUO = sp.upiIn||0;
     const reinvestment = pnsCO + pnsUO;
     const capitalInv = sp.capitalInvestment||0;
@@ -2553,7 +2560,7 @@ document.getElementById('exportPurchaseLedgerBtn').addEventListener('click', ()=
     const pnsUB = obUI + (sfbUI - pnsUO);
     const netBal = Math.max(0, pnsCB + pnsUB - capitalInv);
     runCash = pnsCB; runUpi = pnsUB;
-    cfRows.push({'S.No.':idx+1,'Date':sp.date,'Stock Code':sp.stockCode,'Stock Cost':stockCost,'Capital Inv.':capitalInv,'Reinvestment':reinvestment,'Particulars':'Opening Balance','Cash In':obCI||'','UPI In':obUI||'','Cash Out':'','UPI Out':'','Cash Bal.':'','UPI Bal.':'','Net Bal.':''});
+    cfRows.push({'S.No.':idx+1,'Date':fmtDate(sp.date),'Stock Code':sp.stockCode,'Stock Cost':stockCost,'Capital Inv.':capitalInv,'Reinvestment':reinvestment,'Particulars':'Opening Balance','Cash In':obCI||'','UPI In':obUI||'','Cash Out':'','UPI Out':'','Cash Bal.':'','UPI Bal.':'','Net Bal.':''});
     cfRows.push({'S.No.':'','Date':'','Stock Code':'','Stock Cost':'','Capital Inv.':'','Reinvestment':'','Particulars':'Sale From Book','Cash In':sfbCI||'','UPI In':sfbUI||'','Cash Out':'','UPI Out':'','Cash Bal.':'','UPI Bal.':'','Net Bal.':''});
     cfRows.push({'S.No.':'','Date':'','Stock Code':'','Stock Cost':'','Capital Inv.':'','Reinvestment':'','Particulars':'Purchase Of New Stock','Cash In':'','UPI In':'','Cash Out':pnsCO||'','UPI Out':pnsUO||'','Cash Bal.':pnsCB,'UPI Bal.':pnsUB,'Net Bal.':netBal});
   });
@@ -3567,7 +3574,7 @@ function renderHistory(){
         html += '<tr>';
         if(idx===0){
           html += `<td class="mono merged-cell" rowspan="${rowspan}">${esc(invoiceNo)}</td>`;
-          html += `<td class="merged-cell" rowspan="${rowspan}">${esc(first.date)}</td>`;
+          html += `<td class="merged-cell" rowspan="${rowspan}">${fmtDate(first.date)}</td>`;
           html += `<td class="merged-cell" rowspan="${rowspan}">${custCell}</td>`;
           html += `<td class="mono merged-cell" rowspan="${rowspan}">${numCell}</td>`;
           html += `<td class="merged-cell" rowspan="${rowspan}">${paymentModeCell}</td>`;
@@ -3655,6 +3662,36 @@ function renderHistory(){
   document.getElementById('statAvgMargin').textContent= salesUnmasked ? money(avgMarginValue) : maskMoney();
   document.getElementById('statAvgMarginPct').textContent= salesUnmasked ? avgMarginPercent.toFixed(1)+'%' : '••%';
   document.getElementById('statPending').textContent = money(totalPending);
+
+  const cnbEl = document.getElementById('statCNB');
+  const cnbBreak = document.getElementById('statCNBBreakdown');
+  if(!salesUnmasked){
+    cnbEl.textContent = maskMoney();
+    cnbBreak.innerHTML = '';
+  } else {
+    const cfEntries = stockPurchases.filter(sp=>!sp.isSeed)
+      .slice().sort((a,b)=> a.date.localeCompare(b.date) || (a.updatedAt||0)-(b.updatedAt||0));
+    const cfFloor = '2026-07-16';
+    let cfCash = 0, cfUpi = 0, cfLastSuit = cfFloor, cfNB = 0;
+    cfEntries.forEach(sp=>{
+      const isSuit = (sp.category||'').toLowerCase() === 'suit';
+      const from = isSuit ? cfLastSuit : null;
+      const ci = isSuit ? sales.filter(s=> s.paymentMode==='cash' && s.date > from && s.date <= sp.date).reduce((t,s)=>t+(s.revenue||0),0) : 0;
+      const ui = isSuit ? sales.filter(s=> s.paymentMode==='upi' && s.date > from && s.date <= sp.date).reduce((t,s)=>t+(s.revenue||0),0) : 0;
+      if(isSuit) cfLastSuit = sp.date;
+      cfCash += ci - (sp.cashIn||0);
+      cfUpi += ui - (sp.upiIn||0);
+      cfNB = Math.max(0, cfCash + cfUpi - (sp.capitalInvestment||0));
+    });
+    const today = todayStr();
+    const ucr = sales.filter(s=> s.paymentMode==='cash' && s.date > cfLastSuit && s.date <= today).reduce((t,s)=>t+(s.revenue||0),0);
+    const uur = sales.filter(s=> s.paymentMode==='upi' && s.date > cfLastSuit && s.date <= today).reduce((t,s)=>t+(s.revenue||0),0);
+    let cnbCashPart, cnbUpiPart;
+    if(cfNB === 0){ cnbCashPart = ucr; cnbUpiPart = uur; }
+    else { cnbCashPart = cfCash + ucr; cnbUpiPart = cfUpi + uur; }
+    cnbEl.textContent = money(cnbCashPart + cnbUpiPart);
+    cnbBreak.innerHTML = `<span style="color:#2E7D32; font-weight:500;">₹${cnbCashPart.toFixed(0)}</span> <span style="color:#6B6357;">cash</span> + <span style="color:#1565C0; font-weight:500;">₹${cnbUpiPart.toFixed(0)}</span> <span style="color:#6B6357;">upi</span>`;
+  }
 
   const fs = document.getElementById('filterStatus');
   const parts = [];
@@ -4558,6 +4595,7 @@ setStatus(isDriveConnected() ? 'connecting' : 'disconnected');
 /* ===== Utilities ===== */
 function money(n){ return '₹'+(Number(n)||0).toFixed(2); }
 function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function fmtDate(d){ if(!d||d.length!==10) return d||''; const [y,m,dd]=d.split('-'); return dd+'-'+m+'-'+y; }
 function esc(str){ return String(str).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 function toast(msg, isErr, isSuccess){
   const t=document.getElementById('toast');
