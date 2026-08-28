@@ -2440,17 +2440,14 @@ function renderCashFlowLedger(){
   const floor = '2026-07-16';
   const D = '<td class="num cf-dash">—</td>';
   let runCash = 0, runUpi = 0;
-  let lastSuitDate = floor;
   const blocks = [];
   entries.forEach((sp,idx)=>{
     const sno = idx+1;
-    const isSuit = (sp.category||'').toLowerCase() === 'suit';
-    const sfbFrom = isSuit ? lastSuitDate : null;
-    const sfbCI = isSuit ? sales.filter(s=> s.paymentMode==='cash' && s.date > sfbFrom && s.date <= sp.date)
-      .reduce((sum,s)=> sum + (s.revenue||0), 0) : 0;
-    const sfbUI = isSuit ? sales.filter(s=> s.paymentMode==='upi' && s.date > sfbFrom && s.date <= sp.date)
-      .reduce((sum,s)=> sum + (s.revenue||0), 0) : 0;
-    if(isSuit) lastSuitDate = sp.date;
+    const prevDate = idx===0 ? floor : entries[idx-1].date;
+    const sfbCI = sales.filter(s=> s.paymentMode==='cash' && s.date > prevDate && s.date <= sp.date)
+      .reduce((sum,s)=> sum + (s.revenue||0), 0);
+    const sfbUI = sales.filter(s=> s.paymentMode==='upi' && s.date > prevDate && s.date <= sp.date)
+      .reduce((sum,s)=> sum + (s.revenue||0), 0);
     const pnsCO = sp.cashIn||0;
     const pnsUO = sp.upiIn||0;
     const reinvestment = pnsCO + pnsUO;
@@ -2464,7 +2461,7 @@ function renderCashFlowLedger(){
     const netBal = Math.max(0, rawNB);
     runCash = pnsCB;
     runUpi = pnsUB;
-    const sfbLabel = isSuit && (sfbCI>0||sfbUI>0) ? `Sale From Book <span style="font-size:10px; color:var(--charcoal-muted);">(${fmtDate(sfbFrom)} → ${fmtDate(sp.date)})</span>` : 'Sale From Book';
+    const sfbLabel = sfbCI>0||sfbUI>0 ? `Sale From Book <span style="font-size:10px; color:var(--charcoal-muted);">(${fmtDate(prevDate)} → ${fmtDate(sp.date)})</span>` : 'Sale From Book';
     blocks.push({idx, html:`<tr class="cf-ob __ALT__">
       <td rowspan="3" class="cf-span" style="font-weight:700; text-align:center; font-size:13px;">${sno}</td>
       <td rowspan="3" class="cf-span" style="font-weight:500;">${fmtDate(sp.date)}</td>
@@ -2543,14 +2540,11 @@ document.getElementById('exportPurchaseLedgerBtn').addEventListener('click', ()=
   plWs['!cols']=[{wch:20},{wch:12},{wch:16},{wch:20},{wch:10},{wch:12},{wch:8},{wch:12},{wch:12},{wch:12},{wch:14},{wch:12},{wch:12},{wch:14},{wch:12},{wch:12}];
   const floor = '2026-07-16';
   let runCash = 0, runUpi = 0;
-  let xlLastSuitDate = floor;
   const cfRows = [];
   sorted.forEach((sp,idx)=>{
-    const isSuit = (sp.category||'').toLowerCase() === 'suit';
-    const sfbFrom = isSuit ? xlLastSuitDate : null;
-    const sfbCI = isSuit ? sales.filter(s=> s.paymentMode==='cash' && s.date > sfbFrom && s.date <= sp.date).reduce((sum,s)=> sum + (s.revenue||0), 0) : 0;
-    const sfbUI = isSuit ? sales.filter(s=> s.paymentMode==='upi' && s.date > sfbFrom && s.date <= sp.date).reduce((sum,s)=> sum + (s.revenue||0), 0) : 0;
-    if(isSuit) xlLastSuitDate = sp.date;
+    const prevDate = idx===0 ? floor : sorted[idx-1].date;
+    const sfbCI = sales.filter(s=> s.paymentMode==='cash' && s.date > prevDate && s.date <= sp.date).reduce((sum,s)=> sum + (s.revenue||0), 0);
+    const sfbUI = sales.filter(s=> s.paymentMode==='upi' && s.date > prevDate && s.date <= sp.date).reduce((sum,s)=> sum + (s.revenue||0), 0);
     const pnsCO = sp.cashIn||0, pnsUO = sp.upiIn||0;
     const reinvestment = pnsCO + pnsUO;
     const capitalInv = sp.capitalInvestment||0;
@@ -3672,20 +3666,19 @@ function renderHistory(){
     const cfEntries = stockPurchases.filter(sp=>!sp.isSeed)
       .slice().sort((a,b)=> a.date.localeCompare(b.date) || (a.updatedAt||0)-(b.updatedAt||0));
     const cfFloor = '2026-07-16';
-    let cfCash = 0, cfUpi = 0, cfLastSuit = cfFloor, cfNB = 0;
-    cfEntries.forEach(sp=>{
-      const isSuit = (sp.category||'').toLowerCase() === 'suit';
-      const from = isSuit ? cfLastSuit : null;
-      const ci = isSuit ? sales.filter(s=> s.paymentMode==='cash' && s.date > from && s.date <= sp.date).reduce((t,s)=>t+(s.revenue||0),0) : 0;
-      const ui = isSuit ? sales.filter(s=> s.paymentMode==='upi' && s.date > from && s.date <= sp.date).reduce((t,s)=>t+(s.revenue||0),0) : 0;
-      if(isSuit) cfLastSuit = sp.date;
+    let cfCash = 0, cfUpi = 0, cfNB = 0, cfLastDate = cfFloor;
+    cfEntries.forEach((sp,idx)=>{
+      const prevDate = idx===0 ? cfFloor : cfEntries[idx-1].date;
+      const ci = sales.filter(s=> s.paymentMode==='cash' && s.date > prevDate && s.date <= sp.date).reduce((t,s)=>t+(s.revenue||0),0);
+      const ui = sales.filter(s=> s.paymentMode==='upi' && s.date > prevDate && s.date <= sp.date).reduce((t,s)=>t+(s.revenue||0),0);
       cfCash += ci - (sp.cashIn||0);
       cfUpi += ui - (sp.upiIn||0);
       cfNB = Math.max(0, cfCash + cfUpi - (sp.capitalInvestment||0));
+      cfLastDate = sp.date;
     });
     const today = todayStr();
-    const ucr = sales.filter(s=> s.paymentMode==='cash' && s.date > cfLastSuit && s.date <= today).reduce((t,s)=>t+(s.revenue||0),0);
-    const uur = sales.filter(s=> s.paymentMode==='upi' && s.date > cfLastSuit && s.date <= today).reduce((t,s)=>t+(s.revenue||0),0);
+    const ucr = sales.filter(s=> s.paymentMode==='cash' && s.date > cfLastDate && s.date <= today).reduce((t,s)=>t+(s.revenue||0),0);
+    const uur = sales.filter(s=> s.paymentMode==='upi' && s.date > cfLastDate && s.date <= today).reduce((t,s)=>t+(s.revenue||0),0);
     let cnbCashPart, cnbUpiPart;
     if(cfNB === 0){ cnbCashPart = ucr; cnbUpiPart = uur; }
     else { cnbCashPart = cfCash + ucr; cnbUpiPart = cfUpi + uur; }
