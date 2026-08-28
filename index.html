@@ -163,7 +163,7 @@
     border-radius:var(--radius-sm);
     border:1px solid var(--line);
   }
-  .catalog-scroll-frame{ max-height:800px; }
+  .catalog-scroll-frame{ max-height:800px; flex:1; }
   .sales-scroll-frame{ max-height:700px; }
   .catalog-scroll-frame table, .sales-scroll-frame table{ border-radius:0; }
   .catalog-scroll-frame thead th, .sales-scroll-frame thead th{
@@ -569,7 +569,7 @@
           <button class="btn btn-ghost" id="cancelEditBtn" style="display:none;">Cancel Edit</button>
         </div>
       </div>
-      <div class="card" style="margin-top:0;">
+      <div class="card" style="margin-top:0;align-self:stretch;display:flex;flex-direction:column;">
         <div class="toolbar">
           <div class="title">Catalog</div>
           <div class="actions">
