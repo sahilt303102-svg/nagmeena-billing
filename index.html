@@ -172,6 +172,7 @@
   }
   .catalog-scroll-frame th:first-child, .sales-scroll-frame th:first-child{ border-top-left-radius:0; }
   .catalog-scroll-frame th:last-child, .sales-scroll-frame th:last-child{ border-top-right-radius:0; }
+  .catalog-scroll-frame .table-scroll, .sales-scroll-frame .table-scroll{ overflow-x:visible; }
 
   /* ── Luxurious teal-header style for Purchase Ledger, Sales Book, Product Catalog ── */
   .lux-table table{border-collapse:separate; border-spacing:0; width:100%;}
@@ -793,8 +794,8 @@
       </div>
       <div class="catalog-scroll-frame lux-table">
       <div class="table-scroll">
-      <table><thead><tr><th>Merchant</th><th>Category</th><th>Date</th><th class="mono">Stock Code</th><th>Description</th><th class="num">Qty Bought</th><th class="num">Qty Returned</th><th class="num">Net Qty</th><th class="num">Capital Inv.</th><th class="num">Reinvestment</th><th class="num">Stock Cost</th><th class="num">Returned Cost</th><th class="num">Net Stock Cost</th><th class="num">Revenue</th><th class="num">Profit</th><th></th></tr></thead>
-        <tbody id="purchaseLedgerBody"><tr class="empty-row"><td colspan="16">No purchases recorded yet</td></tr></tbody></table>
+      <table><thead><tr><th style="width:46px;">S.No.</th><th>Merchant</th><th>Category</th><th>Date</th><th class="mono">Stock Code</th><th>Description</th><th class="num">Qty Bought</th><th class="num">Qty Returned</th><th class="num">Net Qty</th><th class="num">Capital Inv.</th><th class="num">Reinvestment</th><th class="num">Stock Cost</th><th class="num">Returned Cost</th><th class="num">Net Stock Cost</th><th class="num">Revenue</th><th class="num">Profit</th><th></th></tr></thead>
+        <tbody id="purchaseLedgerBody"><tr class="empty-row"><td colspan="17">No purchases recorded yet</td></tr></tbody></table>
       </div>
       </div>
     </div>
@@ -2388,12 +2389,12 @@ function renderPurchaseLedger(){
   visible.sort((a,b)=> a.date.localeCompare(b.date) || (a.updatedAt||0)-(b.updatedAt||0));
 
   if(visible.length===0){
-    body.innerHTML = `<tr class="empty-row"><td colspan="16">${stockPurchases.filter(sp=>!sp.isSeed).length===0 ? 'No purchases recorded yet' : 'No purchases match this filter/search'}</td></tr>`;
+    body.innerHTML = `<tr class="empty-row"><td colspan="17">${stockPurchases.filter(sp=>!sp.isSeed).length===0 ? 'No purchases recorded yet' : 'No purchases match this filter/search'}</td></tr>`;
     renderCashFlowLedger();
     return;
   }
 
-  body.innerHTML = visible.map(sp=>{
+  body.innerHTML = visible.map((sp,snoIdx)=>{
     const returns = getReturnedForStock(sp.stockCode);
     const qtyReturned = returns.reduce((s,r)=>s+r.qty,0);
     const returnedCost = returns.reduce((s,r)=>s+r.amount,0);
@@ -2411,6 +2412,7 @@ function renderPurchaseLedger(){
     const profit = revenue - costOfGoods;
 
     return `<tr>
+      <td style="font-weight:700; text-align:center; font-size:13px;">${snoIdx+1}</td>
       <td>${esc(sp.merchantName)} (${esc(sp.merchantCode)})</td>
       <td>${esc(sp.category||'')}</td>
       <td>${fmtDate(sp.date)}</td>
@@ -2528,7 +2530,7 @@ document.getElementById('exportPurchaseLedgerBtn').addEventListener('click', ()=
   const real = stockPurchases.filter(sp=>!sp.isSeed);
   if(real.length===0){ toast('No purchase data to export yet'); return; }
   const sorted = real.slice().sort((a,b)=> a.date.localeCompare(b.date) || (a.updatedAt||0)-(b.updatedAt||0));
-  const plRows = sorted.map(sp=>{
+  const plRows = sorted.map((sp,i)=>{
     const returns = getReturnedForStock(sp.stockCode);
     const qtyReturned = returns.reduce((s,r)=>s+r.qty,0);
     const returnedCost = returns.reduce((s,r)=>s+r.amount,0);
@@ -2539,10 +2541,10 @@ document.getElementById('exportPurchaseLedgerBtn').addEventListener('click', ()=
     const revenue = stockSales.reduce((s,sl)=>s+(sl.qty*sl.price),0);
     const costOfGoods = stockSales.reduce((s,sl)=>s+(sl.qty*sl.cost),0);
     const profit = revenue - costOfGoods;
-    return {'Merchant':sp.merchantName+' ('+sp.merchantCode+')','Category':sp.category||'','Date':fmtDate(sp.date),'Stock Code':sp.stockCode,'Description':sp.description||'','Qty Bought':sp.qty,'Qty Returned':qtyReturned,'Net Qty':sp.qty-qtyReturned,'Capital Inv.':sp.capitalInvestment||0,'Cash Reinvest':sp.cashIn||0,'UPI Reinvest':sp.upiIn||0,'Total Reinvestment':reinvestment,'Stock Cost':stockCost,'Returned Cost':returnedCost,'Net Stock Cost':netStockCost,'Revenue':revenue,'Profit':profit};
+    return {'S.No.':i+1,'Merchant':sp.merchantName+' ('+sp.merchantCode+')','Category':sp.category||'','Date':fmtDate(sp.date),'Stock Code':sp.stockCode,'Description':sp.description||'','Qty Bought':sp.qty,'Qty Returned':qtyReturned,'Net Qty':sp.qty-qtyReturned,'Capital Inv.':sp.capitalInvestment||0,'Cash Reinvest':sp.cashIn||0,'UPI Reinvest':sp.upiIn||0,'Total Reinvestment':reinvestment,'Stock Cost':stockCost,'Returned Cost':returnedCost,'Net Stock Cost':netStockCost,'Revenue':revenue,'Profit':profit};
   });
   const plWs = XLSX.utils.json_to_sheet(plRows);
-  plWs['!cols']=[{wch:20},{wch:14},{wch:12},{wch:16},{wch:20},{wch:10},{wch:12},{wch:8},{wch:12},{wch:12},{wch:12},{wch:14},{wch:12},{wch:12},{wch:14},{wch:12},{wch:12}];
+  plWs['!cols']=[{wch:6},{wch:20},{wch:14},{wch:12},{wch:16},{wch:20},{wch:10},{wch:12},{wch:8},{wch:12},{wch:12},{wch:12},{wch:14},{wch:12},{wch:12},{wch:14},{wch:12},{wch:12}];
   const floor = '2026-07-16';
   let runCash = 0, runUpi = 0;
   const cfRows = [];
@@ -2624,14 +2626,20 @@ function editPurchaseLedgerEntry(id){
   toast('Editing purchase entry — update fields and click Save Edit');
 }
 function cancelStockAcctEdit(){
-  editingPurchaseId = null;
+  if(editingPurchaseId){
+    editingPurchaseId = null;
+    document.getElementById('saveStockPurchaseBtn').textContent = 'Save';
+    document.getElementById('cancelStockAcctBtn').textContent = 'Cancel';
+    toast('Edit cancelled');
+  } else {
+    toast('Form cleared');
+  }
   resetStockPurchaseForm();
   document.getElementById('stockReturnQty').value='';
   document.getElementById('stockReturnAmount').value='';
   document.getElementById('returnCodeSelect').value='';
-  document.getElementById('saveStockPurchaseBtn').textContent = 'Save';
-  document.getElementById('cancelStockAcctBtn').textContent = 'Cancel';
-  toast('Edit cancelled');
+  document.getElementById('returnMerchantHint').textContent='';
+  document.getElementById('returnCodeSearch').value='';
 }
 document.getElementById('cancelStockAcctBtn').addEventListener('click', cancelStockAcctEdit);
 document.getElementById('plFromDate').addEventListener('change', renderPurchaseLedger);
