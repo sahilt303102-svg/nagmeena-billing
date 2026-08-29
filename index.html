@@ -430,7 +430,7 @@
               <input type="text" id="custName" list="custNameSuggestions" autocomplete="off" placeholder="e.g. Ramesh Kumar">
               <datalist id="custNameSuggestions"></datalist>
             </div>
-            <div class="field"><label for="custNumber">Customer Number</label><input type="tel" id="custNumber" inputmode="numeric" maxlength="15" placeholder="e.g. 9876543210"></div>
+            <div class="field"><label for="custNumber">Customer Number</label><input type="tel" id="custNumber" list="custNumberSuggestions" inputmode="numeric" maxlength="15" placeholder="e.g. 9876543210" autocomplete="off"><datalist id="custNumberSuggestions"></datalist></div>
           </div>
           <div class="field-hint-error" id="custNumberError">Mobile number cannot exceed 10 digits.</div>
         </div>
@@ -2991,7 +2991,27 @@ function updateCustNameSuggestions(){
   const names = Array.from(new Set(sales.map(s=>s.customer).filter(Boolean)));
   dl.innerHTML = names.map(n=>`<option value="${esc(n)}">`).join('');
 }
+function updateCustNumberSuggestions(){
+  const dl = document.getElementById('custNumberSuggestions');
+  const numbers = Array.from(new Set(sales.map(s=>s.number).filter(Boolean)));
+  dl.innerHTML = numbers.map(n=>`<option value="${esc(n)}">`).join('');
+}
+function autofillCustNumber(){
+  const name = document.getElementById('custName').value.trim();
+  if(!name) return;
+  const match = sales.slice().reverse().find(s=> s.customer === name && s.number);
+  if(match){ custNumberEl.value = match.number; validateCustNumber(); renderCart(); }
+}
+function autofillCustName(){
+  const number = custNumberEl.value.trim();
+  if(!number) return;
+  const match = sales.slice().reverse().find(s=> s.number === number && s.customer);
+  if(match){ document.getElementById('custName').value = match.customer; renderCart(); }
+}
 document.getElementById('custName').addEventListener('focus', updateCustNameSuggestions);
+document.getElementById('custName').addEventListener('input', autofillCustNumber);
+custNumberEl.addEventListener('focus', updateCustNumberSuggestions);
+custNumberEl.addEventListener('input', autofillCustName);
 
 /* ===== Payment mode UI (New Bill) ===== */
 function updatePaymentModeUI(){
