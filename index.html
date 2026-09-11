@@ -2748,10 +2748,30 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
     save(LS_PRODUCT_IMAGES, productImages);
     products[idx] = {...existing, code:newFullCode, name:desc, cost, price, stock, stockCode, updatedAt: Date.now()};
     finalCode = newFullCode; finalDesc = desc;
+
+    const affectedSales = sales.filter(s=>s.code===existing.code);
+    if(affectedSales.length > 0){
+      const now = Date.now();
+      affectedSales.forEach(s=>{
+        s.code = newFullCode;
+        s.product = desc;
+        s.cost = cost;
+        s.expectedPrice = price;
+        s.stockCode = stockCode;
+        const costTotal = s.cost * s.qty;
+        s.profit = s.revenue - costTotal;
+        s.marginPerPiece = s.price - s.cost;
+        s.marginPercent = s.price > 0 ? ((s.price - s.cost) / s.price) * 100 : 0;
+        s.updatedAt = now;
+      });
+      save(LS_SALES, sales);
+      renderHistory();
+    }
+
     editingProductId=null;
     document.getElementById('productFormTitle').textContent='Add Product';
     document.getElementById('cancelEditBtn').style.display='none';
-    toast('Product updated');
+    toast('Product updated' + (affectedSales.length > 0 ? ` — ${affectedSales.length} sales record(s) also updated` : ''));
   }else{
     const desc = assembledDescription();
     const fullCode = comboCode + generateTimestampCode();
