@@ -2789,8 +2789,6 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
   pendingProductImage=null; setProductImagePreview(null);
   document.getElementById('pStock').value=''; document.getElementById('pCost').value='';
   clearMarginFields(null); marginDriver=null;
-  CAT_KEYS.forEach(key=>{ populateSelect(key); onSelectChange(key); });
-  updateProductStockCodeHint();
   renderProducts();
   showRecentAddedBox(finalCode, finalDesc);
   pushChange();
