@@ -1828,7 +1828,7 @@ function refreshDescriptionsForCategoryCode(categoryKey, code){
 function showRecentAddedBox(fullCode, desc){
   document.getElementById('recentAddedCode').textContent = formatCode(fullCode);
   document.getElementById('recentAddedDesc').textContent = desc;
-  document.getElementById('recentAddedBox').classList.add('show');
+  setTimeout(()=> document.getElementById('recentAddedBox').classList.add('show'), 50);
 }
 function hideRecentAddedBox(){
   document.getElementById('recentAddedBox').classList.remove('show');
