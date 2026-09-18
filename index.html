@@ -663,6 +663,7 @@
             <option value="customer">Customer Name</option>
             <option value="number">Customer Number</option>
             <option value="stockCode">Stock Code</option>
+            <option value="invoice">Invoice Number</option>
           </select>
         </div>
         <div class="field" style="flex:1.6;"><label for="salesSearchInput">Search</label>
@@ -1827,7 +1828,7 @@ function refreshDescriptionsForCategoryCode(categoryKey, code){
 function showRecentAddedBox(fullCode, desc){
   document.getElementById('recentAddedCode').textContent = formatCode(fullCode);
   document.getElementById('recentAddedDesc').textContent = desc;
-  document.getElementById('recentAddedBox').classList.add('show');
+  setTimeout(()=> document.getElementById('recentAddedBox').classList.add('show'), 50);
 }
 function hideRecentAddedBox(){
   document.getElementById('recentAddedBox').classList.remove('show');
@@ -3550,6 +3551,7 @@ function updateSalesSearchSuggestions(){
   else if(salesSearchField==='paymentMode') values = ['Cash','UPI','Loan'];
   else if(salesSearchField==='customer') values = sales.map(s=>s.customer||'');
   else if(salesSearchField==='stockCode') values = sales.map(s=>s.stockCode||SEED_STOCK_CODE);
+  else if(salesSearchField==='invoice') values = sales.map(s=>s.invoice||'');
   else values = sales.map(s=>s.number||'');
   dl.innerHTML = Array.from(new Set(values.filter(Boolean))).map(v=>`<option value="${esc(v)}">`).join('');
 }
@@ -3572,6 +3574,7 @@ function matchesSalesSearch(s){
     case 'customer': return (s.customer||'').toLowerCase().includes(q);
     case 'number': return (s.number||'').toLowerCase().includes(q);
     case 'stockCode': return (s.stockCode||SEED_STOCK_CODE).toLowerCase().includes(q);
+    case 'invoice': return (s.invoice||'').toLowerCase().includes(q);
     default: return true;
   }
 }
