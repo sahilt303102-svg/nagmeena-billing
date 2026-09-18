@@ -584,7 +584,7 @@
             <select id="stockFilterSelect"><option value="all">All</option><option value="in">In Stock</option><option value="out">Out of Stock</option></select>
           </div>
           <div class="field" style="flex:0.8;"><label for="searchFieldSelect">Search By</label>
-            <select id="searchFieldSelect"><option value="code">Product Code</option><option value="desc">Description</option><option value="price">MRP</option><option value="stockCode">Stock Code</option></select>
+            <select id="searchFieldSelect"><option value="all">All</option><option value="code">Product Code</option><option value="desc">Description</option><option value="price">MRP</option><option value="stockCode">Stock Code</option></select>
           </div>
           <div class="field" style="flex:1.4;"><label for="catalogSearchInput">Search</label>
             <input type="text" id="catalogSearchInput" list="catalogSearchSuggestions" placeholder="Start typing…">
@@ -655,6 +655,7 @@
       <div class="row" style="align-items:flex-end;">
         <div class="field" style="flex:0.8;"><label for="salesSearchField">Search By</label>
           <select id="salesSearchField">
+            <option value="all">All</option>
             <option value="code">Product Code</option>
             <option value="desc">Description</option>
             <option value="paymentStatus">Payment Status</option>
@@ -2869,15 +2870,15 @@ document.getElementById('catalogUnmaskBtn').addEventListener('click', (e)=>{
   renderProducts();
 });
 let stockFilter = 'all';
-let searchField = 'code';
+let searchField = 'all';
 let searchQuery = '';
 document.getElementById('stockFilterSelect').addEventListener('change', e=>{ stockFilter=e.target.value; renderProducts(); });
 document.getElementById('searchFieldSelect').addEventListener('change', e=>{ searchField=e.target.value; updateCatalogSuggestions(); renderProducts(); });
 document.getElementById('catalogSearchInput').addEventListener('input', e=>{ searchQuery = e.target.value.trim().toLowerCase(); renderProducts(); });
 document.getElementById('clearCatalogSearchBtn').addEventListener('click', ()=>{
   document.getElementById('catalogSearchInput').value = '';
-  document.getElementById('searchFieldSelect').value = 'code';
-  searchField = 'code';
+  document.getElementById('searchFieldSelect').value = 'all';
+  searchField = 'all';
   searchQuery = '';
   renderProducts();
 });
@@ -2885,7 +2886,8 @@ document.getElementById('clearCatalogSearchBtn').addEventListener('click', ()=>{
 function updateCatalogSuggestions(){
   const dl = document.getElementById('catalogSearchSuggestions');
   let values;
-  if(searchField==='code') values = products.map(p=>formatCode(p.code));
+  if(searchField==='all') values = [].concat(products.map(p=>p.name), products.map(p=>formatCode(p.code)), products.map(p=>p.stockCode||SEED_STOCK_CODE));
+  else if(searchField==='code') values = products.map(p=>formatCode(p.code));
   else if(searchField==='desc') values = products.map(p=>p.name);
   else if(searchField==='stockCode') values = products.map(p=>p.stockCode||SEED_STOCK_CODE);
   else values = products.map(p=>String(p.price));
@@ -2901,7 +2903,13 @@ function productMatchesFilters(p){
   if(stockFilter==='in' && !inStock(p)) return false;
   if(stockFilter==='out' && inStock(p)) return false;
   if(searchQuery){
-    if(searchField==='code'){
+    if(searchField==='all'){
+      const q = searchQuery;
+      if(!formatCode(p.code).toLowerCase().includes(q) && !p.code.toLowerCase().includes(q)
+        && !p.name.toLowerCase().includes(q)
+        && !String(p.price).includes(q)
+        && !(p.stockCode||SEED_STOCK_CODE).toLowerCase().includes(q)) return false;
+    }else if(searchField==='code'){
       if(!formatCode(p.code).toLowerCase().includes(searchQuery) && !p.code.toLowerCase().includes(searchQuery)) return false;
     }else if(searchField==='desc'){
       if(!p.name.toLowerCase().includes(searchQuery)) return false;
@@ -3521,21 +3529,22 @@ function matchesFilter(sale){
 }
 
 /* ===== Sales Book search ===== */
-let salesSearchField = 'code';
+let salesSearchField = 'all';
 let salesSearchQuery = '';
 document.getElementById('salesSearchField').addEventListener('change', e=>{ salesSearchField=e.target.value; updateSalesSearchSuggestions(); renderHistory(); });
 document.getElementById('salesSearchInput').addEventListener('input', e=>{ salesSearchQuery=e.target.value.trim().toLowerCase(); renderHistory(); });
 document.getElementById('clearSalesSearchBtn').addEventListener('click', ()=>{
   document.getElementById('salesSearchInput').value = '';
-  document.getElementById('salesSearchField').value = 'code';
-  salesSearchField = 'code';
+  document.getElementById('salesSearchField').value = 'all';
+  salesSearchField = 'all';
   salesSearchQuery = '';
   renderHistory();
 });
 function updateSalesSearchSuggestions(){
   const dl = document.getElementById('salesSearchSuggestions');
   let values;
-  if(salesSearchField==='code') values = sales.map(s=>formatCode(s.code));
+  if(salesSearchField==='all') values = [].concat(sales.map(s=>s.product), sales.map(s=>s.customer||''), sales.map(s=>formatCode(s.code)), sales.map(s=>s.stockCode||SEED_STOCK_CODE));
+  else if(salesSearchField==='code') values = sales.map(s=>formatCode(s.code));
   else if(salesSearchField==='desc') values = sales.map(s=>s.product);
   else if(salesSearchField==='paymentStatus') values = ['Done','Pending'];
   else if(salesSearchField==='paymentMode') values = ['Cash','UPI','Loan'];
@@ -3548,6 +3557,14 @@ function matchesSalesSearch(s){
   if(!salesSearchQuery) return true;
   const q = salesSearchQuery;
   switch(salesSearchField){
+    case 'all': return formatCode(s.code).toLowerCase().includes(q) || s.code.toLowerCase().includes(q)
+      || (s.product||'').toLowerCase().includes(q)
+      || (s.paymentStatus||'').toLowerCase().includes(q)
+      || capitalizeMode(s.paymentMode).toLowerCase().includes(q)
+      || (s.customer||'').toLowerCase().includes(q)
+      || (s.number||'').toLowerCase().includes(q)
+      || (s.stockCode||SEED_STOCK_CODE).toLowerCase().includes(q)
+      || (s.invoice||'').toLowerCase().includes(q);
     case 'code': return formatCode(s.code).toLowerCase().includes(q) || s.code.toLowerCase().includes(q);
     case 'desc': return (s.product||'').toLowerCase().includes(q);
     case 'paymentStatus': return (s.paymentStatus||'').toLowerCase().includes(q);
