@@ -2836,6 +2836,7 @@ function deleteProduct(code){
 function editProduct(code){
   const p = findProduct(code);
   if(!p) return;
+  hideRecentAddedBox();
   document.getElementById('pStock').value = p.stock ?? 0;
   document.getElementById('pCost').value = p.cost;
   populateProductStockCodeSelect();
