@@ -334,6 +334,8 @@
   .cat-thumb{ width:40px; height:40px; border-radius:6px; overflow:hidden; display:flex; align-items:center; justify-content:center; background:var(--cream); }
   .cat-thumb img{ width:100%; height:100%; object-fit:cover; cursor:pointer; }
   .cat-thumb .no-img{ width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:var(--charcoal-muted); font-size:16px; }
+  .cat-thumb .cloud-img-loading{ width:100%; height:100%; background:linear-gradient(110deg,var(--cream) 30%,var(--ivory) 50%,var(--cream) 70%); background-size:200% 100%; animation:shimmer 1.2s ease-in-out infinite; }
+  @keyframes shimmer{ 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
   .lightbox-overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; display:none; align-items:center; justify-content:center; }
   .lightbox-overlay.show{ display:flex; }
@@ -1049,7 +1051,7 @@ const LS_PRODUCTS='ledger_products', LS_SALES='ledger_sales', LS_SEQ='ledger_inv
       LS_MERCHANTS='ledger_merchants', LS_MERCHANT_TOMB='ledger_merchant_tombstones',
       LS_STOCK_PURCHASES='ledger_stock_purchases', LS_STOCK_PURCHASE_TOMB='ledger_stock_purchase_tombstones',
       LS_STOCK_RETURNS='ledger_stock_returns', LS_STOCK_RETURN_TOMB='ledger_stock_return_tombstones',
-      LS_PRODUCT_IMAGES='ledger_product_images';
+      LS_PRODUCT_IMAGES='ledger_product_images', LS_IMG_FOLDER_ID='ledger_img_folder_id';
 
 const INSTAGRAM_URL = 'https://www.instagram.com/thenagmeena?igsh=MXMxM2lrb2N2YTZocg==';
 const SEED_STOCK_CODE = 'JC-180726';
@@ -1110,6 +1112,8 @@ let stockPurchaseTombstones = load(LS_STOCK_PURCHASE_TOMB, []);
 let stockReturns = load(LS_STOCK_RETURNS, []);
 let stockReturnTombstones = load(LS_STOCK_RETURN_TOMB, []);
 let productImages = load(LS_PRODUCT_IMAGES, {});
+let imageCache = {};
+let imageDriveFolderId = localStorage.getItem(LS_IMG_FOLDER_ID) || null;
 
 (function migrateProductImagesToMap(){
   let moved = false;
@@ -1123,7 +1127,15 @@ let productImages = load(LS_PRODUCT_IMAGES, {});
   if(moved){ save(LS_PRODUCTS, products); save(LS_PRODUCT_IMAGES, productImages); }
 })();
 
-function getProductImage(code){ return productImages[code] || null; }
+function isCloudImageRef(val){ return !!val && !val.startsWith('data:'); }
+function getProductImage(code){
+  if(imageCache[code]) return imageCache[code];
+  const val = productImages[code];
+  if(!val) return null;
+  if(!isCloudImageRef(val)){ imageCache[code] = val; return val; }
+  return null;
+}
+function hasCloudImage(code){ return isCloudImageRef(productImages[code]); }
 
 function cleanupOrphanedImages(){
   const usedCodes = new Set();
@@ -1131,7 +1143,11 @@ function cleanupOrphanedImages(){
   sales.forEach(s=> usedCodes.add(s.code));
   let changed = false;
   Object.keys(productImages).forEach(code=>{
-    if(!usedCodes.has(code)){ delete productImages[code]; changed = true; }
+    if(!usedCodes.has(code)){
+      const ref = productImages[code];
+      if(isCloudImageRef(ref)) deleteImageFromDrive(ref);
+      delete productImages[code]; delete imageCache[code]; changed = true;
+    }
   });
   if(changed) save(LS_PRODUCT_IMAGES, productImages);
 }
@@ -2724,7 +2740,7 @@ document.getElementById('pStockCodeInput').addEventListener('change', ()=>{
 function findProduct(code){ code=(code||'').replace(/[^0-9A-Za-z]/g,'').toUpperCase(); return products.find(p=>p.code.toUpperCase()===code); }
 function inStock(p){ return p && (p.stock||0) > 0; }
 
-document.getElementById('saveProductBtn').addEventListener('click', ()=>{
+document.getElementById('saveProductBtn').addEventListener('click', async()=>{
   const comboCode = assembledCode();
   const stock = parseInt(document.getElementById('pStock').value,10);
   const cost = parseFloat(document.getElementById('pCost').value);
@@ -2772,13 +2788,22 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
     document.getElementById('productFormTitle').textContent='Add Product';
     document.getElementById('cancelEditBtn').style.display='none';
 
-    const imgVal = pendingProductImage==='__remove__' ? null : (pendingProductImage || getProductImage(existing.code));
-    if(existing.code !== newFullCode && getProductImage(existing.code)){ delete productImages[existing.code]; }
-    if(imgVal) productImages[newFullCode] = imgVal; else delete productImages[newFullCode];
-    if(!save(LS_PRODUCT_IMAGES, productImages)){
-      if(imgVal){ delete productImages[newFullCode]; }
-      toast('Product edited successfully but image could not be saved — storage is full. Try deleting old product images.', true);
+    const imgDataUrl = pendingProductImage==='__remove__' ? null : (pendingProductImage || getProductImage(existing.code));
+    const oldRef = productImages[existing.code];
+    if(existing.code !== newFullCode){
+      delete productImages[existing.code]; delete imageCache[existing.code];
+      if(isCloudImageRef(oldRef)) deleteImageFromDrive(oldRef);
+    }
+    if(imgDataUrl){
+      const saved = await saveProductImageToCloud(newFullCode, imgDataUrl);
+      if(!saved) toast('Product edited successfully but image could not be saved — storage is full', true);
+      else toast('Product edited successfully' + (affectedSales.length > 0 ? ` — ${affectedSales.length} sales record(s) also updated` : ''));
     } else {
+      if(productImages[newFullCode]){
+        const ref=productImages[newFullCode]; delete productImages[newFullCode]; delete imageCache[newFullCode];
+        if(isCloudImageRef(ref)) deleteImageFromDrive(ref);
+        save(LS_PRODUCT_IMAGES,productImages);
+      }
       toast('Product edited successfully' + (affectedSales.length > 0 ? ` — ${affectedSales.length} sales record(s) also updated` : ''));
     }
   }else{
@@ -2791,13 +2816,9 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
 
     const imgNew = pendingProductImage==='__remove__' ? null : pendingProductImage;
     if(imgNew){
-      productImages[fullCode] = imgNew;
-      if(!save(LS_PRODUCT_IMAGES, productImages)){
-        delete productImages[fullCode];
-        toast(`Product added — code ${formatCode(fullCode)} (image could not be saved — storage is full)`, true);
-      } else {
-        toast(`Product added — code ${formatCode(fullCode)}`);
-      }
+      const saved = await saveProductImageToCloud(fullCode, imgNew);
+      if(!saved) toast(`Product added — code ${formatCode(fullCode)} (image could not be saved — storage is full)`, true);
+      else toast(`Product added — code ${formatCode(fullCode)}`);
     } else {
       toast(`Product added — code ${formatCode(fullCode)}`);
     }
@@ -2843,7 +2864,13 @@ function editProduct(code){
   document.getElementById('pStockCode').value = p.stockCode || SEED_STOCK_CODE;
   document.getElementById('pStockCodeInput').value = p.stockCode || SEED_STOCK_CODE;
   updateProductStockCodeHint();
-  pendingProductImage=null; setProductImagePreview(getProductImage(p.code));
+  pendingProductImage=null;
+  const cachedImg=getProductImage(p.code);
+  if(cachedImg){ setProductImagePreview(cachedImg); }
+  else if(hasCloudImage(p.code)){
+    setProductImagePreview(null);
+    loadProductImage(p.code).then(du=>{ if(du&&editingProductId===p.id) setProductImagePreview(du); });
+  } else { setProductImagePreview(null); }
   editingProductId = p.id;
   document.getElementById('productFormTitle').textContent=`Edit Product — ${formatCode(p.code)}`;
   document.getElementById('cancelEditBtn').style.display='inline-flex';
@@ -2970,7 +2997,7 @@ function renderProducts(){
         const margin = p.price - p.cost, stock = p.stock||0;
         const costDisplay = catalogUnmasked ? money(p.cost) : maskMoney();
         const marginDisplay = catalogUnmasked ? money(margin) : maskMoney();
-        const pImg = getProductImage(p.code); const thumb = pImg ? `<img src="${pImg}" onclick="viewImageLightbox(this.src)">` : '<span class="no-img">—</span>';
+        const thumb = productImageThumb(p.code);
         return `<tr>
           <td><div class="cat-thumb">${thumb}</div></td>
           <td class="mono">${esc(formatCode(p.code))}</td><td>${esc(p.name)}</td>
@@ -2985,6 +3012,7 @@ function renderProducts(){
   updateCatalogSuggestions();
   updateItemCodeSuggestions(document.getElementById('itemCode').value);
   renderCatalogUnitSummary(visible);
+  loadVisibleCloudImages();
 }
 function updateProductStockCode(code, val){
   const p = findProduct(code);
@@ -3167,7 +3195,7 @@ function renderCart(){
     body.innerHTML='<tr class="empty-row"><td colspan="7">No items added yet</td></tr>';
     rv.innerHTML='<tr class="empty-row"><td colspan="3">Cart is empty</td></tr>';
   }else{
-    body.innerHTML=cart.map((c,i)=>{ const cImg=getProductImage(c.code); const thumb=cImg?`<img src="${cImg}" onclick="viewImageLightbox(this.src)">`:'<span class="no-img">—</span>'; return `<tr><td><div class="cat-thumb">${thumb}</div></td><td class="mono">${esc(formatCode(c.code))}</td><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.price)}</td><td class="num">${money(c.qty*c.price)}</td><td><button class="btn btn-ghost btn-sm" onclick="removeCartItem(${i})">Remove</button></td></tr>`; }).join('');
+    body.innerHTML=cart.map((c,i)=>{ const thumb=productImageThumb(c.code); return `<tr><td><div class="cat-thumb">${thumb}</div></td><td class="mono">${esc(formatCode(c.code))}</td><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.price)}</td><td class="num">${money(c.qty*c.price)}</td><td><button class="btn btn-ghost btn-sm" onclick="removeCartItem(${i})">Remove</button></td></tr>`; }).join('');
     rv.innerHTML=cart.map(c=>`<tr><td>${esc(c.name)}</td><td class="num">${c.qty}</td><td class="num">${money(c.qty*c.price)}</td></tr>`).join('');
   }
   document.getElementById('cartCount').textContent=cart.reduce((s,c)=>s+c.qty,0);
@@ -3175,6 +3203,7 @@ function renderCart(){
   document.getElementById('rvTotal').textContent=money(cartTotal());
   document.getElementById('rvCustomer').textContent=document.getElementById('custName').value.trim()||'—';
   document.getElementById('rvDate').textContent=todayStr();
+  loadVisibleCloudImages();
 }
 ['custName'].forEach(id=>document.getElementById(id).addEventListener('input', renderCart));
 
@@ -3269,7 +3298,7 @@ function loadImageDataUrl(src){
     img.src = src;
   });
 }
-function compressProductImage(file, maxW=600, quality=0.7){
+function compressProductImage(file, maxW=400, quality=0.6){
   return new Promise((resolve,reject)=>{
     const reader = new FileReader();
     reader.onload = e=>{
@@ -3691,7 +3720,7 @@ function renderHistory(){
           html += `<td class="merged-cell" rowspan="${rowspan}">${paymentStatusCell}</td>`;
           html += `<td class="merged-cell" rowspan="${rowspan}">${pendingAmountCell}</td>`;
         }
-        const sImg=getProductImage(s.code); const sThumb=sImg?`<img src="${sImg}" onclick="viewImageLightbox(this.src)">`:'<span class="no-img">—</span>';
+        const sThumb=productImageThumb(s.code);
         html += `<td><div class="cat-thumb">${sThumb}</div></td>`;
         html += `<td class="mono">${esc(formatCode(s.code))}</td><td>${esc(s.product)}</td>`;
         html += `<td>${stockCodeCell}</td>`;
@@ -3792,6 +3821,7 @@ function renderHistory(){
   updateSalesSearchSuggestions();
   updateCustNameSuggestions();
   renderCashFlowLedger();
+  loadVisibleCloudImages();
 }
 function recalcSaleRow(s){
   s.revenue = s.qty * s.price;
@@ -4435,6 +4465,100 @@ async function driveSaveFile(fileId, data){
   if(!json.id) throw {code:'upload_failed'};
   return json.id;
 }
+/* ===== Google Drive image storage ===== */
+function dataUrlToBlob(dataUrl){
+  const parts = dataUrl.split(','); const mime = parts[0].match(/:(.*?);/)[1];
+  const raw = atob(parts[1]); const arr = new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++) arr[i]=raw.charCodeAt(i);
+  return new Blob([arr],{type:mime});
+}
+async function getOrCreateImageFolder(){
+  if(imageDriveFolderId){
+    try{
+      const r=await fetchWithRetry(`https://www.googleapis.com/drive/v3/files/${imageDriveFolderId}?fields=id,trashed`,{headers:{Authorization:'Bearer '+accessToken}});
+      const d=await r.json(); if(!d.trashed) return imageDriveFolderId;
+    }catch(e){}
+    imageDriveFolderId=null; localStorage.removeItem(LS_IMG_FOLDER_ID);
+  }
+  const sr=await fetchWithRetry(`https://www.googleapis.com/drive/v3/files?q=name='nagmeena_images'+and+mimeType='application/vnd.google-apps.folder'+and+trashed=false&fields=files(id)&spaces=drive`,{headers:{Authorization:'Bearer '+accessToken}});
+  const sd=await sr.json();
+  if(sd.files&&sd.files[0]){ imageDriveFolderId=sd.files[0].id; localStorage.setItem(LS_IMG_FOLDER_ID,imageDriveFolderId); return imageDriveFolderId; }
+  const cr=await fetchWithRetry('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},body:JSON.stringify({name:'nagmeena_images',mimeType:'application/vnd.google-apps.folder'})});
+  const cd=await cr.json(); imageDriveFolderId=cd.id; localStorage.setItem(LS_IMG_FOLDER_ID,imageDriveFolderId); return imageDriveFolderId;
+}
+async function uploadImageToDrive(code,dataUrl){
+  await ensureValidToken(false);
+  const folderId=await getOrCreateImageFolder();
+  const blob=dataUrlToBlob(dataUrl);
+  const ext=blob.type.includes('webp')?'webp':'jpg';
+  const existingId=productImages[code]; const isUpdate=isCloudImageRef(existingId);
+  const metadata=isUpdate?{name:`nagmeena_img_${code}.${ext}`,mimeType:blob.type}:{name:`nagmeena_img_${code}.${ext}`,mimeType:blob.type,parents:[folderId]};
+  const boundary='imgbnd_'+Date.now();
+  const body=new Blob([`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: ${blob.type}\r\n\r\n`,blob,`\r\n--${boundary}--`]);
+  const url=isUpdate?`https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=multipart`:'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+  const res=await fetchWithRetry(url,{method:isUpdate?'PATCH':'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':`multipart/related; boundary=${boundary}`},body});
+  const json=await res.json(); if(!json.id) throw {code:'image_upload_failed'}; return json.id;
+}
+async function downloadImageFromDrive(fileId){
+  await ensureValidToken(false);
+  const res=await fetchWithRetry(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,{headers:{Authorization:'Bearer '+accessToken}});
+  const blob=await res.blob();
+  return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(blob);});
+}
+async function deleteImageFromDrive(fileId){
+  if(!fileId||!isCloudImageRef(fileId)) return;
+  try{ await ensureValidToken(false); await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`,{method:'DELETE',headers:{Authorization:'Bearer '+accessToken}}); }catch(e){}
+}
+async function loadProductImage(code){
+  if(imageCache[code]) return imageCache[code];
+  const val=productImages[code]; if(!val) return null;
+  if(!isCloudImageRef(val)){ imageCache[code]=val; return val; }
+  if(!isDriveConnected()||!accessToken) return null;
+  try{ const du=await downloadImageFromDrive(val); imageCache[code]=du; return du; }
+  catch(e){ console.warn('Image load failed for',code,e); return null; }
+}
+function productImageThumb(code){
+  const cached=getProductImage(code);
+  if(cached) return `<img src="${cached}" onclick="viewImageLightbox(this.src)">`;
+  if(hasCloudImage(code)) return `<img data-cloud-img="${code}" src="" class="cloud-img-loading" onclick="if(this.src)viewImageLightbox(this.src)">`;
+  return '<span class="no-img">—</span>';
+}
+function loadVisibleCloudImages(){
+  const els=document.querySelectorAll('img[data-cloud-img]'); if(!els.length) return;
+  const seen=new Set();
+  els.forEach(img=>{
+    const code=img.dataset.cloudImg; if(seen.has(code)) return; seen.add(code);
+    if(imageCache[code]){
+      document.querySelectorAll(`img[data-cloud-img="${code}"]`).forEach(el=>{el.src=imageCache[code];el.removeAttribute('data-cloud-img');el.classList.remove('cloud-img-loading');});
+      return;
+    }
+    loadProductImage(code).then(du=>{
+      if(du) document.querySelectorAll(`img[data-cloud-img="${code}"]`).forEach(el=>{el.src=du;el.removeAttribute('data-cloud-img');el.classList.remove('cloud-img-loading');});
+    });
+  });
+}
+async function saveProductImageToCloud(code,dataUrl){
+  imageCache[code]=dataUrl;
+  if(isDriveConnected()&&accessToken){
+    try{ const fid=await uploadImageToDrive(code,dataUrl); productImages[code]=fid; save(LS_PRODUCT_IMAGES,productImages); return true; }
+    catch(e){ console.warn('Cloud image upload failed, using local fallback:',e); }
+  }
+  productImages[code]=dataUrl;
+  return save(LS_PRODUCT_IMAGES,productImages);
+}
+async function migrateImagesToCloud(){
+  if(!isDriveConnected()||!accessToken) return 0;
+  const locals=Object.entries(productImages).filter(([,v])=>v&&!isCloudImageRef(v));
+  if(!locals.length) return 0;
+  let migrated=0;
+  for(const [code,dataUrl] of locals){
+    try{ const fid=await uploadImageToDrive(code,dataUrl); productImages[code]=fid; imageCache[code]=dataUrl; migrated++; }
+    catch(e){ console.warn('Migration failed for',code,e); break; }
+  }
+  if(migrated>0) save(LS_PRODUCT_IMAGES,productImages);
+  return migrated;
+}
+
 function normalizeRows(rows){ return (rows||[]).map(r=> (r.id && r.updatedAt) ? r : {...r, id: r.id || uuid(), updatedAt: r.updatedAt || Date.now()}); }
 function buildLocalPayload(){
   return {
@@ -4523,7 +4647,13 @@ function mergeData(local, cloud){
   const spMerge = mergeRows(localStockPurchases, cloudStockPurchases, local.stockPurchaseTombstones||[], cloud.stockPurchaseTombstones||[]);
   const srMerge = mergeRows(localStockReturns, cloudStockReturns, local.stockReturnTombstones||[], cloud.stockReturnTombstones||[]);
 
-  const mergedImages = Object.assign({}, cloud.productImages||{}, local.productImages||{});
+  const mergedImages = {};
+  const allImgCodes = new Set([...Object.keys(cloud.productImages||{}), ...Object.keys(local.productImages||{})]);
+  allImgCodes.forEach(c=>{
+    const lv=(local.productImages||{})[c], cv=(cloud.productImages||{})[c];
+    if(lv&&cv) mergedImages[c]=isCloudImageRef(lv)?lv:(isCloudImageRef(cv)?cv:lv);
+    else mergedImages[c]=lv||cv;
+  });
 
   return {
     products: pMerge.rows, productTombstones: pMerge.tombstones,
@@ -4647,6 +4777,10 @@ async function performSync(trigger){
     setStatus('success', 'Sync successful');
     markSynced(); lastSyncEpoch = Date.now();
     performSync._retried404 = false; performSync._retried401 = false;
+
+    migrateImagesToCloud().then(n=>{
+      if(n>0){ toast(`${n} image(s) moved to cloud storage — local storage freed`); renderProducts(); }
+    }).catch(e=> console.warn('Image migration:',e));
   }catch(err){
     console.error('Drive sync error:', err);
     let willRetry = false;
@@ -4686,8 +4820,8 @@ document.getElementById('connectDriveBtn').addEventListener('click', async (e)=>
 });
 document.getElementById('disconnectDriveBtn').addEventListener('click', (e)=>{
   e.stopPropagation();
-  accessToken = null; driveFileId = null;
-  localStorage.removeItem(LS_CONNECTED); localStorage.removeItem(LS_TOKEN_EXP); localStorage.removeItem(LS_DRIVE_FID);
+  accessToken = null; driveFileId = null; imageDriveFolderId = null;
+  localStorage.removeItem(LS_CONNECTED); localStorage.removeItem(LS_TOKEN_EXP); localStorage.removeItem(LS_DRIVE_FID); localStorage.removeItem(LS_IMG_FOLDER_ID);
   try{ sessionStorage.removeItem('nagmeena_access_token'); }catch(e){}
   setStatus('disconnected'); toast('Disconnected from Google Drive');
 });
