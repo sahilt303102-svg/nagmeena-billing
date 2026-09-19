@@ -452,6 +452,7 @@
           </div>
           <div class="lookup-hint" id="lookupHint" style="font-size:12px; margin-top:-6px; margin-bottom:10px;"></div>
           <button class="btn btn-primary" id="addToCartBtn">Add to Bill</button>
+          <button class="btn btn-ghost" id="clearItemBtn" style="margin-left:8px;">Clear</button>
         </div>
         <div class="card">
           <h2>Items in this Bill</h2>
@@ -2735,6 +2736,7 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
   if(!stockCode){ toast('Select a Stock Code'); return; }
 
   let finalCode, finalDesc;
+  const wasEdit = !!editingProductId;
   if(editingProductId){
     const idx = products.findIndex(p=>p.id===editingProductId);
     if(idx<0){ toast('That product no longer exists'); return; }
@@ -2773,7 +2775,7 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
     editingProductId=null;
     document.getElementById('productFormTitle').textContent='Add Product';
     document.getElementById('cancelEditBtn').style.display='none';
-    toast('Product updated' + (affectedSales.length > 0 ? ` — ${affectedSales.length} sales record(s) also updated` : ''));
+    toast('Product edited successfully' + (affectedSales.length > 0 ? ` — ${affectedSales.length} sales record(s) also updated` : ''));
   }else{
     const desc = assembledDescription();
     const fullCode = comboCode + generateTimestampCode();
@@ -2787,8 +2789,10 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
   }
   save(LS_PRODUCTS, products);
   pendingProductImage=null; setProductImagePreview(null);
-  document.getElementById('pStock').value=''; document.getElementById('pCost').value='';
-  clearMarginFields(null); marginDriver=null;
+  if(!wasEdit){
+    document.getElementById('pStock').value=''; document.getElementById('pCost').value='';
+    clearMarginFields(null); marginDriver=null;
+  }
   renderProducts();
   showRecentAddedBox(finalCode, finalDesc);
   pushChange();
@@ -3130,6 +3134,10 @@ document.getElementById('addToCartBtn').addEventListener('click', ()=>{
   itemCode.value=''; itemName.value=''; itemSellPrice.value=''; itemSellPrice.dataset.autoFilledFor='';
   document.getElementById('itemQty').value=1; lookupHint.textContent=''; hideStockWarning();
   renderCart();
+});
+document.getElementById('clearItemBtn').addEventListener('click', ()=>{
+  itemCode.value=''; itemName.value=''; itemSellPrice.value=''; itemSellPrice.dataset.autoFilledFor='';
+  document.getElementById('itemQty').value=1; lookupHint.textContent=''; hideStockWarning();
 });
 document.getElementById('clearCartBtn').addEventListener('click', ()=>{ cart=[]; renderCart(); });
 function cartTotal(){ return cart.reduce((s,c)=>s+c.qty*c.price,0); }
