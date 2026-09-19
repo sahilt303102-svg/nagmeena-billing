@@ -4392,6 +4392,7 @@ function mapError(err){
     401:'Session expired — tap Sync Now to reconnect.',
     403:'Google Drive denied access — confirm the Drive API is enabled and this origin is authorized.',
     404:'Backup file not found — a new one will be created.', 409:'The Drive file changed elsewhere — merging changes.',
+    22:'Storage is full — connect Google Drive and tap Sync Now to move images to cloud.',
     429:'Google Drive rate limit reached — will retry shortly.', 500:'Google Drive is having issues — will retry shortly.',
     503:'Google Drive is temporarily unavailable — will retry shortly.'
   };
@@ -4450,7 +4451,13 @@ async function driveFindFile(){
 async function driveDownloadFile(fileId){
   const res = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers:{ Authorization:'Bearer '+accessToken } });
   const text = await res.text();
-  try{ return JSON.parse(text); } catch(e){ throw {code:'corrupted_json'}; }
+  let data; try{ data = JSON.parse(text); } catch(e){ throw {code:'corrupted_json'}; }
+  if(data.productImages){
+    Object.entries(data.productImages).forEach(([c,v])=>{
+      if(v && !isCloudImageRef(v) && v!=='__local__') data.productImages[c]='__local__';
+    });
+  }
+  return data;
 }
 async function driveSaveFile(fileId, data){
   let payload;
@@ -4560,9 +4567,14 @@ async function migrateImagesToCloud(){
 }
 
 function normalizeRows(rows){ return (rows||[]).map(r=> (r.id && r.updatedAt) ? r : {...r, id: r.id || uuid(), updatedAt: r.updatedAt || Date.now()}); }
+function syncSafeImages(){
+  const safe={};
+  Object.entries(productImages).forEach(([code,val])=>{ if(val) safe[code]=isCloudImageRef(val)?val:'__local__'; });
+  return safe;
+}
 function buildLocalPayload(){
   return {
-    products, productTombstones, sales, saleTombstones, cats, productImages,
+    products, productTombstones, sales, saleTombstones, cats, productImages: syncSafeImages(),
     contactPhones, contactAddresses, contactPhoneTombstones, contactAddressTombstones, contactMeta,
     users, userTombstones,
     purchaseCategories, purchaseCategoryTombstones, merchants, merchantTombstones,
@@ -4651,8 +4663,12 @@ function mergeData(local, cloud){
   const allImgCodes = new Set([...Object.keys(cloud.productImages||{}), ...Object.keys(local.productImages||{})]);
   allImgCodes.forEach(c=>{
     const lv=(local.productImages||{})[c], cv=(cloud.productImages||{})[c];
-    if(lv&&cv) mergedImages[c]=isCloudImageRef(lv)?lv:(isCloudImageRef(cv)?cv:lv);
-    else mergedImages[c]=lv||cv;
+    const lCloud=isCloudImageRef(lv), cCloud=isCloudImageRef(cv);
+    if(lCloud) mergedImages[c]=lv;
+    else if(cCloud) mergedImages[c]=cv;
+    else if(lv&&lv!=='__local__') mergedImages[c]=lv;
+    else if(cv&&cv!=='__local__') mergedImages[c]=cv;
+    else if(lv||cv) mergedImages[c]=lv||cv;
   });
 
   return {
@@ -4682,7 +4698,12 @@ function applyRemoteData(data){
   merchants = data.merchants || []; merchantTombstones = data.merchantTombstones || [];
   stockPurchases = data.stockPurchases || []; stockPurchaseTombstones = data.stockPurchaseTombstones || [];
   stockReturns = data.stockReturns || []; stockReturnTombstones = data.stockReturnTombstones || [];
-  productImages = data.productImages || {};
+  const prevImages = productImages;
+  productImages = {};
+  Object.entries(data.productImages||{}).forEach(([c,v])=>{
+    if(v==='__local__' && prevImages[c] && prevImages[c]!=='__local__') productImages[c]=prevImages[c];
+    else if(v && v!=='__local__') productImages[c]=v;
+  });
   cats = ensureCatsShape(data.cats || JSON.parse(JSON.stringify(defaultCats)));
   ensureBlankEntries(cats);
   CAT_KEYS.forEach(key=>{ normalizeSeedIdsForCategory(key, cats[key]); recomputeFreeCodes(cats[key]); });
