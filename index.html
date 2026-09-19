@@ -1055,7 +1055,7 @@ const INSTAGRAM_URL = 'https://www.instagram.com/thenagmeena?igsh=MXMxM2lrb2N2YT
 const SEED_STOCK_CODE = 'JC-180726';
 
 function load(key,fallback){ try{ const v=JSON.parse(localStorage.getItem(key)); return v===null||v===undefined?fallback:v; }catch(e){ return fallback; } }
-function save(key,val){ localStorage.setItem(key, JSON.stringify(val)); }
+function save(key,val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){ toast('Storage full — could not save. Try deleting old images or exporting data.', true); throw e; } }
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 function uuid(){ return crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2); }
 
@@ -2782,7 +2782,7 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
     if(!isValidProductCode(fullCode)){ toast('Could not build a valid 20-digit product code'); return; }
     if(findProduct(fullCode)){ toast('A product with this exact code already exists — try again in a moment'); return; }
     const imgNew = pendingProductImage==='__remove__' ? null : pendingProductImage;
-    if(imgNew) productImages[fullCode] = imgNew; save(LS_PRODUCT_IMAGES, productImages);
+    if(imgNew){ productImages[fullCode] = imgNew; save(LS_PRODUCT_IMAGES, productImages); }
     products.push({id:uuid(), code:fullCode, name:desc, cost, price, stock, stockCode, updatedAt: Date.now()});
     finalCode = fullCode; finalDesc = desc;
     toast(`Product added — code ${formatCode(fullCode)}`);
