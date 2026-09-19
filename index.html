@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://accounts.google.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://accounts.google.com/gsi/client" async onload="onGisLoaded()"></script>
+<script src="https://accounts.google.com/gsi/client" async onload="onGisLoaded()" onerror="document.addEventListener('DOMContentLoaded',()=>{const d=document.getElementById('driveStatusText');if(d)d.textContent='Google sign-in failed to load';})"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
@@ -4338,12 +4338,12 @@ function mapError(err){
     'access_denied':'Access to Google Drive was denied.',
     'timeout':'Sign-in timed out — check your Client ID and Authorized JavaScript origins.',
     'no_client':"Drive sync isn't set up yet — add your Google Client ID in Settings.",
-    'token_expired':'Your session expired — reconnecting…','network_error':'No internet connection — working from local data.',
+    'token_expired':'Your session expired — tap Sync Now to reconnect.','network_error':'No internet connection — working from local data.',
     'verify_failed':'Upload could not be verified — please try Sync Now again.',
     'corrupted_json':'The cloud backup looked corrupted, so it was left untouched.',
     'invalid_json':'Local data could not be serialized safely — sync skipped.',
     'upload_failed':'Google Drive did not confirm the upload — please try again.',
-    401:'Session expired — please reconnect Google Drive.',
+    401:'Session expired — tap Sync Now to reconnect.',
     403:'Google Drive denied access — confirm the Drive API is enabled and this origin is authorized.',
     404:'Backup file not found — a new one will be created.', 409:'The Drive file changed elsewhere — merging changes.',
     429:'Google Drive rate limit reached — will retry shortly.', 500:'Google Drive is having issues — will retry shortly.',
@@ -4630,15 +4630,31 @@ async function performSync(trigger){
     localStorage.setItem(LS_CONNECTED,'1');
     setStatus('success', 'Sync successful');
     markSynced(); lastSyncEpoch = Date.now();
-
+    performSync._retried404 = false; performSync._retried401 = false;
   }catch(err){
     console.error('Drive sync error:', err);
-    if(err && err.status === 404 && driveFileId){ driveFileId = null; localStorage.removeItem(LS_DRIVE_FID); }
-    if(trigger==='startup') setStatus('disconnected', 'Working offline — reconnect Drive to sync');
-    else{ setStatus('failed', mapError(err)); toast(mapError(err), true); }
+    let willRetry = false;
+    if(err && err.status === 404 && driveFileId && !performSync._retried404){
+      performSync._retried404 = true;
+      driveFileId = null; localStorage.removeItem(LS_DRIVE_FID);
+      willRetry = true;
+    } else if(err && (err.status === 401 || err.code === 'token_expired') && !performSync._retried401){
+      performSync._retried401 = true;
+      accessToken = null; localStorage.removeItem(LS_TOKEN_EXP);
+      try{ sessionStorage.removeItem('nagmeena_access_token'); }catch(e){}
+      try{ await ensureValidToken(trigger==='manual' || trigger==='connect'); willRetry = true; }
+      catch(e2){ performSync._retried401 = false; }
+    }
+    if(willRetry){
+      syncQueued = trigger;
+    } else {
+      performSync._retried404 = false; performSync._retried401 = false;
+      if(trigger==='startup') setStatus('disconnected', 'Working offline — reconnect Drive to sync');
+      else{ setStatus('failed', mapError(err)); toast(mapError(err), true); }
+    }
   }finally{
     syncInProgress = false; setButtonsBusy(false);
-    if(syncQueued){ syncQueued = false; performSync('auto'); }
+    if(syncQueued){ const retryTrigger = typeof syncQueued === 'string' ? syncQueued : 'auto'; syncQueued = false; performSync(retryTrigger); }
   }
 }
 function pushChange(){ if(!isDriveConnected()) return; performSync('auto'); }
