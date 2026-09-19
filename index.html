@@ -1055,7 +1055,7 @@ const INSTAGRAM_URL = 'https://www.instagram.com/thenagmeena?igsh=MXMxM2lrb2N2YT
 const SEED_STOCK_CODE = 'JC-180726';
 
 function load(key,fallback){ try{ const v=JSON.parse(localStorage.getItem(key)); return v===null||v===undefined?fallback:v; }catch(e){ return fallback; } }
-function save(key,val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){ toast('Storage full — could not save. Try deleting old images or exporting data.', true); throw e; } }
+function save(key,val){ try{ localStorage.setItem(key, JSON.stringify(val)); return true; }catch(e){ return false; } }
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 function uuid(){ return crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2); }
 
@@ -2746,10 +2746,6 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
     const clash = products.find(p=>p.id!==editingProductId && p.code===newFullCode);
     if(clash){ toast('Another product already uses this exact subsection combination'); return; }
     const desc = assembledDescription();
-    const imgVal = pendingProductImage==='__remove__' ? null : (pendingProductImage || getProductImage(existing.code));
-    if(existing.code !== newFullCode && getProductImage(existing.code)){ delete productImages[existing.code]; }
-    if(imgVal) productImages[newFullCode] = imgVal; else delete productImages[newFullCode];
-    save(LS_PRODUCT_IMAGES, productImages);
     products[idx] = {...existing, code:newFullCode, name:desc, cost, price, stock, stockCode, updatedAt: Date.now()};
     finalCode = newFullCode; finalDesc = desc;
 
@@ -2775,17 +2771,36 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
     editingProductId=null;
     document.getElementById('productFormTitle').textContent='Add Product';
     document.getElementById('cancelEditBtn').style.display='none';
-    toast('Product edited successfully' + (affectedSales.length > 0 ? ` — ${affectedSales.length} sales record(s) also updated` : ''));
+
+    const imgVal = pendingProductImage==='__remove__' ? null : (pendingProductImage || getProductImage(existing.code));
+    if(existing.code !== newFullCode && getProductImage(existing.code)){ delete productImages[existing.code]; }
+    if(imgVal) productImages[newFullCode] = imgVal; else delete productImages[newFullCode];
+    if(!save(LS_PRODUCT_IMAGES, productImages)){
+      if(imgVal){ delete productImages[newFullCode]; }
+      toast('Product edited successfully but image could not be saved — storage is full. Try deleting old product images.', true);
+    } else {
+      toast('Product edited successfully' + (affectedSales.length > 0 ? ` — ${affectedSales.length} sales record(s) also updated` : ''));
+    }
   }else{
     const desc = assembledDescription();
     const fullCode = comboCode + generateTimestampCode();
     if(!isValidProductCode(fullCode)){ toast('Could not build a valid 20-digit product code'); return; }
     if(findProduct(fullCode)){ toast('A product with this exact code already exists — try again in a moment'); return; }
-    const imgNew = pendingProductImage==='__remove__' ? null : pendingProductImage;
-    if(imgNew){ productImages[fullCode] = imgNew; save(LS_PRODUCT_IMAGES, productImages); }
     products.push({id:uuid(), code:fullCode, name:desc, cost, price, stock, stockCode, updatedAt: Date.now()});
     finalCode = fullCode; finalDesc = desc;
-    toast(`Product added — code ${formatCode(fullCode)}`);
+
+    const imgNew = pendingProductImage==='__remove__' ? null : pendingProductImage;
+    if(imgNew){
+      productImages[fullCode] = imgNew;
+      if(!save(LS_PRODUCT_IMAGES, productImages)){
+        delete productImages[fullCode];
+        toast(`Product added — code ${formatCode(fullCode)} (image could not be saved — storage is full)`, true);
+      } else {
+        toast(`Product added — code ${formatCode(fullCode)}`);
+      }
+    } else {
+      toast(`Product added — code ${formatCode(fullCode)}`);
+    }
   }
   save(LS_PRODUCTS, products);
   pendingProductImage=null; setProductImagePreview(null);
