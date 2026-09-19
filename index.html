@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://accounts.google.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://accounts.google.com/gsi/client" async onload="onGisLoaded()"></script>
+<script src="https://accounts.google.com/gsi/client" async onload="onGisLoaded()" onerror="document.addEventListener('DOMContentLoaded',()=>{const d=document.getElementById('driveStatusText');if(d)d.textContent='Google sign-in failed to load';})"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
@@ -452,6 +452,7 @@
           </div>
           <div class="lookup-hint" id="lookupHint" style="font-size:12px; margin-top:-6px; margin-bottom:10px;"></div>
           <button class="btn btn-primary" id="addToCartBtn">Add to Bill</button>
+          <button class="btn btn-ghost" id="clearItemBtn" style="margin-left:8px;">Clear</button>
         </div>
         <div class="card">
           <h2>Items in this Bill</h2>
@@ -1054,7 +1055,7 @@ const INSTAGRAM_URL = 'https://www.instagram.com/thenagmeena?igsh=MXMxM2lrb2N2YT
 const SEED_STOCK_CODE = 'JC-180726';
 
 function load(key,fallback){ try{ const v=JSON.parse(localStorage.getItem(key)); return v===null||v===undefined?fallback:v; }catch(e){ return fallback; } }
-function save(key,val){ localStorage.setItem(key, JSON.stringify(val)); }
+function save(key,val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){ toast('Storage full — could not save. Try deleting old images or exporting data.', true); throw e; } }
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 function uuid(){ return crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2); }
 
@@ -2735,6 +2736,7 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
   if(!stockCode){ toast('Select a Stock Code'); return; }
 
   let finalCode, finalDesc;
+  const wasEdit = !!editingProductId;
   if(editingProductId){
     const idx = products.findIndex(p=>p.id===editingProductId);
     if(idx<0){ toast('That product no longer exists'); return; }
@@ -2773,22 +2775,24 @@ document.getElementById('saveProductBtn').addEventListener('click', ()=>{
     editingProductId=null;
     document.getElementById('productFormTitle').textContent='Add Product';
     document.getElementById('cancelEditBtn').style.display='none';
-    toast('Product updated' + (affectedSales.length > 0 ? ` — ${affectedSales.length} sales record(s) also updated` : ''));
+    toast('Product edited successfully' + (affectedSales.length > 0 ? ` — ${affectedSales.length} sales record(s) also updated` : ''));
   }else{
     const desc = assembledDescription();
     const fullCode = comboCode + generateTimestampCode();
     if(!isValidProductCode(fullCode)){ toast('Could not build a valid 20-digit product code'); return; }
     if(findProduct(fullCode)){ toast('A product with this exact code already exists — try again in a moment'); return; }
     const imgNew = pendingProductImage==='__remove__' ? null : pendingProductImage;
-    if(imgNew) productImages[fullCode] = imgNew; save(LS_PRODUCT_IMAGES, productImages);
+    if(imgNew){ productImages[fullCode] = imgNew; save(LS_PRODUCT_IMAGES, productImages); }
     products.push({id:uuid(), code:fullCode, name:desc, cost, price, stock, stockCode, updatedAt: Date.now()});
     finalCode = fullCode; finalDesc = desc;
     toast(`Product added — code ${formatCode(fullCode)}`);
   }
   save(LS_PRODUCTS, products);
   pendingProductImage=null; setProductImagePreview(null);
-  document.getElementById('pStock').value=''; document.getElementById('pCost').value='';
-  clearMarginFields(null); marginDriver=null;
+  if(!wasEdit){
+    document.getElementById('pStock').value=''; document.getElementById('pCost').value='';
+    clearMarginFields(null); marginDriver=null;
+  }
   renderProducts();
   showRecentAddedBox(finalCode, finalDesc);
   pushChange();
@@ -3130,6 +3134,10 @@ document.getElementById('addToCartBtn').addEventListener('click', ()=>{
   itemCode.value=''; itemName.value=''; itemSellPrice.value=''; itemSellPrice.dataset.autoFilledFor='';
   document.getElementById('itemQty').value=1; lookupHint.textContent=''; hideStockWarning();
   renderCart();
+});
+document.getElementById('clearItemBtn').addEventListener('click', ()=>{
+  itemCode.value=''; itemName.value=''; itemSellPrice.value=''; itemSellPrice.dataset.autoFilledFor='';
+  document.getElementById('itemQty').value=1; lookupHint.textContent=''; hideStockWarning();
 });
 document.getElementById('clearCartBtn').addEventListener('click', ()=>{ cart=[]; renderCart(); });
 function cartTotal(){ return cart.reduce((s,c)=>s+c.qty*c.price,0); }
@@ -4330,12 +4338,12 @@ function mapError(err){
     'access_denied':'Access to Google Drive was denied.',
     'timeout':'Sign-in timed out — check your Client ID and Authorized JavaScript origins.',
     'no_client':"Drive sync isn't set up yet — add your Google Client ID in Settings.",
-    'token_expired':'Your session expired — reconnecting…','network_error':'No internet connection — working from local data.',
+    'token_expired':'Your session expired — tap Sync Now to reconnect.','network_error':'No internet connection — working from local data.',
     'verify_failed':'Upload could not be verified — please try Sync Now again.',
     'corrupted_json':'The cloud backup looked corrupted, so it was left untouched.',
     'invalid_json':'Local data could not be serialized safely — sync skipped.',
     'upload_failed':'Google Drive did not confirm the upload — please try again.',
-    401:'Session expired — please reconnect Google Drive.',
+    401:'Session expired — tap Sync Now to reconnect.',
     403:'Google Drive denied access — confirm the Drive API is enabled and this origin is authorized.',
     404:'Backup file not found — a new one will be created.', 409:'The Drive file changed elsewhere — merging changes.',
     429:'Google Drive rate limit reached — will retry shortly.', 500:'Google Drive is having issues — will retry shortly.',
@@ -4622,15 +4630,31 @@ async function performSync(trigger){
     localStorage.setItem(LS_CONNECTED,'1');
     setStatus('success', 'Sync successful');
     markSynced(); lastSyncEpoch = Date.now();
-
+    performSync._retried404 = false; performSync._retried401 = false;
   }catch(err){
     console.error('Drive sync error:', err);
-    if(err && err.status === 404 && driveFileId){ driveFileId = null; localStorage.removeItem(LS_DRIVE_FID); }
-    if(trigger==='startup') setStatus('disconnected', 'Working offline — reconnect Drive to sync');
-    else{ setStatus('failed', mapError(err)); toast(mapError(err), true); }
+    let willRetry = false;
+    if(err && err.status === 404 && driveFileId && !performSync._retried404){
+      performSync._retried404 = true;
+      driveFileId = null; localStorage.removeItem(LS_DRIVE_FID);
+      willRetry = true;
+    } else if(err && (err.status === 401 || err.code === 'token_expired') && !performSync._retried401){
+      performSync._retried401 = true;
+      accessToken = null; localStorage.removeItem(LS_TOKEN_EXP);
+      try{ sessionStorage.removeItem('nagmeena_access_token'); }catch(e){}
+      try{ await ensureValidToken(trigger==='manual' || trigger==='connect'); willRetry = true; }
+      catch(e2){ performSync._retried401 = false; }
+    }
+    if(willRetry){
+      syncQueued = trigger;
+    } else {
+      performSync._retried404 = false; performSync._retried401 = false;
+      if(trigger==='startup') setStatus('disconnected', 'Working offline — reconnect Drive to sync');
+      else{ setStatus('failed', mapError(err)); toast(mapError(err), true); }
+    }
   }finally{
     syncInProgress = false; setButtonsBusy(false);
-    if(syncQueued){ syncQueued = false; performSync('auto'); }
+    if(syncQueued){ const retryTrigger = typeof syncQueued === 'string' ? syncQueued : 'auto'; syncQueued = false; performSync(retryTrigger); }
   }
 }
 function pushChange(){ if(!isDriveConnected()) return; performSync('auto'); }
