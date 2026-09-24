@@ -729,8 +729,8 @@
       <p class="sub" style="margin-top:-8px;">Items returned from the Sales Book. Entries from the same invoice are grouped together.</p>
       <div class="sales-scroll-frame lux-table" style="max-height:500px;">
       <div class="table-scroll">
-      <table><thead><tr><th>Invoice</th><th>Return Date</th><th>Customer</th><th>Number</th><th>Return Payment</th><th style="width:40px"></th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Selling</th><th class="num">Refund Amt</th><th>Reason</th><th style="width:40px"></th></tr></thead>
-        <tbody id="returnsBody"><tr class="empty-row"><td colspan="13">No returns recorded yet</td></tr></tbody></table>
+      <table><thead><tr><th>Invoice</th><th>Purchase Date</th><th>Return Date</th><th>Customer</th><th>Number</th><th>Return Payment</th><th style="width:40px"></th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Selling</th><th class="num">Refund Amt</th><th>Reason</th><th style="width:40px"></th></tr></thead>
+        <tbody id="returnsBody"><tr class="empty-row"><td colspan="14">No returns recorded yet</td></tr></tbody></table>
       </div>
       </div>
     </div>
@@ -750,8 +750,6 @@
       <div class="dash-card"><div class="dc-label">Bills Raised</div><div class="dc-value" id="dashBills">0</div></div>
       <div class="dash-card"><div class="dc-label">Total Qty Sold</div><div class="dc-value" id="dashTotalQty">0</div></div>
       <div class="dash-card dc-green"><div class="dc-label">Total Revenue</div><div class="dc-value" id="dashRevenue">₹0</div></div>
-      <div class="dash-card dc-green"><div class="dc-label">Cash Revenue</div><div class="dc-value" id="dashCashRev">₹0</div></div>
-      <div class="dash-card dc-green"><div class="dc-label">UPI Revenue</div><div class="dc-value" id="dashUpiRev">₹0</div></div>
       <div class="dash-card dc-green"><div class="dc-label">Total Profit</div><div class="dc-value" id="dashProfit">₹0</div></div>
       <div class="dash-card"><div class="dc-label">Avg Margin %</div><div class="dc-value" id="dashAvgMargin">0%</div></div>
       <div class="dash-card dc-red"><div class="dc-label">Pending Payments</div><div class="dc-value" id="dashPending">₹0</div></div>
@@ -4164,7 +4162,7 @@ function deleteReturnRow(returnId){
 function renderReturnsTable(){
   const body = document.getElementById('returnsBody');
   if(salesReturns.length===0){
-    body.innerHTML = '<tr class="empty-row"><td colspan="13">No returns recorded yet</td></tr>';
+    body.innerHTML = '<tr class="empty-row"><td colspan="14">No returns recorded yet</td></tr>';
     return;
   }
   const groups = {};
@@ -4180,6 +4178,7 @@ function renderReturnsTable(){
       html+='<tr>';
       if(idx===0){
         html+=`<td class="mono merged-cell" rowspan="${rowspan}">${esc(r.invoice)}</td>`;
+        html+=`<td class="merged-cell" rowspan="${rowspan}">${fmtDate(r.date)}</td>`;
         html+=`<td class="merged-cell" rowspan="${rowspan}">${fmtDate(r.returnDate)}</td>`;
         html+=`<td class="merged-cell" rowspan="${rowspan}">${salesUnmasked ? esc(r.customer||'—') : maskText(r.customer)}</td>`;
         html+=`<td class="mono merged-cell" rowspan="${rowspan}">${salesUnmasked ? esc(r.number||'—') : maskText(r.number)}</td>`;
@@ -4257,8 +4256,6 @@ function renderSalesDashboard(){
   document.getElementById('dashBills').textContent = u ? bills : '••';
   document.getElementById('dashTotalQty').textContent = u ? totalQty : '••';
   document.getElementById('dashRevenue').textContent = u ? money(revenue) : maskMoney();
-  document.getElementById('dashCashRev').textContent = u ? money(cashRev) : maskMoney();
-  document.getElementById('dashUpiRev').textContent = u ? money(upiRev) : maskMoney();
   document.getElementById('dashProfit').textContent = u ? money(profit) : maskMoney();
   document.getElementById('dashAvgMargin').textContent = u ? avgMargin.toFixed(1)+'%' : '••%';
   document.getElementById('dashPending').textContent = u ? money(totalPending) : maskMoney();
