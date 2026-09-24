@@ -724,13 +724,13 @@
 
     <div class="card" style="margin-top:22px;">
       <div class="toolbar">
-        <div class="title">Returns / Replacements</div>
+        <div class="title">Return Table</div>
       </div>
       <p class="sub" style="margin-top:-8px;">Items returned from the Sales Book. Entries from the same invoice are grouped together.</p>
       <div class="sales-scroll-frame lux-table" style="max-height:500px;">
       <div class="table-scroll">
-      <table><thead><tr><th>Invoice</th><th>Return Date</th><th>Customer</th><th>Number</th><th>Return Payment</th><th style="width:40px"></th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Selling</th><th class="num">Refund Amt</th><th>Reason</th></tr></thead>
-        <tbody id="returnsBody"><tr class="empty-row"><td colspan="12">No returns recorded yet</td></tr></tbody></table>
+      <table><thead><tr><th>Invoice</th><th>Return Date</th><th>Customer</th><th>Number</th><th>Return Payment</th><th style="width:40px"></th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Selling</th><th class="num">Refund Amt</th><th>Reason</th><th style="width:40px"></th></tr></thead>
+        <tbody id="returnsBody"><tr class="empty-row"><td colspan="13">No returns recorded yet</td></tr></tbody></table>
       </div>
       </div>
     </div>
@@ -758,6 +758,8 @@
       <div class="dash-card dc-red"><div class="dc-label">Total Returns</div><div class="dc-value" id="dashReturns">0</div></div>
       <div class="dash-card dc-red"><div class="dc-label">Return Refunds</div><div class="dc-value" id="dashReturnAmt">₹0</div></div>
       <div class="dash-card dc-gold"><div class="dc-label">Top Product</div><div class="dc-value" id="dashTopProduct" style="font-size:16px;">—</div></div>
+      <div class="dash-card dc-green"><div class="dc-label">Actual Revenue</div><div class="dc-value" id="dashActualRevenue">₹0</div><div id="dashActualRevenueBreakdown" style="margin-top:4px; font-size:11px; line-height:1.3;"></div></div>
+      <div class="dash-card dc-green"><div class="dc-label">Current Net Balance</div><div class="dc-value" id="dashCNB">₹0</div><div id="dashCNBBreakdown" style="margin-top:4px; font-size:11px; line-height:1.3;"></div></div>
     </div>
 
     <div class="chart-container" id="salesChartContainer">
@@ -4117,11 +4119,52 @@ document.getElementById('returnSaveBtn').addEventListener('click', ()=>{
   pushChange();
 });
 
+/* ===== Delete return entry (restore to sales) ===== */
+function deleteReturnRow(returnId){
+  const r = salesReturns.find(x=>x.id===returnId);
+  if(!r) return;
+  showConfirmModal({
+    title: 'Delete Return Entry',
+    message: 'Are you sure you want to delete the entry?',
+    onYes: ()=>{
+      const ri = salesReturns.findIndex(x=>x.id===returnId);
+      if(ri<0) return;
+      const ret = salesReturns[ri];
+
+      const restoredSale = {
+        id: ret.saleId || uuid(), invoice: ret.invoice, date: ret.date,
+        customer: ret.customer, number: ret.number, code: ret.code,
+        product: ret.product, qty: ret.qty, cost: ret.cost, price: ret.price,
+        revenue: ret.revenue, profit: ret.profit, stockCode: ret.stockCode,
+        paymentMode: ret.originalPaymentMode || 'cash', pendingAmount: 0,
+        updatedAt: Date.now()
+      };
+      sales.push(restoredSale);
+      const ti = saleTombstones.findIndex(t=>t.id===restoredSale.id);
+      if(ti>=0) saleTombstones.splice(ti,1);
+
+      if(ret.reason !== 'Defective'){
+        const p = findProduct(ret.code);
+        if(p){ p.stock = Math.max(0, (p.stock||0) - ret.qty); p.updatedAt = Date.now(); }
+      }
+
+      salesReturns.splice(ri,1);
+      salesReturnTombstones.push({id: returnId, deletedAt: Date.now()});
+
+      save(LS_SALES, sales); save(LS_SALE_TOMB, saleTombstones); save(LS_PRODUCTS, products);
+      save(LS_SALES_RETURNS, salesReturns); save(LS_SALES_RETURN_TOMB, salesReturnTombstones);
+      renderHistory(); renderReturnsTable(); renderProducts(); renderSalesDashboard(); renderPurchaseLedger();
+      toast('Return deleted — sale restored');
+      pushChange();
+    }
+  });
+}
+
 /* ===== Returns table render ===== */
 function renderReturnsTable(){
   const body = document.getElementById('returnsBody');
   if(salesReturns.length===0){
-    body.innerHTML = '<tr class="empty-row"><td colspan="12">No returns recorded yet</td></tr>';
+    body.innerHTML = '<tr class="empty-row"><td colspan="13">No returns recorded yet</td></tr>';
     return;
   }
   const groups = {};
@@ -4150,6 +4193,7 @@ function renderReturnsTable(){
       html+=`<td class="num">${salesUnmasked ? money(r.price) : maskMoney()}</td>`;
       html+=`<td class="num" style="color:var(--burgundy); font-weight:600;">${salesUnmasked ? money(r.revenue) : maskMoney()}</td>`;
       html+=`<td>${esc(r.reason)}</td>`;
+      html+=`<td><button class="row-del" onclick="deleteReturnRow('${r.id}')" title="Delete return">&times;</button></td>`;
       html+='</tr>';
     });
   });
@@ -4221,6 +4265,32 @@ function renderSalesDashboard(){
   document.getElementById('dashReturns').textContent = u ? returnCount : '••';
   document.getElementById('dashReturnAmt').textContent = u ? money(returnRefunds) : maskMoney();
   document.getElementById('dashTopProduct').textContent = u ? (topProduct.length>20 ? topProduct.slice(0,18)+'…' : topProduct) : '••••';
+
+  const cashPendingMap = new Map(); const upiPendingMap = new Map();
+  sales.forEach(s=>{
+    if(s.paymentMode==='cash' && !cashPendingMap.has(s.invoice)) cashPendingMap.set(s.invoice, s.pendingAmount||0);
+    if(s.paymentMode==='upi' && !upiPendingMap.has(s.invoice)) upiPendingMap.set(s.invoice, s.pendingAmount||0);
+  });
+  const actualCash = Math.max(0, cashRev - Array.from(cashPendingMap.values()).reduce((a,b)=>a+b,0));
+  const actualUpi = Math.max(0, upiRev - Array.from(upiPendingMap.values()).reduce((a,b)=>a+b,0));
+  const actualRevenue = Math.max(0, revenue - totalPending);
+
+  const arEl = document.getElementById('dashActualRevenue');
+  const arBreak = document.getElementById('dashActualRevenueBreakdown');
+  if(!u){ arEl.textContent = maskMoney(); arBreak.innerHTML = ''; }
+  else {
+    arEl.textContent = money(actualRevenue);
+    arBreak.innerHTML = `<span style="color:#2E7D32; font-weight:500;">₹${actualCash.toFixed(0)}</span> <span style="color:#6B6357;">cash</span> + <span style="color:#1565C0; font-weight:500;">₹${actualUpi.toFixed(0)}</span> <span style="color:#6B6357;">upi</span>`;
+  }
+
+  const cnbEl = document.getElementById('dashCNB');
+  const cnbBreak = document.getElementById('dashCNBBreakdown');
+  if(!u){ cnbEl.textContent = maskMoney(); cnbBreak.innerHTML = ''; }
+  else {
+    const cnb = computeCNB();
+    cnbEl.textContent = money(cnb.cash + cnb.upi);
+    cnbBreak.innerHTML = `<span style="color:#2E7D32; font-weight:500;">₹${cnb.cash.toFixed(0)}</span> <span style="color:#6B6357;">cash</span> + <span style="color:#1565C0; font-weight:500;">₹${cnb.upi.toFixed(0)}</span> <span style="color:#6B6357;">upi</span>`;
+  }
 
   drawSalesChart();
   drawRevenueChart();
