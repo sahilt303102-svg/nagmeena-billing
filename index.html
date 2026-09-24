@@ -341,6 +341,40 @@
   .lightbox-overlay.show{ display:flex; }
   .lightbox-overlay img{ max-width:90vw; max-height:85vh; border-radius:var(--radius); box-shadow:0 8px 32px rgba(0,0,0,0.5); }
   .lightbox-close{ position:absolute; top:20px; right:28px; background:none; border:none; color:#fff; font-size:32px; cursor:pointer; z-index:10000; }
+
+  /* Return popup */
+  .return-modal-box{ background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--gold-line); border-radius:var(--radius); box-shadow:var(--shadow); padding:26px; width:420px; max-width:96vw; }
+  .return-modal-box h3{ font-family:'Cormorant Garamond',serif; font-size:19px; color:var(--teal); margin:0 0 4px 0; }
+  .return-modal-box p.help{ font-size:11.5px; color:var(--charcoal-muted); margin:2px 0 14px 0; line-height:1.5; }
+
+  /* Sub-tabs inside Sales Book */
+  .sub-tabs{ display:flex; gap:6px; margin-bottom:18px; }
+  .sub-tabs button{ background:var(--beige-soft); border:1px solid var(--line); color:var(--charcoal-muted); padding:8px 18px; font-size:11.5px; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; border-radius:999px; transition:all .22s ease; cursor:pointer; }
+  .sub-tabs button:hover{ border-color:var(--gold-line); color:var(--teal); }
+  .sub-tabs button.active{ background:var(--teal); color:var(--ivory); border-color:var(--teal); box-shadow:0 4px 12px -4px rgba(18,56,50,0.4); }
+  .sub-panel{ display:none; } .sub-panel.active{ display:block; animation:fadeIn .2s ease; }
+
+  /* Sales Dashboard */
+  .dash-cards{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px; }
+  @media (max-width:900px){ .dash-cards{ grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:500px){ .dash-cards{ grid-template-columns:1fr; } }
+  .dash-card{ background:linear-gradient(160deg, #FFFFFF, var(--beige-soft)); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px; box-shadow:var(--shadow-soft); transition:transform .25s ease, box-shadow .25s ease; }
+  .dash-card:hover{ transform:translateY(-2px); box-shadow:var(--shadow); }
+  .dash-card .dc-label{ font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--muted-teal); margin-bottom:6px; }
+  .dash-card .dc-value{ font-family:'Cormorant Garamond',serif; font-size:26px; font-weight:700; color:var(--teal); }
+  .dash-card.dc-green .dc-value{ color:var(--green); }
+  .dash-card.dc-red .dc-value{ color:var(--burgundy); }
+  .dash-card.dc-gold .dc-value{ color:var(--gold); }
+  .chart-container{ position:relative; background:linear-gradient(160deg, #FFFFFF, var(--cream)); border:1px solid var(--line); border-radius:var(--radius); padding:22px 24px 16px; box-shadow:var(--shadow-soft); margin-bottom:22px; }
+  .chart-container canvas{ width:100% !important; height:320px !important; }
+  .chart-header{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+  .chart-header h3{ font-family:'Cormorant Garamond',serif; font-size:19px; font-weight:700; color:var(--teal); margin:0; }
+  .chart-view-btns{ display:flex; gap:6px; }
+  .chart-view-btns button{ background:var(--beige-soft); border:1px solid var(--line); color:var(--charcoal-muted); padding:6px 14px; font-size:10.5px; font-weight:600; letter-spacing:0.4px; text-transform:uppercase; border-radius:999px; transition:all .2s ease; cursor:pointer; }
+  .chart-view-btns button:hover{ border-color:var(--gold-line); color:var(--teal); }
+  .chart-view-btns button.active{ background:var(--teal); color:var(--ivory); border-color:var(--teal); }
+  .dash-masked-overlay{ position:absolute; inset:0; background:rgba(251,247,238,0.85); border-radius:var(--radius); display:flex; align-items:center; justify-content:center; z-index:2; }
+  .dash-masked-overlay span{ font-family:'Cormorant Garamond',serif; font-size:18px; color:var(--charcoal-muted); letter-spacing:1px; }
 </style>
 </head>
 <body>
@@ -383,6 +417,7 @@
     <button class="tab-btn active" data-tab="billing">New Bill</button>
     <button class="tab-btn" data-tab="products">Product Catalog</button>
     <button class="tab-btn" data-tab="history">Sales Book</button>
+    <button class="tab-btn" data-tab="salesdash">Sales Dashboard</button>
     <button class="tab-btn" data-tab="stockacct">Stock Accounting</button>
     <button class="tab-btn" data-tab="contact">Contact Us</button>
     <button class="tab-btn" data-tab="profile">Profile</button>
@@ -686,6 +721,68 @@
       </div>
       </div>
     </div>
+
+    <div class="card" style="margin-top:22px;">
+      <div class="toolbar">
+        <div class="title">Returns / Replacements</div>
+      </div>
+      <p class="sub" style="margin-top:-8px;">Items returned from the Sales Book. Entries from the same invoice are grouped together.</p>
+      <div class="sales-scroll-frame lux-table" style="max-height:500px;">
+      <div class="table-scroll">
+      <table><thead><tr><th>Invoice</th><th>Return Date</th><th>Customer</th><th>Number</th><th>Return Payment</th><th style="width:40px"></th><th>Code</th><th>Description</th><th class="num">Qty</th><th class="num">Selling</th><th class="num">Refund Amt</th><th>Reason</th></tr></thead>
+        <tbody id="returnsBody"><tr class="empty-row"><td colspan="12">No returns recorded yet</td></tr></tbody></table>
+      </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Sales Dashboard ===== -->
+  <section id="panel-salesdash" class="panel">
+    <div class="toolbar" style="margin-bottom:8px;">
+      <div class="title" style="visibility:hidden;">.</div>
+      <div class="actions">
+        <button class="btn btn-ghost btn-sm btn-toggle" id="dashUnmaskBtn">Unmask Data</button>
+      </div>
+    </div>
+
+    <div class="dash-cards" id="dashCards">
+      <div class="dash-card"><div class="dc-label">Total Sales</div><div class="dc-value" id="dashTotalSales">0</div></div>
+      <div class="dash-card"><div class="dc-label">Bills Raised</div><div class="dc-value" id="dashBills">0</div></div>
+      <div class="dash-card"><div class="dc-label">Total Qty Sold</div><div class="dc-value" id="dashTotalQty">0</div></div>
+      <div class="dash-card dc-green"><div class="dc-label">Total Revenue</div><div class="dc-value" id="dashRevenue">₹0</div></div>
+      <div class="dash-card dc-green"><div class="dc-label">Cash Revenue</div><div class="dc-value" id="dashCashRev">₹0</div></div>
+      <div class="dash-card dc-green"><div class="dc-label">UPI Revenue</div><div class="dc-value" id="dashUpiRev">₹0</div></div>
+      <div class="dash-card dc-green"><div class="dc-label">Total Profit</div><div class="dc-value" id="dashProfit">₹0</div></div>
+      <div class="dash-card"><div class="dc-label">Avg Margin %</div><div class="dc-value" id="dashAvgMargin">0%</div></div>
+      <div class="dash-card dc-red"><div class="dc-label">Pending Payments</div><div class="dc-value" id="dashPending">₹0</div></div>
+      <div class="dash-card dc-red"><div class="dc-label">Total Returns</div><div class="dc-value" id="dashReturns">0</div></div>
+      <div class="dash-card dc-red"><div class="dc-label">Return Refunds</div><div class="dc-value" id="dashReturnAmt">₹0</div></div>
+      <div class="dash-card dc-gold"><div class="dc-label">Top Product</div><div class="dc-value" id="dashTopProduct" style="font-size:16px;">—</div></div>
+    </div>
+
+    <div class="chart-container" id="salesChartContainer">
+      <div class="chart-header">
+        <h3>Sales Trend</h3>
+        <div class="chart-view-btns" id="chartViewBtns">
+          <button class="active" data-view="week">Week</button>
+          <button data-view="month">Month</button>
+          <button data-view="year">Year</button>
+        </div>
+      </div>
+      <canvas id="salesChart" width="800" height="320"></canvas>
+    </div>
+
+    <div class="chart-container" id="revenueChartContainer">
+      <div class="chart-header">
+        <h3>Revenue Trend</h3>
+        <div class="chart-view-btns" id="revChartViewBtns">
+          <button class="active" data-view="week">Week</button>
+          <button data-view="month">Month</button>
+          <button data-view="year">Year</button>
+        </div>
+      </div>
+      <canvas id="revenueChart" width="800" height="320"></canvas>
+    </div>
   </section>
 
   <section id="panel-stockacct" class="panel">
@@ -967,6 +1064,36 @@
   </div>
 </div>
 
+<!-- ===== Return / Replace popup ===== -->
+<div class="modal-overlay" id="returnOverlay">
+  <div class="return-modal-box">
+    <h3>Return / Replace</h3>
+    <p class="help" id="returnItemLabel">Item details</p>
+    <div class="field">
+      <label for="returnReasonSelect">Reason</label>
+      <select id="returnReasonSelect">
+        <option value="Defective">Defective</option>
+        <option value="Others">Others</option>
+      </select>
+    </div>
+    <div class="field" id="returnOtherReasonField" style="display:none;">
+      <label for="returnOtherReason">Specify Reason</label>
+      <input type="text" id="returnOtherReason" placeholder="Enter reason…">
+    </div>
+    <div class="field">
+      <label for="returnPaymentSelect">Return Payment Mode</label>
+      <select id="returnPaymentSelect">
+        <option value="cash">Cash</option>
+        <option value="upi">UPI</option>
+      </select>
+    </div>
+    <div style="display:flex; gap:10px; margin-top:20px;">
+      <button class="btn btn-gold" id="returnSaveBtn">Save</button>
+      <button class="btn btn-ghost" id="returnCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== Profile module modals ===== -->
 <div class="modal-overlay" id="addUserOverlay">
   <div class="modal-box">
@@ -1051,7 +1178,8 @@ const LS_PRODUCTS='ledger_products', LS_SALES='ledger_sales', LS_SEQ='ledger_inv
       LS_MERCHANTS='ledger_merchants', LS_MERCHANT_TOMB='ledger_merchant_tombstones',
       LS_STOCK_PURCHASES='ledger_stock_purchases', LS_STOCK_PURCHASE_TOMB='ledger_stock_purchase_tombstones',
       LS_STOCK_RETURNS='ledger_stock_returns', LS_STOCK_RETURN_TOMB='ledger_stock_return_tombstones',
-      LS_PRODUCT_IMAGES='ledger_product_images', LS_IMG_FOLDER_ID='ledger_img_folder_id';
+      LS_PRODUCT_IMAGES='ledger_product_images', LS_IMG_FOLDER_ID='ledger_img_folder_id',
+      LS_SALES_RETURNS='ledger_sales_returns', LS_SALES_RETURN_TOMB='ledger_sales_return_tombstones';
 
 const INSTAGRAM_URL = 'https://www.instagram.com/thenagmeena?igsh=MXMxM2lrb2N2YTZocg==';
 const SEED_STOCK_CODE = 'JC-180726';
@@ -1111,6 +1239,8 @@ let stockPurchases = load(LS_STOCK_PURCHASES, []);
 let stockPurchaseTombstones = load(LS_STOCK_PURCHASE_TOMB, []);
 let stockReturns = load(LS_STOCK_RETURNS, []);
 let stockReturnTombstones = load(LS_STOCK_RETURN_TOMB, []);
+let salesReturns = load(LS_SALES_RETURNS, []);
+let salesReturnTombstones = load(LS_SALES_RETURN_TOMB, []);
 let productImages = load(LS_PRODUCT_IMAGES, {});
 let imageCache = {};
 let imageDriveFolderId = localStorage.getItem(LS_IMG_FOLDER_ID) || null;
@@ -2184,6 +2314,10 @@ function computeCNB(){
   let cash, upi;
   if(cfNB === 0){ cash = ucr; upi = uur; }
   else { cash = cfCash + ucr; upi = cfUpi + uur; }
+  const returnCash = salesReturns.filter(r=>r.returnPaymentMode==='cash').reduce((a,r)=>a+(r.revenue||0),0);
+  const returnUpi = salesReturns.filter(r=>r.returnPaymentMode==='upi').reduce((a,r)=>a+(r.revenue||0),0);
+  cash -= returnCash;
+  upi -= returnUpi;
   return {cash, upi};
 }
 function updateReinvestmentHints(){
@@ -3646,7 +3780,10 @@ document.getElementById('salesUnmaskBtn').addEventListener('click', (e)=>{
   salesUnmasked = !salesUnmasked;
   e.currentTarget.textContent = salesUnmasked ? 'Mask Data' : 'Unmask Data';
   e.currentTarget.classList.toggle('active', salesUnmasked);
+  document.getElementById('dashUnmaskBtn').textContent = salesUnmasked ? 'Mask Data' : 'Unmask Data';
+  document.getElementById('dashUnmaskBtn').classList.toggle('active', salesUnmasked);
   renderHistory();
+  renderReturnsTable();
 });
 function toggleInvoiceEdit(invoiceNo){
   const ids = sales.filter(s=>s.invoice===invoiceNo).map(s=>s.id);
@@ -3922,23 +4059,324 @@ function updateSaleStockCode(id, val){
   toast('Stock code updated');
   pushChange();
 }
+let _pendingReturnSaleId = null;
 function deleteSaleRow(id){
-  if(!confirm('Delete this sale record? Its quantity will be returned to stock.')) return;
-  const idx = sales.findIndex(x=>x.id===id);
-  if(idx<0) return;
+  const s = sales.find(x=>x.id===id);
+  if(!s) return;
+  _pendingReturnSaleId = id;
+  document.getElementById('returnItemLabel').textContent = `${esc(s.product)} (${formatCode(s.code)}) — Qty: ${s.qty}, ₹${(s.revenue||0).toFixed(2)}`;
+  document.getElementById('returnReasonSelect').value = 'Defective';
+  document.getElementById('returnOtherReason').value = '';
+  document.getElementById('returnOtherReasonField').style.display = 'none';
+  document.getElementById('returnPaymentSelect').value = s.paymentMode === 'upi' ? 'upi' : 'cash';
+  document.getElementById('returnOverlay').classList.add('show');
+}
+function closeReturnPopup(){
+  document.getElementById('returnOverlay').classList.remove('show');
+  _pendingReturnSaleId = null;
+}
+document.getElementById('returnReasonSelect').addEventListener('change', (e)=>{
+  document.getElementById('returnOtherReasonField').style.display = e.target.value==='Others' ? 'block' : 'none';
+});
+document.getElementById('returnCancelBtn').addEventListener('click', closeReturnPopup);
+document.getElementById('returnOverlay').addEventListener('click', (e)=>{ if(e.target.id==='returnOverlay') closeReturnPopup(); });
+document.getElementById('returnSaveBtn').addEventListener('click', ()=>{
+  if(!_pendingReturnSaleId) return;
+  const idx = sales.findIndex(x=>x.id===_pendingReturnSaleId);
+  if(idx<0){ closeReturnPopup(); return; }
   const s = sales[idx];
+  const reasonSel = document.getElementById('returnReasonSelect').value;
+  const reason = reasonSel==='Others' ? (document.getElementById('returnOtherReason').value.trim() || 'Other') : 'Defective';
+  const returnPayment = document.getElementById('returnPaymentSelect').value;
+
+  if(reasonSel==='Others'){
+    const p = findProduct(s.code);
+    if(p){ p.stock = (p.stock||0) + s.qty; p.updatedAt = Date.now(); }
+  }
+
+  salesReturns.push({
+    id: uuid(), saleId: s.id, invoice: s.invoice, date: s.date, returnDate: todayStr(),
+    customer: s.customer, number: s.number, code: s.code, product: s.product,
+    qty: s.qty, cost: s.cost, price: s.price, revenue: s.revenue, profit: s.profit,
+    stockCode: s.stockCode, originalPaymentMode: s.paymentMode, returnPaymentMode: returnPayment,
+    reason, updatedAt: Date.now()
+  });
+
   const invoiceNo = s.invoice;
-  const p = findProduct(s.code);
-  if(p){ p.stock = (p.stock||0) + s.qty; p.updatedAt = Date.now(); }
   saleTombstones.push({id:s.id, deletedAt: Date.now()});
   sales.splice(idx,1);
-  editingSaleIds.delete(id);
+  editingSaleIds.delete(_pendingReturnSaleId);
   recalcInvoicePaymentTotals(invoiceNo);
-  save(LS_SALES,sales); save(LS_PRODUCTS, products); save(LS_SALE_TOMB, saleTombstones);
+
+  save(LS_SALES, sales); save(LS_PRODUCTS, products); save(LS_SALE_TOMB, saleTombstones);
+  save(LS_SALES_RETURNS, salesReturns); save(LS_SALES_RETURN_TOMB, salesReturnTombstones);
   cleanupOrphanedImages();
-  renderHistory(); renderProducts(); renderPurchaseLedger();
+  renderHistory(); renderReturnsTable(); renderProducts(); renderPurchaseLedger();
+  closeReturnPopup();
+  toast('Item returned successfully');
   pushChange();
+});
+
+/* ===== Returns table render ===== */
+function renderReturnsTable(){
+  const body = document.getElementById('returnsBody');
+  if(salesReturns.length===0){
+    body.innerHTML = '<tr class="empty-row"><td colspan="12">No returns recorded yet</td></tr>';
+    return;
+  }
+  const groups = {};
+  salesReturns.slice().sort((a,b)=> (b.returnDate||'').localeCompare(a.returnDate||'') || (b.updatedAt||0)-(a.updatedAt||0)).forEach(r=>{
+    if(!groups[r.invoice]) groups[r.invoice]=[];
+    groups[r.invoice].push(r);
+  });
+  let html='';
+  Object.values(groups).forEach(group=>{
+    const first=group[0];
+    const rowspan=group.length;
+    group.forEach((r,idx)=>{
+      html+='<tr>';
+      if(idx===0){
+        html+=`<td class="mono merged-cell" rowspan="${rowspan}">${esc(r.invoice)}</td>`;
+        html+=`<td class="merged-cell" rowspan="${rowspan}">${fmtDate(r.returnDate)}</td>`;
+        html+=`<td class="merged-cell" rowspan="${rowspan}">${salesUnmasked ? esc(r.customer||'—') : maskText(r.customer)}</td>`;
+        html+=`<td class="mono merged-cell" rowspan="${rowspan}">${salesUnmasked ? esc(r.number||'—') : maskText(r.number)}</td>`;
+        html+=`<td class="merged-cell" rowspan="${rowspan}"><span style="color:${r.returnPaymentMode==='upi'?'#1565C0':'#2E7D32'}; font-weight:600;">${capitalizeMode(r.returnPaymentMode)}</span></td>`;
+      }
+      const sThumb=productImageThumb(r.code);
+      html+=`<td><div class="cat-thumb">${sThumb}</div></td>`;
+      html+=`<td class="mono">${esc(formatCode(r.code))}</td>`;
+      html+=`<td>${esc(r.product)}</td>`;
+      html+=`<td class="num">${salesUnmasked ? r.qty : '••'}</td>`;
+      html+=`<td class="num">${salesUnmasked ? money(r.price) : maskMoney()}</td>`;
+      html+=`<td class="num" style="color:var(--burgundy); font-weight:600;">${salesUnmasked ? money(r.revenue) : maskMoney()}</td>`;
+      html+=`<td>${esc(r.reason)}</td>`;
+      html+='</tr>';
+    });
+  });
+  body.innerHTML=html;
+  loadVisibleCloudImages();
 }
+
+/* ===== Sales Dashboard ===== */
+let dashChartView = 'week';
+let revChartView = 'week';
+
+document.getElementById('dashUnmaskBtn').addEventListener('click', (e)=>{
+  salesUnmasked = !salesUnmasked;
+  e.currentTarget.textContent = salesUnmasked ? 'Mask Data' : 'Unmask Data';
+  e.currentTarget.classList.toggle('active', salesUnmasked);
+  document.getElementById('salesUnmaskBtn').textContent = salesUnmasked ? 'Mask Data' : 'Unmask Data';
+  document.getElementById('salesUnmaskBtn').classList.toggle('active', salesUnmasked);
+  renderSalesDashboard();
+  renderHistory();
+});
+
+document.getElementById('chartViewBtns').addEventListener('click', (e)=>{
+  const btn=e.target.closest('button');
+  if(!btn||!btn.dataset.view) return;
+  dashChartView=btn.dataset.view;
+  document.getElementById('chartViewBtns').querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  drawSalesChart();
+});
+document.getElementById('revChartViewBtns').addEventListener('click', (e)=>{
+  const btn=e.target.closest('button');
+  if(!btn||!btn.dataset.view) return;
+  revChartView=btn.dataset.view;
+  document.getElementById('revChartViewBtns').querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  drawRevenueChart();
+});
+
+function renderSalesDashboard(){
+  const u = salesUnmasked;
+  const bills = new Set(sales.map(s=>s.invoice)).size;
+  const totalQty = sales.reduce((a,s)=>a+s.qty,0);
+  const revenue = sales.reduce((a,s)=>a+s.revenue,0);
+  const profit = sales.reduce((a,s)=>a+s.profit,0);
+  const cashRev = sales.filter(s=>s.paymentMode==='cash').reduce((a,s)=>a+s.revenue,0);
+  const upiRev = sales.filter(s=>s.paymentMode==='upi').reduce((a,s)=>a+s.revenue,0);
+  const uniquePending = new Map();
+  sales.forEach(s=>{ if(!uniquePending.has(s.invoice)) uniquePending.set(s.invoice, s.pendingAmount||0); });
+  const totalPending = Array.from(uniquePending.values()).reduce((a,b)=>a+b,0);
+  const avgMargin = revenue ? (profit/revenue)*100 : 0;
+  const returnCount = salesReturns.length;
+  const returnRefunds = salesReturns.reduce((a,r)=>a+r.revenue,0);
+
+  const productQty = {};
+  sales.forEach(s=>{ productQty[s.product] = (productQty[s.product]||0) + s.qty; });
+  let topProduct = '—';
+  let topQty = 0;
+  Object.entries(productQty).forEach(([name,qty])=>{ if(qty>topQty){ topQty=qty; topProduct=name; } });
+
+  document.getElementById('dashTotalSales').textContent = u ? sales.length : '••';
+  document.getElementById('dashBills').textContent = u ? bills : '••';
+  document.getElementById('dashTotalQty').textContent = u ? totalQty : '••';
+  document.getElementById('dashRevenue').textContent = u ? money(revenue) : maskMoney();
+  document.getElementById('dashCashRev').textContent = u ? money(cashRev) : maskMoney();
+  document.getElementById('dashUpiRev').textContent = u ? money(upiRev) : maskMoney();
+  document.getElementById('dashProfit').textContent = u ? money(profit) : maskMoney();
+  document.getElementById('dashAvgMargin').textContent = u ? avgMargin.toFixed(1)+'%' : '••%';
+  document.getElementById('dashPending').textContent = u ? money(totalPending) : maskMoney();
+  document.getElementById('dashReturns').textContent = u ? returnCount : '••';
+  document.getElementById('dashReturnAmt').textContent = u ? money(returnRefunds) : maskMoney();
+  document.getElementById('dashTopProduct').textContent = u ? (topProduct.length>20 ? topProduct.slice(0,18)+'…' : topProduct) : '••••';
+
+  drawSalesChart();
+  drawRevenueChart();
+}
+
+function aggregateByPeriod(view){
+  const buckets = {};
+  const labels = [];
+  const now = new Date();
+
+  if(view==='week'){
+    for(let i=6; i>=0; i--){
+      const d = new Date(now); d.setDate(d.getDate()-i);
+      const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      buckets[key] = {count:0, revenue:0};
+      labels.push({key, label: days[d.getDay()]+' '+d.getDate()});
+    }
+  } else if(view==='month'){
+    for(let i=29; i>=0; i--){
+      const d = new Date(now); d.setDate(d.getDate()-i);
+      const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      buckets[key] = {count:0, revenue:0};
+      labels.push({key, label: String(d.getDate())});
+    }
+  } else {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    for(let i=11; i>=0; i--){
+      const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+      const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      buckets[key] = {count:0, revenue:0};
+      labels.push({key, label: months[d.getMonth()]+' '+String(d.getFullYear()).slice(-2)});
+    }
+  }
+
+  sales.forEach(s=>{
+    if(!s.date) return;
+    let bkey;
+    if(view==='year') bkey = s.date.slice(0,7);
+    else bkey = s.date;
+    if(buckets[bkey]){
+      buckets[bkey].count += s.qty;
+      buckets[bkey].revenue += s.revenue;
+    }
+  });
+
+  return { labels: labels.map(l=>l.label), counts: labels.map(l=>buckets[l.key].count), revenues: labels.map(l=>buckets[l.key].revenue) };
+}
+
+function drawLineChart(canvasId, data, values, color, yLabel, masked){
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const w = rect.width - 48;
+  const h = 280;
+  canvas.width = (w+48) * dpr;
+  canvas.height = (h+40) * dpr;
+  canvas.style.width = (w+48)+'px';
+  canvas.style.height = (h+40)+'px';
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0,0,w+48,h+40);
+
+  const padL=56, padR=16, padT=10, padB=40;
+  const chartW = w+48-padL-padR;
+  const chartH = h-padT-padB;
+
+  if(masked){
+    ctx.fillStyle = 'rgba(251,247,238,0.9)';
+    ctx.fillRect(0,0,w+48,h+40);
+    ctx.font = '500 15px "Cormorant Garamond",serif';
+    ctx.fillStyle = '#6B6357';
+    ctx.textAlign = 'center';
+    ctx.fillText('Unmask data to view chart', (w+48)/2, (h+40)/2);
+    return;
+  }
+
+  const max = Math.max(1, ...values);
+  const step = chartW / Math.max(1, data.length-1);
+
+  ctx.strokeStyle = '#E9DFC7';
+  ctx.lineWidth = 1;
+  for(let i=0; i<=4; i++){
+    const y = padT + (chartH * i / 4);
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL+chartW, y); ctx.stroke();
+    ctx.fillStyle = '#948C7C';
+    ctx.font = '500 10px Inter,sans-serif';
+    ctx.textAlign = 'right';
+    const val = max - (max*i/4);
+    ctx.fillText(val>=1000 ? (val/1000).toFixed(1)+'k' : Math.round(val), padL-8, y+4);
+  }
+
+  const grad = ctx.createLinearGradient(0, padT, 0, padT+chartH);
+  grad.addColorStop(0, color+'33');
+  grad.addColorStop(1, color+'05');
+  ctx.beginPath();
+  ctx.moveTo(padL, padT+chartH);
+  values.forEach((v,i)=>{
+    const x = padL + i*step;
+    const y = padT + chartH - (v/max)*chartH;
+    if(i===0) ctx.lineTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.lineTo(padL + (values.length-1)*step, padT+chartH);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  values.forEach((v,i)=>{
+    const x = padL + i*step;
+    const y = padT + chartH - (v/max)*chartH;
+    if(i===0) ctx.moveTo(x,y);
+    else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  values.forEach((v,i)=>{
+    const x = padL + i*step;
+    const y = padT + chartH - (v/max)*chartH;
+    ctx.beginPath();
+    ctx.arc(x,y,3.5,0,Math.PI*2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  });
+
+  ctx.fillStyle = '#948C7C';
+  ctx.font = '500 9px Inter,sans-serif';
+  ctx.textAlign = 'center';
+  const labelSkip = data.length > 15 ? Math.ceil(data.length/12) : 1;
+  data.forEach((lbl,i)=>{
+    if(i%labelSkip!==0 && i!==data.length-1) return;
+    const x = padL + i*step;
+    ctx.save();
+    ctx.translate(x, padT+chartH+14);
+    ctx.rotate(-0.4);
+    ctx.fillText(lbl, 0, 0);
+    ctx.restore();
+  });
+}
+
+function drawSalesChart(){
+  const agg = aggregateByPeriod(dashChartView);
+  drawLineChart('salesChart', agg.labels, agg.counts, '#123832', 'Qty Sold', !salesUnmasked);
+}
+function drawRevenueChart(){
+  const agg = aggregateByPeriod(revChartView);
+  drawLineChart('revenueChart', agg.labels, agg.revenues, '#3F6656', 'Revenue', !salesUnmasked);
+}
+
 document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{
   if(sales.length===0) return;
   showConfirmModal({
@@ -4150,7 +4588,8 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
-    if(btn.dataset.tab==='history') renderHistory();
+    if(btn.dataset.tab==='history'){ renderHistory(); renderReturnsTable(); }
+    if(btn.dataset.tab==='salesdash') renderSalesDashboard();
     if(btn.dataset.tab==='stockacct') renderPurchaseLedger();
     if(btn.dataset.tab==='contact') renderContacts();
     if(btn.dataset.tab==='profile') renderUserProfileList();
@@ -4296,6 +4735,9 @@ function applyBackupDataAdditive(data){
   const srRes = restoreRowsAdditive(stockReturns, data.stockReturns||[], stockReturnTombstones);
   stockReturns = srRes.merged; addedCount += srRes.addedCount;
 
+  const slrRes = restoreRowsAdditive(salesReturns, data.salesReturns||[], salesReturnTombstones);
+  salesReturns = slrRes.merged; addedCount += slrRes.addedCount;
+
   if(data.cats){
     CAT_KEYS.forEach(key=>{
       if(!data.cats[key]) return;
@@ -4342,10 +4784,11 @@ function applyBackupDataAdditive(data){
   save(LS_MERCHANTS, merchants); save(LS_MERCHANT_TOMB, merchantTombstones);
   save(LS_STOCK_PURCHASES, stockPurchases); save(LS_STOCK_PURCHASE_TOMB, stockPurchaseTombstones);
   save(LS_STOCK_RETURNS, stockReturns); save(LS_STOCK_RETURN_TOMB, stockReturnTombstones);
+  save(LS_SALES_RETURNS, salesReturns); save(LS_SALES_RETURN_TOMB, salesReturnTombstones);
   CAT_KEYS.forEach(populateSelect);
   populatePurchaseCatSelect(); populateMerchantSelect(); populateReturnCodeSelect(); populateProductStockCodeSelect();
   renderPurchaseLedger();
-  renderProducts(); renderHistory(); renderContacts(); renderUserProfileList();
+  renderProducts(); renderHistory(); renderReturnsTable(); renderContacts(); renderUserProfileList();
   pushChange();
   return addedCount;
 }
@@ -4579,6 +5022,7 @@ function buildLocalPayload(){
     users, userTombstones,
     purchaseCategories, purchaseCategoryTombstones, merchants, merchantTombstones,
     stockPurchases, stockPurchaseTombstones, stockReturns, stockReturnTombstones,
+    salesReturns, salesReturnTombstones,
     seq: parseInt(localStorage.getItem(LS_SEQ)||'0',10), timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID
   };
 }
@@ -4597,7 +5041,8 @@ function hashPayload(data){
     purchaseCategories:data.purchaseCategories, purchaseCategoryTombstones:data.purchaseCategoryTombstones,
     merchants:data.merchants, merchantTombstones:data.merchantTombstones,
     stockPurchases:data.stockPurchases, stockPurchaseTombstones:data.stockPurchaseTombstones,
-    stockReturns:data.stockReturns, stockReturnTombstones:data.stockReturnTombstones
+    stockReturns:data.stockReturns, stockReturnTombstones:data.stockReturnTombstones,
+    salesReturns:data.salesReturns, salesReturnTombstones:data.salesReturnTombstones
   });
   let h = 0; for(let i=0;i<str.length;i++){ h = (Math.imul(31,h) + str.charCodeAt(i)) | 0; } return h;
 }
@@ -4648,6 +5093,7 @@ function mergeData(local, cloud){
   const cloudMerchants = normalizeRows(cloud.merchants), localMerchants = normalizeRows(local.merchants);
   const cloudStockPurchases = normalizeRows(cloud.stockPurchases), localStockPurchases = normalizeRows(local.stockPurchases);
   const cloudStockReturns = normalizeRows(cloud.stockReturns), localStockReturns = normalizeRows(local.stockReturns);
+  const cloudSalesReturns = normalizeRows(cloud.salesReturns), localSalesReturns = normalizeRows(local.salesReturns);
 
   const pMerge = mergeRows(localProducts, cloudProducts, local.productTombstones||[], cloud.productTombstones||[]);
   const sMerge = mergeRows(localSales, cloudSales, local.saleTombstones||[], cloud.saleTombstones||[]);
@@ -4658,6 +5104,7 @@ function mergeData(local, cloud){
   const mMerge = mergeRows(localMerchants, cloudMerchants, local.merchantTombstones||[], cloud.merchantTombstones||[]);
   const spMerge = mergeRows(localStockPurchases, cloudStockPurchases, local.stockPurchaseTombstones||[], cloud.stockPurchaseTombstones||[]);
   const srMerge = mergeRows(localStockReturns, cloudStockReturns, local.stockReturnTombstones||[], cloud.stockReturnTombstones||[]);
+  const slrMerge = mergeRows(localSalesReturns, cloudSalesReturns, local.salesReturnTombstones||[], cloud.salesReturnTombstones||[]);
 
   const mergedImages = {};
   const allImgCodes = new Set([...Object.keys(cloud.productImages||{}), ...Object.keys(local.productImages||{})]);
@@ -4682,6 +5129,7 @@ function mergeData(local, cloud){
     merchants: mMerge.rows, merchantTombstones: mMerge.tombstones,
     stockPurchases: spMerge.rows, stockPurchaseTombstones: spMerge.tombstones,
     stockReturns: srMerge.rows, stockReturnTombstones: srMerge.tombstones,
+    salesReturns: slrMerge.rows, salesReturnTombstones: slrMerge.tombstones,
     cats: mergeCategoryData(local.cats, cloud.cats),
     seq: Math.max(local.seq||0, cloud.seq||0),
     timestamp: Date.now(), version: DATA_VERSION, deviceId: DEVICE_ID
@@ -4698,6 +5146,7 @@ function applyRemoteData(data){
   merchants = data.merchants || []; merchantTombstones = data.merchantTombstones || [];
   stockPurchases = data.stockPurchases || []; stockPurchaseTombstones = data.stockPurchaseTombstones || [];
   stockReturns = data.stockReturns || []; stockReturnTombstones = data.stockReturnTombstones || [];
+  salesReturns = data.salesReturns || []; salesReturnTombstones = data.salesReturnTombstones || [];
   const prevImages = productImages;
   productImages = {};
   Object.entries(data.productImages||{}).forEach(([c,v])=>{
@@ -4724,10 +5173,11 @@ function applyRemoteData(data){
   save(LS_MERCHANTS, merchants); save(LS_MERCHANT_TOMB, merchantTombstones);
   save(LS_STOCK_PURCHASES, stockPurchases); save(LS_STOCK_PURCHASE_TOMB, stockPurchaseTombstones);
   save(LS_STOCK_RETURNS, stockReturns); save(LS_STOCK_RETURN_TOMB, stockReturnTombstones);
+  save(LS_SALES_RETURNS, salesReturns); save(LS_SALES_RETURN_TOMB, salesReturnTombstones);
   CAT_KEYS.forEach(populateSelect);
   populatePurchaseCatSelect(); populateMerchantSelect(); populateReturnCodeSelect(); populateProductStockCodeSelect();
   renderPurchaseLedger();
-  renderProducts(); renderHistory(); renderContacts(); renderUserProfileList();
+  renderProducts(); renderHistory(); renderReturnsTable(); renderContacts(); renderUserProfileList();
 }
 function markSynced(){ localStorage.setItem(LS_SYNCED, new Date().toLocaleString()); }
 
@@ -4873,7 +5323,7 @@ populateReturnCodeSelect();
 populateProductStockCodeSelect();
 updateReinvestmentHints();
 renderPurchaseLedger();
-renderCart(); renderProducts(); renderHistory(); renderContacts(); renderUserProfileList();
+renderCart(); renderProducts(); renderHistory(); renderReturnsTable(); renderContacts(); renderUserProfileList();
 updateCustNameSuggestions();
 </script>
 </body>
