@@ -2314,10 +2314,16 @@ function computeCNB(){
   let cash, upi;
   if(cfNB === 0){ cash = ucr; upi = uur; }
   else { cash = cfCash + ucr; upi = cfUpi + uur; }
-  const returnCash = salesReturns.filter(r=>r.returnPaymentMode==='cash').reduce((a,r)=>a+(r.revenue||0),0);
-  const returnUpi = salesReturns.filter(r=>r.returnPaymentMode==='upi').reduce((a,r)=>a+(r.revenue||0),0);
-  cash -= returnCash;
-  upi -= returnUpi;
+  salesReturns.forEach(r=>{
+    const origMode = r.originalPaymentMode || 'cash';
+    const retMode = r.returnPaymentMode || origMode;
+    if(origMode !== retMode){
+      if(origMode==='cash') cash += (r.revenue||0);
+      else if(origMode==='upi') upi += (r.revenue||0);
+      if(retMode==='cash') cash -= (r.revenue||0);
+      else if(retMode==='upi') upi -= (r.revenue||0);
+    }
+  });
   return {cash, upi};
 }
 function updateReinvestmentHints(){
