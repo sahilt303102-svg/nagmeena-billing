@@ -2298,22 +2298,19 @@ function computeCNB(){
   const cfEntries = stockPurchases.filter(sp=>!sp.isSeed)
     .slice().sort((a,b)=> a.date.localeCompare(b.date) || (a.updatedAt||0)-(b.updatedAt||0));
   const cfFloor = '2026-07-16';
-  let cfCash = 0, cfUpi = 0, cfNB = 0, cfLastDate = cfFloor;
+  let cfCash = 0, cfUpi = 0, cfLastDate = cfFloor;
   cfEntries.forEach((sp,idx)=>{
     const prevDate = idx===0 ? cfFloor : cfEntries[idx-1].date;
     const ci = sales.filter(s=> s.paymentMode==='cash' && s.date > prevDate && s.date <= sp.date).reduce((t,s)=>t+(s.revenue||0),0);
     const ui = sales.filter(s=> s.paymentMode==='upi' && s.date > prevDate && s.date <= sp.date).reduce((t,s)=>t+(s.revenue||0),0);
     cfCash += ci - (sp.cashIn||0);
     cfUpi += ui - (sp.upiIn||0);
-    cfNB = Math.max(0, cfCash + cfUpi - (sp.capitalInvestment||0));
     cfLastDate = sp.date;
   });
   const today = todayStr();
   const ucr = sales.filter(s=> s.paymentMode==='cash' && s.date > cfLastDate && s.date <= today).reduce((t,s)=>t+(s.revenue||0),0);
   const uur = sales.filter(s=> s.paymentMode==='upi' && s.date > cfLastDate && s.date <= today).reduce((t,s)=>t+(s.revenue||0),0);
-  let cash, upi;
-  if(cfNB === 0){ cash = ucr; upi = uur; }
-  else { cash = cfCash + ucr; upi = cfUpi + uur; }
+  let cash = cfCash + ucr, upi = cfUpi + uur;
   salesReturns.forEach(r=>{
     const origMode = r.originalPaymentMode || 'cash';
     const retMode = r.returnPaymentMode || origMode;
