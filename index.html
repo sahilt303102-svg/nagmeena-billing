@@ -2384,6 +2384,7 @@ document.getElementById('saveStockPurchaseBtn').addEventListener('click', ()=>{
 
   const cat = purchaseCategories[parseInt(catSel.value,10)];
   const m = merchants[parseInt(merchSel.value,10)];
+  const wasEditing = !!editingPurchaseId;
 
   if(editingPurchaseId){
     const idx = stockPurchases.findIndex(sp=>sp.id===editingPurchaseId);
@@ -2412,7 +2413,7 @@ document.getElementById('saveStockPurchaseBtn').addEventListener('click', ()=>{
     toast(`Stock purchase saved — code ${stockCode}`);
   }
   save(LS_STOCK_PURCHASES, stockPurchases);
-  if(!trySaveReturn(stockCode, m)) return;
+  if(!trySaveReturn(stockCode, m, wasEditing)) return;
   resetStockPurchaseForm();
   resetStockReturnForm();
   renderPurchaseLedger();
@@ -2518,14 +2519,34 @@ function resetStockReturnForm(){
   document.getElementById('stockReturnAmount').value='';
   populateReturnCodeSelect();
 }
-function trySaveReturn(stockCode, merchant){
+function trySaveReturn(stockCode, merchant, isEdit){
   const sel = document.getElementById('returnCodeSelect');
   const qtyStr = document.getElementById('stockReturnQty').value;
   const amtStr = document.getElementById('stockReturnAmount').value;
+  const retCode = sel.value || stockCode;
+
+  if(isEdit){
+    if(!qtyStr && !amtStr){
+      stockReturns = stockReturns.filter(r=>r.stockCode!==retCode);
+      save(LS_STOCK_RETURNS, stockReturns);
+      return true;
+    }
+    const qty = parseInt(qtyStr,10);
+    const amount = parseFloat(amtStr);
+    if(isNaN(qty) || qty<1){ toast('Enter a valid return quantity', true); return false; }
+    if(isNaN(amount) || amount<0){ toast('Enter a valid return amount', true); return false; }
+    const sp = stockPurchases.find(x=>x.stockCode===retCode);
+    const purchased = sp ? sp.qty : 0;
+    if(qty > purchased){ toast(`Cannot return more than purchased (${purchased} bought)`, true); return false; }
+    stockReturns = stockReturns.filter(r=>r.stockCode!==retCode);
+    stockReturns.push({id:uuid(), stockCode:retCode, qty, amount, merchantId:merchant.id, merchantName:merchant.name, merchantCode:merchant.code, date:todayStr(), updatedAt:Date.now()});
+    save(LS_STOCK_RETURNS, stockReturns);
+    return true;
+  }
+
   if(!qtyStr && !amtStr) return true;
   const qty = parseInt(qtyStr,10);
   const amount = parseFloat(amtStr);
-  const retCode = sel.value || stockCode;
   if(isNaN(qty) || qty<1){ toast('Enter a valid return quantity', true); return false; }
   if(isNaN(amount) || amount<0){ toast('Enter a valid return amount', true); return false; }
   const sp = stockPurchases.find(x=>x.stockCode===retCode);
