@@ -2526,9 +2526,12 @@ function trySaveReturn(stockCode, merchant, isEdit){
   const retCode = sel.value || stockCode;
 
   if(isEdit){
+    const existing = stockReturns.filter(r=>r.stockCode===retCode);
     if(!qtyStr && !amtStr){
+      existing.forEach(r=> stockReturnTombstones.push({id:r.id, deletedAt:Date.now()}));
       stockReturns = stockReturns.filter(r=>r.stockCode!==retCode);
       save(LS_STOCK_RETURNS, stockReturns);
+      save(LS_STOCK_RETURN_TOMB, stockReturnTombstones);
       return true;
     }
     const qty = parseInt(qtyStr,10);
@@ -2538,9 +2541,16 @@ function trySaveReturn(stockCode, merchant, isEdit){
     const sp = stockPurchases.find(x=>x.stockCode===retCode);
     const purchased = sp ? sp.qty : 0;
     if(qty > purchased){ toast(`Cannot return more than purchased (${purchased} bought)`, true); return false; }
-    stockReturns = stockReturns.filter(r=>r.stockCode!==retCode);
-    stockReturns.push({id:uuid(), stockCode:retCode, qty, amount, merchantId:merchant.id, merchantName:merchant.name, merchantCode:merchant.code, date:todayStr(), updatedAt:Date.now()});
+    if(existing.length > 0){
+      const keep = existing[0];
+      existing.slice(1).forEach(r=> stockReturnTombstones.push({id:r.id, deletedAt:Date.now()}));
+      stockReturns = stockReturns.filter(r=> r.stockCode!==retCode || r.id===keep.id);
+      Object.assign(keep, {qty, amount, merchantId:merchant.id, merchantName:merchant.name, merchantCode:merchant.code, date:todayStr(), updatedAt:Date.now()});
+    } else {
+      stockReturns.push({id:uuid(), stockCode:retCode, qty, amount, merchantId:merchant.id, merchantName:merchant.name, merchantCode:merchant.code, date:todayStr(), updatedAt:Date.now()});
+    }
     save(LS_STOCK_RETURNS, stockReturns);
+    save(LS_STOCK_RETURN_TOMB, stockReturnTombstones);
     return true;
   }
 
