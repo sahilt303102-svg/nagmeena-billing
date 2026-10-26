@@ -2703,18 +2703,33 @@ function renderCashFlowLedger(){
       <td class="num cf-upi" style="font-weight:700;">${money(pnsUB)}</td>
     </tr>`});
   });
+  let hasRetAdj = false;
+  salesReturns.forEach(r=>{
+    const origMode = r.originalPaymentMode || 'cash';
+    const retMode = r.returnPaymentMode || origMode;
+    if(origMode !== retMode){
+      hasRetAdj = true;
+      if(origMode==='cash') runCash += (r.revenue||0);
+      else if(origMode==='upi') runUpi += (r.revenue||0);
+      if(retMode==='cash') runCash -= (r.revenue||0);
+      else if(retMode==='upi') runUpi -= (r.revenue||0);
+    }
+  });
   const today = todayStr();
   const lastDate = entries.length > 0 ? entries[entries.length-1].date : floor;
   const ucCI = sales.filter(s=> s.paymentMode==='cash' && s.date > lastDate && s.date <= today).reduce((sum,s)=> sum + (s.revenue||0), 0);
   const ucUI = sales.filter(s=> s.paymentMode==='upi' && s.date > lastDate && s.date <= today).reduce((sum,s)=> sum + (s.revenue||0), 0);
-  if(ucCI > 0 || ucUI > 0){
+  if(ucCI > 0 || ucUI > 0 || hasRetAdj){
     const ucCB = runCash + ucCI;
     const ucUB = runUpi + ucUI;
     const sno = entries.length + 1;
-    const ucLabel = `Uncaptured Revenue <span style="font-size:10px; color:var(--charcoal-muted);">(${fmtDate(lastDate)} → ${fmtDate(today)})</span>`;
+    const ucLabel = (ucCI > 0 || ucUI > 0)
+      ? `Uncaptured Revenue <span style="font-size:10px; color:var(--charcoal-muted);">(${fmtDate(lastDate)} → ${fmtDate(today)})</span>`
+      : `Returns Adjustment`;
+    const ucDesc = (ucCI > 0 || ucUI > 0) ? 'Sales after latest purchase entry' : 'Cross-mode return adjustment';
     blocks.push({idx: entries.length, html:`<tr class="cf-ob __ALT__">
       <td rowspan="2" class="cf-span" style="font-weight:700; text-align:center; font-size:13px;">${sno}</td>
-      <td rowspan="2" class="cf-span" colspan="4" style="font-weight:500; font-style:italic; color:var(--charcoal-muted);">Sales after latest purchase entry</td>
+      <td rowspan="2" class="cf-span" colspan="4" style="font-weight:500; font-style:italic; color:var(--charcoal-muted);">${ucDesc}</td>
       <td rowspan="2" class="cf-span num cf-val">—</td>
       <td rowspan="2" class="cf-span num">—</td>
       <td rowspan="2" class="cf-span num">—</td>
